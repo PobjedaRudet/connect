@@ -403,6 +403,15 @@
                 0 => '*',
             ),
         ),
+        'laravel/breeze' => array(
+            'pretty_version' => 'v2.3.6',
+            'version' => '2.3.6.0',
+            'reference' => '390cbc433cb72fa6050965000b2d56c9ba6fd713',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../laravel/breeze',
+            'aliases' => array(),
+            'dev_requirement' => true,
+        ),
         'laravel/fortify' => array(
             'pretty_version' => 'v1.25.4',
             'version' => '1.25.4.0',
