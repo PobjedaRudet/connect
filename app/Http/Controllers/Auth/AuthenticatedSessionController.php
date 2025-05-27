@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -32,6 +33,30 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+        $redirect = $request->input('redirect', 'dashboard');
+
+        /* $user = Auth::user();
+        if ($user->current_team_id == 1) {
+            return redirect('/ppz/dashboard');
+        }
+        if ($user->current_team_id == 2) {
+            return redirect('/prodaja/dashboard');
+        } */
+        Log:
+        info($request->all());
+        Log::info($redirect);
+
+
+
+        if ($redirect === 'ppz i znr') {
+            return redirect('/ppz/dashboard');
+        }
+
+
+        if ($redirect === 'sales') {
+            return redirect('/prodaja/dashboard');
+        }
+
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

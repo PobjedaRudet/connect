@@ -21,6 +21,14 @@ Route::get('/', function () {
     ]);
 });
 
+Route::get('/ppz/dashboard', function () {
+    return Inertia::render('PPZ/Dashboad');
+})->name('ppz.dashboard');
+
+Route::get('/prodaja/dashboard', function () {
+    return Inertia::render('Prodaja/Dashboard');
+})->name('prodaja.dashboard');
+
 Route::get('/private', function () {
     return Inertia::render('PrivacyPolicy');})->name('private');
 

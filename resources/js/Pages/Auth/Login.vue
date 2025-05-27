@@ -6,6 +6,7 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ref, onMounted } from 'vue';
 
 defineProps({
     canResetPassword: {
@@ -20,6 +21,12 @@ const form = useForm({
     email: '',
     password: '',
     remember: false,
+    redirect: '', // Dodaj redirect polje
+});
+
+onMounted(() => {
+    const params = new URLSearchParams(window.location.search);
+    form.redirect = params.get('redirect') || '';
 });
 
 const submit = () => {
@@ -77,6 +84,9 @@ const submit = () => {
                     >
                 </label>
             </div>
+
+            <!-- Hidden redirect polje -->
+            <input type="hidden" name="redirect" :value="form.redirect" />
 
             <div class="mt-4 flex items-center justify-end">
                 <Link

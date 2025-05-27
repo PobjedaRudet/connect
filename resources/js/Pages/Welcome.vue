@@ -1,5 +1,13 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
+import { ref, onMounted } from 'vue';
+
+const redirect = ref('');
+
+onMounted(() => {
+    const params = new URLSearchParams(window.location.search);
+    redirect.value = params.get('redirect') || '';
+});
 
 // SVG ikone za sektore
 const sectors = [
@@ -49,7 +57,7 @@ const sectors = [
         <!-- Header with logo -->
         <header class="w-full flex items-center justify-between px-6 py-4 bg-white dark:bg-gray-900 shadow">
             <div class="flex items-center">
-                <img src="https://pobjeda.com/images/logo-blog.png" alt="Logo" class="h-12 w-auto" />
+                <img src="https://pobjeda.com/images/logo-blog.png" alt="Logo" class="h-16 w-auto" />
             </div>
             <div class="flex-1 flex justify-center">
                 <span class="text-xl font-bold text-black dark:text-white">Pobjeda-Rudet Connect</span>
@@ -60,19 +68,17 @@ const sectors = [
             </div>
         </header>
         <!-- Centered grid with sectors -->
-        <main class="flex-1 flex items-center justify-center">
-            <div class="grid gap-8 lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1">
-                <div v-for="sector in sectors" :key="sector.name"
-                    class="bg-white dark:bg-gray-900 rounded shadow p-8 flex flex-col items-center hover:shadow-lg transition">
-                    <Link href="/login" class="flex flex-col items-center group">
-                    <span v-html="sector.icon"></span>
-                    <span class="mt-4 text-lg font-semibold group-hover:text-[#FF2D20] transition">{{ sector.name
-                        }}</span>
-                    <span class="mt-2 text-sm text-gray-500 dark:text-gray-400 text-center">{{ sector.description
-                        }}</span>
-                    </Link>
-                </div>
-            </div>
-        </main>
+       <main class="flex-1 flex items-center justify-center">
+    <div class="grid gap-8 lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1">
+        <div v-for="sector in sectors" :key="sector.name"
+            class="bg-white dark:bg-gray-900 rounded shadow p-8 flex flex-col items-center hover:shadow-lg transition">
+            <Link :href="`/login?redirect=${encodeURIComponent(sector.name.toLowerCase())}`" class="flex flex-col items-center group">
+                <span v-html="sector.icon"></span>
+                <span class="mt-4 text-lg font-semibold group-hover:text-[#FF2D20] transition">{{ sector.name }}</span>
+                <span class="mt-2 text-sm text-gray-500 dark:text-gray-400 text-center">{{ sector.description }}</span>
+            </Link>
+        </div>
+    </div>
+</main>
     </div>
 </template>
