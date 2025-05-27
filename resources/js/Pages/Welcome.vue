@@ -68,7 +68,7 @@ function handleImageError() {
                                 :href="route('login')"
                                 class="rounded-md px-3 py-2 text-black ring-1 ring-transparent transition hover:text-black/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
                             >
-                                Log in2
+                                Log in
                             </Link>
 
                             <Link
@@ -196,7 +196,7 @@ function handleImageError() {
                                 <h2
                                     class="text-xl font-semibold text-black dark:text-white"
                                 >
-                                     Neira,iskrene čestitke na uspješno odbranjenom magistarskom radu! Vaš trud, znanje i posvećenost su se isplatili.
+                                     Neira,iskrene čestitke na uspješno odbranjenom magistarskom radu! Tvoj trud, znanje i posvećenost su se isplatili.
                                 </h2>
 
                                 <p class="mt-4 text-sm/relaxed">
