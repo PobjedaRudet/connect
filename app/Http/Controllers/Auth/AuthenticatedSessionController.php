@@ -52,7 +52,6 @@ class AuthenticatedSessionController extends Controller
             return redirect('/ppz/dashboard');
         }
 
-
         if ($redirect === 'sales') {
             return redirect('/prodaja/dashboard');
         }
