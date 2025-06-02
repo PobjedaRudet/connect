@@ -50,9 +50,9 @@ class PreglediController extends Controller
             $lastExam = $employee->pregledi->first();
             if (!$lastExam || !$employee->period) continue;
 
-            $nextDue = Carbon::parse($lastExam->datum_pregleda)->addMonths($employee->period);
+            $nextDue = Carbon::parse($lastExam->datum_pregleda)->addMonths((int)$employee->period);
 
-            Log::info('Processing employee', ['id' => $employee->id, 'name' => $employee->firstName . ' ' . $employee->lastName]);
+            Log::info('Processing employee', ['id' => $employee->id, 'name' => $employee->firstName . ' ' . $employee->lastName, 'radno_mjesto' => $employee->radno_mjesto]);
             Log::info('Last exam date', ['date' => $lastExam->datum_pregleda]);
             Log::info('Next due date', ['next_due' => $nextDue]);
 

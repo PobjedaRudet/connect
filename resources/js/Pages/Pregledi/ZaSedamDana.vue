@@ -12,8 +12,8 @@
       <tbody>
         <tr v-for="(item, index) in upcoming" :key="'upcoming-' + index">
           <td class="border px-4 py-2">{{ item.employee.firstName }} {{ item.employee.lastName }}</td>
-          <td class="border px-4 py-2">{{ item.employee.jobTitle }}</td>
-          <td class="border px-4 py-2">{{ formatDate(item.next_due) }}</td>
+               <td class="border px-4 py-2">{{ item.employee.radno_mjesto}} </td>
+          <td class="border px-4 py-2 text-red-600 text-center">{{ formatDate(item.next_due) }}</td>
         </tr>
       </tbody>
     </table>
@@ -30,8 +30,8 @@
       <tbody>
         <tr v-for="(item, index) in expired" :key="'expired-' + index">
           <td class="border px-4 py-2">{{ item.employee.firstName }} {{ item.employee.lastName }}</td>
-          <td class="border px-4 py-2">{{ item.employee.jobTitle }}</td>
-          <td class="border px-4 py-2 text-red-600">{{ formatDate(item.next_due) }}</td>
+          <td class="border px-4 py-2">{{ item.employee.radno_mjesto}} </td>
+          <td class="border px-4 py-2 text-red-600 text-center">{{ formatDate(item.next_due) }}</td>
         </tr>
       </tbody>
     </table>
