@@ -5,7 +5,13 @@ const options = [
     {
         name: 'Ljekarski pregledi',
         description: 'Pregled i evidencija ljekarskih pregleda radnika.',
-        link: '/ppz/ljekarski-pregledi',
+        link: route('pregledi.index'),
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /></svg>`
+    },
+     {
+        name: 'Ljekarski pregledi 7 dana',
+        description: 'Pregled i evidencija ljekarskih pregleda radnika.',
+        link: route('pregledi.upcoming'),
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /></svg>`
     },
     {
@@ -33,6 +39,7 @@ const options = [
     <Head title="PPZ Dashboard" />
     <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-black">
         <h1 class="text-2xl font-bold mb-8 text-center text-black dark:text-white">PPZ Dashboard</h1>
+
         <div class="grid gap-8 lg:grid-cols-2 md:grid-cols-2 sm:grid-cols-1">
             <div
                 v-for="option in options"
@@ -47,4 +54,5 @@ const options = [
             </div>
         </div>
     </div>
+
 </template>

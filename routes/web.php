@@ -4,10 +4,16 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\PassController;
+use App\Http\Controllers\PreglediController;
 use App\Http\Controllers\ProfileController;
+use App\Models\Employee;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+
+
 
 
 
@@ -30,11 +36,15 @@ Route::get('/prodaja/dashboard', function () {
 })->name('prodaja.dashboard');
 
 Route::get('/private', function () {
-    return Inertia::render('PrivacyPolicy');})->name('private');
+    return Inertia::render('PrivacyPolicy');
+})->name('private');
 
- Route::get('/dashboard', function () {
+Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::get('/pregledi/index', [PreglediController::class, 'index'])->name('pregledi.index');
+Route::get('/pregledi/upcoming', [PreglediController::class, 'reportUpcoming'])->name('pregledi.upcoming');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -46,4 +56,4 @@ Route::middleware('auth')->group(function () {
     Route::resource('leaves', LeaveController::class);
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';
