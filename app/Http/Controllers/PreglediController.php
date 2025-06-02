@@ -33,7 +33,7 @@ class PreglediController extends Controller
     public function reportUpcoming()
     {
         $today = Carbon::today();
-        $nextWeek = $today->copy()->addDays(7);
+        $nextWeek = $today->copy()->addDays(30);
 
         $employees = Employee::whereHas('pregledi') // samo oni koji imaju barem jedan pregled
             ->with(['pregledi' => function ($query) {
