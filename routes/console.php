@@ -10,9 +10,6 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('app:send-upcoming-exams-mail')
-     ->everyFiveMinutes()
-    ->description('Test schedule');
+    ->monthlyOn(3, '11:31') // 1st day of the month at midnight
+    ->description('Mjesečni izvještaj o nadolazećim i isteklih ljekarskim pregledima');
 
-Schedule::command('app:test-schedule')
-    ->everyFiveMinutes()
-    ->description('Test novi');

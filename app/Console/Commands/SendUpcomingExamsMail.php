@@ -32,7 +32,7 @@ class SendUpcomingExamsMail extends Command
     {
         Log::info('Pokrenuta komanda za pregled - ' . now());
         $today = Carbon::today();
-        $nextWeek = $today->copy()->addDays(30);
+        $nextWeek = $today->copy()->addDays($today->diffInDays($today->copy()->endOfMonth()));
 
         $employees = Employee::whereHas('pregledi')
             ->with(['pregledi' => fn ($q) => $q->orderByDesc('datum_pregleda')->limit(1)])

@@ -4,7 +4,7 @@
     <title>Ljekarski pregledi</title>
 </head>
 <body>
-    <h2>📅 Nadolazeći pregledi u narednih 7 dana</h2>
+    <h2>📅 Nadolazeći pregledi u ovom mjesecu</h2>
 
     @if(count($upcoming))
         <ul>
@@ -17,7 +17,7 @@
         @endforeach
         </ul>
     @else
-        <p>Nema pregleda u narednih 7 dana.</p>
+        <p>Nema pregleda u ovom mjesecu.</p>
     @endif
 
     <hr>
