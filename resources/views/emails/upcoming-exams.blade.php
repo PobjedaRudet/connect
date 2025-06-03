@@ -21,10 +21,10 @@
     @endphp
 
     @if(count($upcomingSorted))
-        <ul>
+        <ul style="list-style-type: none; padding-left: 0;">
         @foreach($upcomingSorted as $index => $item)
             <li>
-                {{ $index + 1 }}. {{ $item['employee']->lastName }} {{ $item['employee']->firstName }},
+                {{ $index + 1 }} {{ $item['employee']->lastName }} {{ $item['employee']->firstName }},
                 pozicija: {{ $item['employee']->radno_mjesto }},
                 pregled do: {{ \Carbon\Carbon::parse($item['next_due'])->format('d.m.Y') }}
             </li>
@@ -39,10 +39,10 @@
     <h2 style="color:red">⛔ Istekli pregledi</h2>
 
     @if(count($expiredSorted))
-        <ul>
+        <ul style="list-style-type: none; padding-left: 0;">
         @foreach($expiredSorted as $index => $item)
             <li>
-                {{ $index + 1 }}. {{ $item['employee']->lastName }} {{ $item['employee']->firstName }},
+                {{ $index + 1 }} {{ $item['employee']->lastName }} {{ $item['employee']->firstName }},
                 pozicija: {{ $item['employee']->radno_mjesto }},
                 pregled trebao biti do: <strong>{{ \Carbon\Carbon::parse($item['next_due'])->format('d.m.Y') }}</strong>
             </li>
