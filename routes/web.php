@@ -86,6 +86,7 @@ Route::get('/dashboard', function () {
 Route::get('/pregledi/index', [PreglediController::class, 'index'])->name('pregledi.index');
 Route::get('/pregledi/upcoming', [PreglediController::class, 'reportUpcoming'])->name('pregledi.upcoming');
 
+
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

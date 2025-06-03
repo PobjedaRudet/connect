@@ -1,40 +1,49 @@
 <template>
     <div class="p-6 flex justify-center">
         <div class="w-full max-w-4xl">
-            <h2 class="text-lg font-semibold mb-4">📅 Nadolazeći pregledi (u narednih 7 dana)</h2>
+            <h2 class="text-lg font-semibold mb-4">📅 Nadolazeći pregledi za tekući mjesec</h2>
             <div class="overflow-x-auto rounded-lg shadow mb-8 bg-white">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead>
                         <tr class="bg-gray-100">
                             <th class="px-4 py-3"></th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">#</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Zaposleni</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Pozicija</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Datum pregleda</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">#
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                Zaposleni</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                SAP Id</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                Pozicija</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                Datum pregleda</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
-                        <tr
-                            v-for="(item, index) in upcoming"
-                            :key="'upcoming-' + index"
-                            :class="{'bg-blue-100': selectedUpcoming.includes(index), 'hover:bg-gray-50': !selectedUpcoming.includes(index)}"
-                            class="transition"
-                        >
+                        <tr v-for="(item, index) in upcoming" :key="'upcoming-' + index"
+                            :class="{ 'bg-blue-100': selectedUpcoming.includes(index), 'hover:bg-gray-50': !selectedUpcoming.includes(index) }"
+                            class="transition">
                             <td class="px-4 py-4 text-center">
-                                <input
-                                    type="checkbox"
-                                    :checked="selectedUpcoming.includes(index)"
-                                    @change="toggleUpcoming(index)"
-                                    class="form-checkbox h-4 w-4 text-blue-600"
-                                />
+                                <input type="checkbox" :checked="selectedUpcoming.includes(index)"
+                                    @change="onCheckboxChange(item.employee.empID, index)"
+                                    class="form-checkbox h-4 w-4 text-blue-600" />
                             </td>
                             <td class="px-6 py-4 text-center">{{ index + 1 }}</td>
                             <td class="px-6 py-4">{{ item.employee.firstName }} {{ item.employee.lastName }}</td>
+                            <td class="px-6 py-4">{{ item.employee.empID }}</td>
                             <td class="px-6 py-4">{{ item.employee.radno_mjesto }}</td>
-                            <td class="px-6 py-4 text-red-600 text-center font-semibold">{{ formatDate(item.next_due) }}</td>
+                            <td class="px-6 py-4 text-red-600 text-center font-semibold">{{ formatDate(item.next_due) }}
+                            </td>
                         </tr>
                     </tbody>
                 </table>
+                <div class="flex justify-end p-4">
+                    <button
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded shadow transition"
+                        @click="showPopup = true">
+                        Ažuriraj preglede
+                    </button>
+                </div>
             </div>
 
             <h2 class="text-lg font-semibold text-red-700 mb-4">⛔ Istekli pregledi (propušteni rokovi)</h2>
@@ -43,34 +52,81 @@
                     <thead>
                         <tr class="bg-red-50">
                             <th class="px-4 py-3"></th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">#</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Zaposleni</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Pozicija</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Pregled je trebao biti do</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">#
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                Zaposleni</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                SAP Id</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                Pozicija</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                Pregled je trebao biti do</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
-                        <tr
-                            v-for="(item, index) in expired"
-                            :key="'expired-' + index"
-                            :class="{'bg-red-100': selectedExpired.includes(index), 'hover:bg-red-50': !selectedExpired.includes(index)}"
-                            class="transition"
-                        >
+                        <tr v-for="(item, index) in expired" :key="'expired-' + index"
+                            :class="{ 'bg-red-100': selectedExpired.includes(index), 'hover:bg-red-50': !selectedExpired.includes(index) }"
+                            class="transition">
                             <td class="px-4 py-4 text-center">
-                                <input
-                                    type="checkbox"
-                                    :checked="selectedExpired.includes(index)"
-                                    @change="toggleExpired(index)"
-                                    class="form-checkbox h-4 w-4 text-red-600"
-                                />
+                                <input type="checkbox" :checked="selectedUpcoming.includes(index)"
+                                    @change="onCheckboxChange(item.employee.empID, index)"
+                                    class="form-checkbox h-4 w-4 text-blue-600" />
                             </td>
                             <td class="px-6 py-4 text-center">{{ index + 1 }}</td>
                             <td class="px-6 py-4">{{ item.employee.firstName }} {{ item.employee.lastName }}</td>
+                            <td class="px-6 py-4">{{ item.employee.empID }}</td>
                             <td class="px-6 py-4">{{ item.employee.radno_mjesto }}</td>
-                            <td class="px-6 py-4 text-red-600 text-center font-semibold">{{ formatDate(item.next_due) }}</td>
+                            <td class="px-6 py-4 text-red-600 text-center font-semibold">{{ formatDate(item.next_due) }}
+                            </td>
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+        <!-- Popup -->
+        <div v-if="showPopup" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+            <div class="bg-white rounded-lg shadow-lg p-8 max-w-sm w-full">
+                <h3 class="text-lg font-semibold mb-4">Ažuriraj preglede</h3>
+                <p class="mb-4">Jeste li sigurni da želite ažurirati odabrane preglede?</p>
+                <form @submit.prevent="azurirajPreglede">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Datum kontrolnog pregleda</label>
+                        <input type="date" v-model="form.datum" class="form-input w-full" required />
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">TIP</label>
+                        <select v-model="form.tip" class="form-select w-full" required>
+                            <option value="Sposoban">Sposoban</option>
+                            <option value="Nesposoban">Nesposoban</option>
+                            <option value="Ograničen">Ograničen</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Kontrolni pregled</label>
+                        <select v-model="form.kontrolni" class="form-select w-full" required>
+                            <option value="1">Da</option>
+                            <option value="0">Ne</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-1">Komentar</label>
+                        <textarea v-model="form.komentar" class="form-textarea w-full" rows="2"></textarea>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium mb-1">Ustanova</label>
+                        <input type="text" v-model="form.ustanova" class="form-input w-full" required />
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded"
+                            @click="showPopup = false">
+                            Odustani
+                        </button>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                            Potvrdi
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -78,35 +134,67 @@
 
 <script setup>
 import { ref } from 'vue';
+import axios from 'axios';
 
-defineProps({
-  upcoming: Array,
-  expired: Array
+const props = defineProps({
+    upcoming: Array,
+    expired: Array
 });
 
 const selectedUpcoming = ref([]);
 const selectedExpired = ref([]);
+const showPopup = ref(false);
 
-const toggleUpcoming = (index) => {
-  const pos = selectedUpcoming.value.indexOf(index);
-  if (pos === -1) {
-    selectedUpcoming.value.push(index);
-  } else {
-    selectedUpcoming.value.splice(pos, 1);
-  }
-};
-
-const toggleExpired = (index) => {
-  const pos = selectedExpired.value.indexOf(index);
-  if (pos === -1) {
-    selectedExpired.value.push(index);
-  } else {
-    selectedExpired.value.splice(pos, 1);
-  }
-};
+const form = ref({
+    datum: '',
+    tip: '',
+    kontrolni: '',
+    komentar: '',
+    ustanova: ''
+});
 
 const formatDate = (dateStr) => {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('bs-BA');
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('bs-BA');
+};
+
+const azurirajPreglede = async () => {
+    try {
+        await axios.post('/api/pregledi/azuriraj', {
+            ids: selectedUpcoming.value,
+            ...form.value
+        });
+        showPopup.value = false;
+        alert('Pregledi su ažurirani!');
+        await fetchPregledi(); // Osvježi podatke
+    } catch (e) {
+        alert('Greška pri ažuriranju!');
+    }
+};
+
+/* const onCheckboxChange = (empID, index) => {
+    alert('empID: ' + empID);
+    toggleUpcoming(index); // pozovi postojeću funkciju za selektovanje
+}; */
+const onCheckboxChange = (empID) => {
+    if (selectedUpcoming.value.includes(empID)) {
+        selectedUpcoming.value = selectedUpcoming.value.filter(id => id !== empID);
+    } else {
+        selectedUpcoming.value.push(empID);
+    }
+};
+const toggleUpcoming = (index) => {
+    if (selectedUpcoming.value.includes(index)) {
+        selectedUpcoming.value = selectedUpcoming.value.filter(i => i !== index);
+    } else {
+        selectedUpcoming.value.push(index);
+    }
+};
+
+const fetchPregledi = async () => {
+    const { data } = await axios.get('/api/pregledi');
+    // Pretpostavljamo da API vraća { upcoming: [...], expired: [...] }
+    props.upcoming.splice(0, props.upcoming.length, ...data.upcoming);
+    props.expired.splice(0, props.expired.length, ...data.expired);
 };
 </script>

@@ -10,6 +10,6 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('app:send-upcoming-exams-mail')
-    ->monthlyOn(3, '11:47') // 1st day of the month at midnight
+    ->monthlyOn(3, '1:40') // 1st day of the month at midnight
     ->description('Mjesečni izvještaj o nadolazećim i isteklih ljekarskim pregledima');
 
