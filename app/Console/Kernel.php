@@ -15,6 +15,8 @@ class Kernel extends ConsoleKernel
     {
         // Pokreni komandu svaki dan u 08:00
         $schedule->command('app:send-upcoming-exams-mail')->everyMinute();
+
+        $schedule->command('app:test-schedule')->everyMinute();
     }
 
     protected function commands(): void
