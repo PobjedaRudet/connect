@@ -12,3 +12,7 @@ Artisan::command('inspire', function () {
 Schedule::command('app:send-upcoming-exams-mail')
     ->everyMinute()
     ->description('Test schedule');
+
+Schedule::command('app:test-schedule')
+    ->everyFiveMinutes()
+    ->description('Test novi');
