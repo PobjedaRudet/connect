@@ -6,12 +6,26 @@
 <body>
     <h2>📅 Nadolazeći pregledi u ovom mjesecu</h2>
 
-    @if(count($upcoming))
+    @php
+        // Sort $upcoming by lastName, then firstName
+        $upcomingSorted = collect($upcoming)->sortBy([
+            fn($a) => $a['employee']->lastName,
+            fn($a) => $a['employee']->firstName,
+        ])->values();
+
+        // Sort $expired by lastName, then firstName
+        $expiredSorted = collect($expired)->sortBy([
+            fn($a) => $a['employee']->lastName,
+            fn($a) => $a['employee']->firstName,
+        ])->values();
+    @endphp
+
+    @if(count($upcomingSorted))
         <ul>
-        @foreach($upcoming as $item)
+        @foreach($upcomingSorted as $index => $item)
             <li>
-                {{ $item['employee']->firstName }} {{ $item['employee']->lastName }},
-                pozicija: {{ $item['employee']->jobTitle }},
+                {{ $index + 1 }}. {{ $item['employee']->lastName }} {{ $item['employee']->firstName }},
+                pozicija: {{ $item['employee']->radno_mjesto }},
                 pregled do: {{ \Carbon\Carbon::parse($item['next_due'])->format('d.m.Y') }}
             </li>
         @endforeach
@@ -24,12 +38,12 @@
 
     <h2 style="color:red">⛔ Istekli pregledi</h2>
 
-    @if(count($expired))
+    @if(count($expiredSorted))
         <ul>
-        @foreach($expired as $item)
+        @foreach($expiredSorted as $index => $item)
             <li>
-                {{ $item['employee']->firstName }} {{ $item['employee']->lastName }},
-                pozicija: {{ $item['employee']->jobTitle }},
+                {{ $index + 1 }}. {{ $item['employee']->lastName }} {{ $item['employee']->firstName }},
+                pozicija: {{ $item['employee']->radno_mjesto }},
                 pregled trebao biti do: <strong>{{ \Carbon\Carbon::parse($item['next_due'])->format('d.m.Y') }}</strong>
             </li>
         @endforeach
