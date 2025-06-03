@@ -14,7 +14,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         // Pokreni komandu svaki dan u 08:00
-        $schedule->command('emails:send-upcoming-exams')->dailyAt('15:46');
+        $schedule->command('emails:send-upcoming-exams')->everyMinute();
     }
 
     protected function commands(): void
