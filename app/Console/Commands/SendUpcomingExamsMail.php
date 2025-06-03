@@ -6,6 +6,7 @@ use App\Mail\UpcomingExamsMail;
 use App\Models\Employee;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class SendUpcomingExamsMail extends Command
@@ -29,6 +30,7 @@ class SendUpcomingExamsMail extends Command
      */
     public function handle()
     {
+        Log::info('Pokrenuta komanda za pregled - ' . now());
         $today = Carbon::today();
         $nextWeek = $today->copy()->addDays(30);
 
