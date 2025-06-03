@@ -30,7 +30,7 @@ class SendUpcomingExamsMail extends Command
     public function handle()
     {
         $today = Carbon::today();
-        $nextWeek = $today->copy()->addDays(7);
+        $nextWeek = $today->copy()->addDays(30);
 
         $employees = Employee::whereHas('pregledi')
             ->with(['pregledi' => fn ($q) => $q->orderByDesc('datum_pregleda')->limit(1)])

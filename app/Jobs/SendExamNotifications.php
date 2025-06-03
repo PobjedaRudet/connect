@@ -53,6 +53,6 @@ class SendExamNotifications implements ShouldQueue
             Mail::to('h.ahmet@pobjeda.com')->send(new UpcomingExamsMail($upcoming, $expired));
         }
 
-        \Illuminate\Support\Facades\Log::info('Mail poslan.');
+        \Illuminate\Support\Facades\Log::info('Mail poslan- JOB.');
     }
 }
