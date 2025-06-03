@@ -6,11 +6,16 @@ use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\PassController;
 use App\Http\Controllers\PreglediController;
 use App\Http\Controllers\ProfileController;
+use App\Mail\UpcomingExamsMail;
 use App\Models\Employee;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Carbon\Carbon;
+
+
 
 
 
@@ -38,6 +43,41 @@ Route::get('/prodaja/dashboard', function () {
 Route::get('/private', function () {
     return Inertia::render('PrivacyPolicy');
 })->name('private');
+
+Route::get('/send-pregledi-email', function () {
+    $today = Carbon::today();
+    $nextWeek = $today->copy()->addDays(7);
+
+    $employees = Employee::whereHas('pregledi')
+        ->with(['pregledi' => fn ($q) => $q->orderByDesc('datum_pregleda')->limit(10)])
+        ->get();
+
+    $upcoming = [];
+    $expired = [];
+
+    foreach ($employees as $employee) {
+        $lastExam = $employee->pregledi->first();
+        if (!$lastExam || !$employee->period) continue;
+
+        $nextDue = Carbon::parse($lastExam->datum_pregleda)->addMonths((int)$employee->period);
+
+        if ($nextDue->between($today, $nextWeek)) {
+            $upcoming[] = ['employee' => $employee, 'next_due' => $nextDue];
+        } elseif ($nextDue->lessThan($today)) {
+            $expired[] = ['employee' => $employee, 'next_due' => $nextDue];
+        }
+    }
+
+    $recipients = [
+        'z.neira@pobjeda.com',
+        'a.salkovic@pobjeda.com',
+        'k.asim@pobjeda.com',
+    ];
+
+    Mail::to($recipients)->send(new UpcomingExamsMail($upcoming, $expired));
+
+    return 'Mail poslan.';
+});
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
