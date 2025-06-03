@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class TestSchedule extends Command
 {
@@ -27,5 +28,6 @@ class TestSchedule extends Command
     public function handle()
     {
         Log::info('Test scheduler komanda je pokrenuta.');
+        Mail::to('h.ahmet@pobjeda.com')->send(new \App\Mail\UpcomingExamsMail([], []));
     }
 }

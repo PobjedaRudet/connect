@@ -10,7 +10,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('app:send-upcoming-exams-mail')
-    ->everyMinute()
+     ->everyFiveMinutes()
     ->description('Test schedule');
 
 Schedule::command('app:test-schedule')
