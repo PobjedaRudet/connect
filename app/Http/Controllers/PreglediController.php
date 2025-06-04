@@ -13,7 +13,7 @@ class PreglediController extends Controller
 {
     public function index()
     {
-        $radnici = Employee::get()->take(10);
+        $radnici = Employee::get();
         return Inertia::render('Pregledi/Index', [
             'radnici' => $radnici,
         ]);
