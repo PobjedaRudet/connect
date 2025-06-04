@@ -15,4 +15,8 @@ class Pregledi extends Model
 {
     return $this->belongsTo(Employee::class, 'employee_id', 'empID');
 }
+public function kontrolniPregledi()
+{
+    return $this->hasMany(\App\Models\KontrolniPregledi::class, 'pregledi_id');
+}
 }

@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\KontrolniPreglediController;
 use App\Http\Controllers\PreglediController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
 
 
 
@@ -25,3 +27,5 @@ Route::post('/attendance', [AttendanceController::class, 'store']);
 
 Route::post('/pregledi/azuriraj', [PreglediController::class, 'azuriraj']);
 Route::get('/pregledi', [PreglediController::class, 'preglediNakonAzuriranja']);
+Route::get('/pregledi/kontrolni', [PreglediController::class, 'kontrolniPregledi']);
+Route::post('/kontrolni-pregledi', [KontrolniPreglediController::class, 'store']);

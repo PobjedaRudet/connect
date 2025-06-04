@@ -148,4 +148,14 @@ class PreglediController extends Controller
             'expired' => $expired,
         ]);
     }
+
+    public function kontrolniPregledi()
+    {
+        // Dohvati sve preglede gdje je kontrolni_pregled = 1, zajedno sa zaposlenikom
+        $pregledi = Pregledi::where('kontrolni_pregled', 1)
+            ->with('employee')
+            ->orderByDesc('datum_pregleda')
+            ->get();
+        return response()->json($pregledi);
+    }
 }

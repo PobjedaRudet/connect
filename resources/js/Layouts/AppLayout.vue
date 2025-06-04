@@ -51,6 +51,24 @@ const logout = () => {
                                 <NavLink :href="route('dashboard')" :active="route().current('dashboard')">
                                     Dashboard
                                 </NavLink>
+                                <NavLink :href="route('pregledi.index')" :active="route().current('pregledi.index')">
+                                    Ljekarski pregledi
+                                </NavLink>
+                                <NavLink :href="route('pregledi.upcoming')" :active="route().current('pregledi.upcoming')">
+                                    Ljekarski pregledi 7 dana
+                                </NavLink>
+                                <NavLink :href="route('pregledi.kontrolni')" :active="route().current('pregledi.kontrolni')">
+                                    Kontrolni pregledi
+                                </NavLink>
+                                <NavLink href="/ppz/godisnji-odmori">
+                                    Godišnji odmori
+                                </NavLink>
+                                <NavLink href="/ppz/obuka-radnika">
+                                    Obuka radnika
+                                </NavLink>
+                                <NavLink href="/ppz/radnici-rizik">
+                                    Radnici s rizikom
+                                </NavLink>
                             </div>
                         </div>
 

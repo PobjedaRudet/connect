@@ -32,6 +32,12 @@ const options = [
         link: '/ppz/radnici-rizik',
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /></svg>`
     },
+    {
+        name: 'Kontrolni pregledi',
+        description: 'Evidencija i unos kontrolnih ljekarskih pregleda radnika.',
+        link: route('pregledi.kontrolni'),
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-3-3v6m9-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`
+    },
 ];
 </script>
 
