@@ -13,3 +13,8 @@ Schedule::command('app:send-upcoming-exams-mail')
     ->monthlyOn(3, '1:40') // 1st day of the month at midnight
     ->description('Mjesečni izvještaj o nadolazećim i isteklih ljekarskim pregledima');
 
+Schedule::command('app:send-exams-next-month-mail')
+        ->monthlyOn(4, '11:07')
+        ->description('Komanda za slanje maila za idući mjesec je pokrenuta.');
+
+

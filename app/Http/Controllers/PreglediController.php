@@ -38,7 +38,7 @@ class PreglediController extends Controller
 
         $employees = Employee::whereHas('pregledi') // samo oni koji imaju barem jedan pregled
             ->with(['pregledi' => function ($query) {
-                $query->orderByDesc('datum_pregleda')->limit(10);
+                $query->orderByDesc('datum_pregleda');
             }])
             ->get();
 
@@ -46,22 +46,12 @@ class PreglediController extends Controller
         $upcoming = [];
         $expired = [];
 
-        //Log::info('Uposlenici', $employees->toArray());
         foreach ($employees as $employee) {
             $lastExam = $employee->pregledi->first();
             if (!$lastExam || !$employee->period) continue;
 
             $nextDue = Carbon::parse($lastExam->datum_pregleda)->addMonths((int)$employee->period);
 
-            /*         Log::info('Processing employee', ['id' => $employee->id, 'name' => $employee->firstName . ' ' . $employee->lastName, 'radno_mjesto' => $employee->radno_mjesto]);
-            Log::info('Last exam date', ['date' => $lastExam->datum_pregleda]);
-            Log::info('Next due date', ['next_due' => $nextDue]);
-
-
-            Log::info('Employee ID', ['id' => $employee->id]);
-            Log::info('Last exam', ['date' => $lastExam->datum_pregleda]);
-            Log::info('Period', ['months' => $employee->period]);
-            Log::info('Next due', ['next_due' => $nextDue]); */
 
             if ($nextDue->between($today, $nextWeek)) {
                 $upcoming[] = [
@@ -77,6 +67,46 @@ class PreglediController extends Controller
         }
         // Log::info("Nadolazeci", $upcoming);
         return Inertia::render('Pregledi/ZaSedamDana', [
+            'upcoming' => $upcoming,
+            'expired' => $expired
+        ]);
+    }
+
+    public function reportUpcomingNextMonth()
+    {
+        $today = Carbon::today();
+        $startNextMonth = $today->copy()->addMonthNoOverflow()->startOfMonth();
+        $endNextMonth = $startNextMonth->copy()->endOfMonth();
+
+        $employees = Employee::whereHas('pregledi')
+            ->with(['pregledi' => function ($query) {
+                $query->orderByDesc('datum_pregleda');
+            }])
+            ->get();
+
+        $upcoming = [];
+        $expired = [];
+
+        foreach ($employees as $employee) {
+            $lastExam = $employee->pregledi->first();
+            if (!$lastExam || !$employee->period) continue;
+
+            $nextDue = Carbon::parse($lastExam->datum_pregleda)->addMonths((int)$employee->period);
+
+            // Upcoming samo za naredni mjesec
+            if ($nextDue->between($startNextMonth, $endNextMonth)) {
+                $upcoming[] = [
+                    'employee' => $employee,
+                    'next_due' => $nextDue,
+                ];
+            } elseif ($nextDue->lessThan($today)) {
+                $expired[] = [
+                    'employee' => $employee,
+                    'next_due' => $nextDue,
+                ];
+            }
+        }
+        return Inertia::render('Pregledi/PreglediZaIduciMjesec', [
             'upcoming' => $upcoming,
             'expired' => $expired
         ]);
@@ -149,13 +179,5 @@ class PreglediController extends Controller
         ]);
     }
 
-    public function kontrolniPregledi()
-    {
-        // Dohvati sve preglede gdje je kontrolni_pregled = 1, zajedno sa zaposlenikom
-        $pregledi = Pregledi::where('kontrolni_pregled', 1)
-            ->with('employee')
-            ->orderByDesc('datum_pregleda')
-            ->get();
-        return response()->json($pregledi);
-    }
+
 }

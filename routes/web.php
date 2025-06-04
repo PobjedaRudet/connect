@@ -85,6 +85,7 @@ Route::get('/dashboard', function () {
 
 Route::get('/pregledi/index', [PreglediController::class, 'index'])->name('pregledi.index');
 Route::get('/pregledi/upcoming', [PreglediController::class, 'reportUpcoming'])->name('pregledi.upcoming');
+Route::get('/pregledi/nextMonth', [PreglediController::class, 'reportUpcomingNextMonth'])->name('pregledi.nextMonth');
 Route::get('/pregledi/kontrolni', function () {
     return Inertia::render('Pregledi/KontrolniPregledi');
 })->name('pregledi.kontrolni');

@@ -3,6 +3,7 @@
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\KontrolniPreglediController;
 use App\Http\Controllers\PreglediController;
+use App\Models\KontrolniPregledi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -22,10 +23,15 @@ Route::get('/test', function () {
 Route::get('/employee/{id}', [\App\Http\Controllers\EmployeeController::class, 'showEmployee'])
     ->where('id', '[0-9]+');
 
-//add attendance post request to handle Employe Id in Attendance index function
+
 Route::post('/attendance', [AttendanceController::class, 'store']);
 
-Route::post('/pregledi/azuriraj', [PreglediController::class, 'azuriraj']);
+//Ažuriranje pregleda i lista pregleda
 Route::get('/pregledi', [PreglediController::class, 'preglediNakonAzuriranja']);
-Route::get('/pregledi/kontrolni', [PreglediController::class, 'kontrolniPregledi']);
+Route::post('/pregledi/azuriraj', [PreglediController::class, 'azuriraj']);
+
+//Lista kontrolnih pregleda
+Route::get('/pregledi/kontrolni', [KontrolniPreglediController::class, 'kontrolniPregledi']);
+
+//Unosi podatke o kontrolnim pregledima
 Route::post('/kontrolni-pregledi', [KontrolniPreglediController::class, 'store']);

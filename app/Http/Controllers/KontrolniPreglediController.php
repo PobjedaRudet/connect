@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\KontrolniPregledi;
+use App\Models\Pregledi;
 use Illuminate\Http\Request;
 
 class KontrolniPreglediController extends Controller
@@ -19,5 +20,15 @@ class KontrolniPreglediController extends Controller
 
         $kontrolni = KontrolniPregledi::create($data);
         return response()->json(['success' => true, 'kontrolni' => $kontrolni]);
+    }
+
+    public function kontrolniPregledi()
+    {
+        // Dohvati sve preglede gdje je kontrolni_pregled = 1, 0 je ako , zajedno sa zaposlenikom
+        $pregledi = Pregledi::where('kontrolni_pregled', 1)
+            ->with('employee')
+            ->orderByDesc('datum_pregleda')
+            ->get();
+        return response()->json($pregledi);
     }
 }
