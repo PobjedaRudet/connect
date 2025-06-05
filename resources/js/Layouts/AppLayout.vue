@@ -48,8 +48,8 @@ const logout = () => {
 
                             <!-- Navigation Links -->
                             <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                                <NavLink :href="route('dashboard')" :active="route().current('dashboard')">
-                                    Dashboard
+                                <NavLink :href="route('ppz.dashboard')" :active="route().current('ppz.dashboard')">
+                                    PPZ Dashboard
                                 </NavLink>
                                 <NavLink :href="route('pregledi.index')" :active="route().current('pregledi.index')">
                                     Ljekarski pregledi
@@ -135,11 +135,11 @@ const logout = () => {
                             <div class="ms-3 relative">
                                 <Dropdown align="right" width="48">
                                     <template #trigger>
-                                        <button v-if="$page.props.jetstream.managesProfilePhotos" class="flex text-sm border-2 border-transparent rounded-full focus:outline-none focus:border-gray-300 transition">
+                                        <button v-if="$page.props.auth && $page.props.auth.user && $page.props.jetstream.managesProfilePhotos" class="flex text-sm border-2 border-transparent rounded-full focus:outline-none focus:border-gray-300 transition">
                                             <img class="size-8 rounded-full object-cover" :src="$page.props.auth.user.profile_photo_url" :alt="$page.props.auth.user.name">
                                         </button>
 
-                                        <span v-else class="inline-flex rounded-md">
+                                        <span v-else-if="$page.props.auth && $page.props.auth.user" class="inline-flex rounded-md">
                                             <button type="button" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none focus:bg-gray-50 active:bg-gray-50 transition ease-in-out duration-150">
                                                 {{ $page.props.auth.user.name }}
 
@@ -148,6 +148,7 @@ const logout = () => {
                                                 </svg>
                                             </button>
                                         </span>
+                                        <span v-else class="inline-flex rounded-md text-gray-400 px-3 py-2">Gost</span>
                                     </template>
 
                                     <template #content>
@@ -217,16 +218,16 @@ const logout = () => {
                     <!-- Responsive Settings Options -->
                     <div class="pt-4 pb-1 border-t border-gray-200">
                         <div class="flex items-center px-4">
-                            <div v-if="$page.props.jetstream.managesProfilePhotos" class="shrink-0 me-3">
+                            <div v-if="$page.props.auth && $page.props.auth.user && $page.props.jetstream.managesProfilePhotos" class="shrink-0 me-3">
                                 <img class="size-10 rounded-full object-cover" :src="$page.props.auth.user.profile_photo_url" :alt="$page.props.auth.user.name">
                             </div>
 
                             <div>
                                 <div class="font-medium text-base text-gray-800">
-                                    {{ $page.props.auth.user.name }}
+                                    {{ $page.props.auth && $page.props.auth.user ? $page.props.auth.user.name : 'Gost' }}
                                 </div>
                                 <div class="font-medium text-sm text-gray-500">
-                                    {{ $page.props.auth.user.email }}
+                                    {{ $page.props.auth && $page.props.auth.user ? $page.props.auth.user.email : '' }}
                                 </div>
                             </div>
                         </div>

@@ -33,7 +33,7 @@ Route::get('/', function () {
 });
 
 Route::get('/ppz/dashboard', function () {
-    return Inertia::render('PPZ/Dashboad');
+    return Inertia::render('PPZ/Dashboard');
 })->name('ppz.dashboard');
 
 Route::get('/prodaja/dashboard', function () {

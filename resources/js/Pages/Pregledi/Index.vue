@@ -1,5 +1,5 @@
 <script setup>
-//import AppLayout from '@/Layouts/AppLayout.vue';
+import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
 import axios from 'axios';
@@ -66,8 +66,8 @@ function closeDetails() {
       </h2>
     </template>
     <div class="min-h-screen bg-gray-100 p-8">
-      <h1 class="text-2xl font-bold mb-6">PPZ Dashboard</h1>
-      <div class="mb-4 flex justify-end">
+
+      <div class="mb-4 flex justify-center">
         <input v-model="search" type="text" placeholder="Pretraži po imenu ili prezimenu..." class="border rounded px-3 py-2 w-72" />
       </div>
       <table class="table-auto w-full bg-white shadow rounded">
