@@ -36,7 +36,7 @@ async function prikaziPreglede(radnik) {
     console.log('Prikazivanje pregleda za radnika:', radnik);
   selectedRadnik.value = radnik;
   // Dohvati sve preglede za uposlenika
-  const { data: preglediData } = await axios.get(`/api/employee/${radnik.id}/pregledi`);
+  const { data: preglediData } = await axios.get(`/api/employee/${radnik.empID}/pregledi`);
   pregledi.value = preglediData;
   console.log('Dohvaćeni pregledi:', preglediData);
   // Dohvati sve kontrolne preglede povezane na te preglede
@@ -145,7 +145,7 @@ function closeDetails() {
                           <tr v-for="kp in kontrolniPregledi.filter(kp => kp.pregledi_id === pregled.id)" :key="kp.id">
                             <td class="px-2 py-1">{{ kp.datum_kontrolnog_pregleda }}</td>
                             <td class="px-2 py-1">{{ kp.kontrolni_komentar }}</td>
-                            <td class="px-2 py-1">{{ kp.status ? 'Aktivan' : 'Završen' }}</td>
+                            <td class="px-2 py-1">{{ kp.status ? 'Završen' : 'Aktivan' }}</td>
                           </tr>
                         </tbody>
                       </table>
