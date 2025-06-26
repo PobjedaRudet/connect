@@ -56,6 +56,46 @@ function closeDetails() {
   pregledi.value = [];
   kontrolniPregledi.value = [];
 }
+function formatDatum(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d)) return dateStr;
+  const dan = String(d.getDate()).padStart(2, '0');
+  const mjesec = String(d.getMonth() + 1).padStart(2, '0');
+  const godina = d.getFullYear();
+  return `${dan}.${mjesec}.${godina}`;
+}
+
+const showEditModal = ref(false);
+const editKontrolni = ref(null);
+
+function izmeniKontrolniPregled(kp) {
+  editKontrolni.value = { ...kp };
+  showEditModal.value = true;
+}
+function closeEditModal() {
+  showEditModal.value = false;
+  editKontrolni.value = null;
+}
+async function sacuvajIzmjenuKontrolnog() {
+  if (!editKontrolni.value) return;
+  try {
+    await axios.put(`/api/kontrolni-pregledi/${editKontrolni.value.id}`, editKontrolni.value);
+    closeEditModal();
+    // Osvježi podatke o pregledima nakon izmjene
+    const { data: preglediData } = await axios.get(`/api/employee/${selectedRadnik.value.empID}/pregledi`);
+    pregledi.value = preglediData;
+    const pregledIds = preglediData.map(p => p.id);
+    if (pregledIds.length > 0) {
+      const { data: kontrolniData } = await axios.get(`/api/kontrolni-pregledi/by-pregledi`, { params: { ids: pregledIds } });
+      kontrolniPregledi.value = kontrolniData;
+    } else {
+      kontrolniPregledi.value = [];
+    }
+  } catch (error) {
+    console.error('Greška prilikom čuvanja izmjena:', error);
+  }
+}
 </script>
 
 <template>
@@ -118,7 +158,7 @@ function closeDetails() {
             <tbody>
               <template v-for="pregled in pregledi" :key="pregled.id">
                 <tr class="border-b hover:bg-gray-50">
-                  <td class="px-4 py-2 align-top">{{ pregled.datum_pregleda }}</td>
+                  <td class="px-4 py-2 align-top">{{ formatDatum(pregled.datum_pregleda) }}</td>
                   <td class="px-4 py-2 align-top">{{ pregled.type }}</td>
                   <td class="px-4 py-2 align-top">{{ pregled.komentar }}</td>
                   <td class="px-4 py-2">
@@ -139,13 +179,19 @@ function closeDetails() {
                             <th class="px-2 py-1">Datum</th>
                             <th class="px-2 py-1">Komentar</th>
                             <th class="px-2 py-1">Status</th>
+                            <th class="px-2 py-1">Akcije</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr v-for="kp in kontrolniPregledi.filter(kp => kp.pregledi_id === pregled.id)" :key="kp.id">
-                            <td class="px-2 py-1">{{ kp.datum_kontrolnog_pregleda }}</td>
+                            <td class="px-2 py-1">{{ formatDatum(kp.datum_kontrolnog_pregleda) }}</td>
                             <td class="px-2 py-1">{{ kp.kontrolni_komentar }}</td>
                             <td class="px-2 py-1">{{ kp.status ? 'Završen' : 'Aktivan' }}</td>
+                            <td class="px-2 py-1">
+                              <button class="bg-yellow-400 hover:bg-yellow-500 text-white px-3 py-1 rounded" @click="izmeniKontrolniPregled(kp)">
+                                Izmijeni
+                              </button>
+                            </td>
                           </tr>
                         </tbody>
                       </table>
@@ -156,6 +202,34 @@ function closeDetails() {
               </template>
             </tbody>
           </table>
+        </div>
+      </div>
+      <!-- Edit modal for kontrolni pregled -->
+      <div v-if="showEditModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+        <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+          <button @click="closeEditModal" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700">&times;</button>
+          <h3 class="text-lg font-semibold mb-4">Izmjena kontrolnog pregleda</h3>
+          <div v-if="editKontrolni">
+            <div class="mb-3">
+              <label class="block text-gray-700 text-sm font-bold mb-1">Datum</label>
+              <input type="text" :value="formatDatum(editKontrolni.datum_kontrolnog_pregleda)" class="border rounded px-3 py-2 w-full" readonly />
+            </div>
+            <div class="mb-3">
+              <label class="block text-gray-700 text-sm font-bold mb-1">Komentar</label>
+              <input type="text" v-model="editKontrolni.kontrolni_komentar" class="border rounded px-3 py-2 w-full" />
+            </div>
+            <div class="mb-3">
+              <label class="block text-gray-700 text-sm font-bold mb-1">Status</label>
+              <select v-model="editKontrolni.status" class="border rounded px-3 py-2 w-full">
+                <option :value="true">Završen</option>
+                <option :value="false">Aktivan</option>
+              </select>
+            </div>
+            <div class="flex justify-end space-x-2">
+              <button @click="closeEditModal" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded">Zatvori</button>
+              <button @click="sacuvajIzmjenuKontrolnog()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Sačuvaj</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

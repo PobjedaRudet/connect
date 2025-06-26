@@ -10,7 +10,7 @@
       <div class="w-full max-w-4xl">
         <h2 class="text-lg font-semibold mb-4">Lista uposlenika za kontrolni ljekarski pregled</h2>
         <div class="flex justify-between items-center mb-2">
-          <div></div>
+          <input v-model="search" type="text" placeholder="Pretraži po imenu ili prezimenu..." class="border rounded px-3 py-2 w-72 mr-4" />
           <div>
             <label class="mr-2 font-medium">Prikaži:</label>
             <select v-model="rowsPerPage" class="form-select border rounded px-2 py-1" style="width: 5rem;">
@@ -98,11 +98,19 @@ const currentPage = ref(1);
 const showPopup = ref(false);
 const popupForm = ref({ datum: '', komentar: '', status: false });
 const selectedEmployee = ref(null);
+const search = ref('');
 
 const totalPages = computed(() => Math.ceil(kontrolniPregledi.value.length / rowsPerPage.value) || 1);
 const startRow = computed(() => (currentPage.value - 1) * rowsPerPage.value);
 const endRow = computed(() => Math.min(startRow.value + rowsPerPage.value, kontrolniPregledi.value.length));
-const pagedPregledi = computed(() => kontrolniPregledi.value.slice(startRow.value, endRow.value));
+const filteredPregledi = computed(() => {
+  if (!search.value) return kontrolniPregledi.value;
+  return kontrolniPregledi.value.filter(item => {
+    const imePrezime = `${item.employee.firstName} ${item.employee.lastName}`.toLowerCase();
+    return imePrezime.includes(search.value.toLowerCase());
+  });
+});
+const pagedPregledi = computed(() => filteredPregledi.value.slice(startRow.value, endRow.value));
 
 const formatDate = (dateStr) => {
   const date = new Date(dateStr);
