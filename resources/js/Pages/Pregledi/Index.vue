@@ -184,7 +184,7 @@ async function sacuvajIzmjenuKontrolnog() {
                 </tr>
                 <tr v-if="selectedPregledId === pregled.id">
                   <td colspan="5" class="bg-gray-50 px-4 py-2">
-                    <div v-if="kontrolniPregledi.filter(kp => kp.pregledi_id === pregled.id).length">
+                    <div v-if="kontrolniPregledi.filter(kp => Number(kp.pregledi_id) === Number(pregled.id)).length">
                       <table class="table-auto w-full border">
                         <thead>
                           <tr class="bg-gray-50">
@@ -195,10 +195,10 @@ async function sacuvajIzmjenuKontrolnog() {
                           </tr>
                         </thead>
                         <tbody>
-                          <tr v-for="kp in kontrolniPregledi.filter(kp => kp.pregledi_id === pregled.id)" :key="kp.id">
+                          <tr v-for="kp in kontrolniPregledi.filter(kp => Number(kp.pregledi_id) === Number(pregled.id))" :key="kp.id">
                             <td class="px-2 py-1">{{ formatDatum(kp.datum_kontrolnog_pregleda) }}</td>
                             <td class="px-2 py-1">{{ kp.kontrolni_komentar }}</td>
-                            <td class="px-2 py-1">{{ kp.status ? 'Završen' : 'Aktivan' }}</td>
+                            <td class="px-2 py-1">{{ kp.status == 1 || kp.status === true ? 'Završen' : 'Aktivan' }}</td>
                             <td class="px-2 py-1">
                               <button class="bg-yellow-400 hover:bg-yellow-500 text-white px-3 py-1 rounded" @click="izmeniKontrolniPregled(kp)">
                                 Izmijeni
