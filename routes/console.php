@@ -14,7 +14,7 @@ Schedule::command('app:send-upcoming-exams-mail')
     ->description('Mjesečni izvještaj o nadolazećim i isteklih ljekarskim pregledima');
 
 Schedule::command('app:send-exams-next-month-mail')
-        ->monthlyOn(30, '12:50')
+        ->monthlyOn(30, '12:57')
         ->description('Komanda za slanje maila za idući mjesec je pokrenuta.');
 
 
