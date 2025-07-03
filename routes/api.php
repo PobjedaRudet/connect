@@ -42,11 +42,15 @@ Route::post('/kontrolni-pregledi', [KontrolniPreglediController::class, 'store']
 // API ruta za sve preglede uposlenika
 Route::get('/employee/{id}/pregledi', function($id) {
     Log::info("Fetching pregledi for employee with ID: $id");
-    return \App\Models\Pregledi::where('employee_id', $id)->orderByDesc('datum_pregleda')->get();
+    return Pregledi::where('employee_id', $id)->orderByDesc('datum_pregleda')->get();
 });
 // API ruta za sve kontrolne preglede po nizu pregleda
 Route::get('/kontrolni-pregledi/by-pregledi', function(\Illuminate\Http\Request $request) {
     $ids = $request->query('ids', []);
     Log::info("Fetching kontrolni pregledi for pregledi IDs: " . implode(',', $ids));
-    return \App\Models\KontrolniPregledi::whereIn('pregledi_id', $ids)->orderByDesc('datum_kontrolnog_pregleda')->get();
+    return KontrolniPregledi::whereIn('pregledi_id', $ids)->orderByDesc('datum_kontrolnog_pregleda')->get();
 });
+// Izvještaj pregleda za PPZ
+Route::get('/ppz-izvjestaj-pregledi', [PreglediController::class, 'apiIzvjestajPregledi']);
+// Export pregleda u Word dokument
+Route::post('/ppz-izvjestaj-pregledi-word', [\App\Http\Controllers\PreglediController::class, 'apiIzvjestajPreglediWord']);

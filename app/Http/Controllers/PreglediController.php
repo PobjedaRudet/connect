@@ -13,7 +13,16 @@ class PreglediController extends Controller
 {
     public function index()
     {
-        $radnici = Employee::get();
+        $radnici = Employee::with(['pregledi' => function($q) {
+            $q->orderByDesc('datum_pregleda');
+        }])->get();
+        // Dodaj lastExamDate svakom radniku
+        $radnici = $radnici->map(function($radnik) {
+            $radnikArr = $radnik->toArray();
+            $lastExam = $radnik->pregledi->first();
+            $radnikArr['lastExamDate'] = $lastExam ? $lastExam->datum_pregleda : null;
+            return $radnikArr;
+        });
         return Inertia::render('Pregledi/Index', [
             'radnici' => $radnici,
         ]);
@@ -177,6 +186,82 @@ class PreglediController extends Controller
             'upcoming' => $upcoming,
             'expired' => $expired,
         ]);
+    }
+
+    /**
+     * API: Izvještaj svih ljekarskih pregleda sa traženim kolonama za PPZ
+     */
+    public function apiIzvjestajPregledi()
+    {
+        $pregledi = Pregledi::with(['employee'])
+            ->orderByDesc('datum_pregleda')
+            ->get()
+            ->map(function($p) {
+                return [
+                    'organizacija' => $p->organizacija,
+                    'datum_pregleda' => $p->datum_pregleda,
+                    'lastName' => $p->employee->lastName ?? '',
+                    'middleName' => $p->employee->middleName ?? '',
+                    'firstName' => $p->employee->firstName ?? '',
+                    'radno_mjesto' => $p->employee->radno_mjesto ?? '',
+                    'type' => $p->type,
+                    'profesionalno_oboljenje' => $p->employee->profesionalno_oboljenje ?? '',
+                    'invalidnost_radnika' => $p->employee->invalidnost_radnika ?? '',
+                ];
+            });
+        return response()->json($pregledi);
+    }
+
+    /**
+     * API: Export pregleda u Word (.docx)
+     */
+    public function apiIzvjestajPreglediWord(Request $request)
+    {
+        try {
+            $data = $request->all();
+            // Koristi TemplateProcessor i postojeći template
+            $templatePath = storage_path('app/template.docx');
+            if (!file_exists($templatePath)) {
+                Log::error('Word template nije pronađen: ' . $templatePath);
+                return response()->json(['error' => 'Word template nije pronađen.'], 500);
+            }
+            $templateProcessor = new \PhpOffice\PhpWord\TemplateProcessor($templatePath);
+
+            // Kreiraj tabelu u novom PhpWord objektu
+            $phpWordTable = new \PhpOffice\PhpWord\PhpWord();
+            $section = $phpWordTable->addSection(['orientation' => 'landscape']);
+            $table = $section->addTable(['borderSize' => 6, 'borderColor' => '999999', 'cellMargin' => 50]);
+            $headerCellStyle = ['bgColor' => 'D9D9D9'];
+            $table->addRow();
+            $table->addCell(500, $headerCellStyle)->addText('#', ['bold' => true]);
+            $table->addCell(2000, $headerCellStyle)->addText('Organizacija', ['bold' => true]);
+            $table->addCell(1500, $headerCellStyle)->addText('Datum pregleda', ['bold' => true]);
+            $table->addCell(2500, $headerCellStyle)->addText('Prezime (Srednje ime) Ime', ['bold' => true]);
+            $table->addCell(2000, $headerCellStyle)->addText('Radno mjesto', ['bold' => true]);
+            $table->addCell(1500, $headerCellStyle)->addText('Sposobnost', ['bold' => true]);
+            $table->addCell(2000, $headerCellStyle)->addText('Profesionalno oboljenje', ['bold' => true]);
+            $table->addCell(1500, $headerCellStyle)->addText('Invalidnost', ['bold' => true]);
+            foreach ($data as $idx => $p) {
+                $table->addRow();
+                $table->addCell(500)->addText($idx + 1);
+                $table->addCell(2000)->addText($p['organizacija'] ?? '');
+                $table->addCell(1500)->addText(isset($p['datum_pregleda']) ? date('d.m.Y', strtotime($p['datum_pregleda'])) : '');
+                $ime = ($p['lastName'] ?? '') . (isset($p['middleName']) && $p['middleName'] ? ' (' . $p['middleName'] . ')' : '') . ' ' . ($p['firstName'] ?? '');
+                $table->addCell(2500)->addText(trim($ime));
+                $table->addCell(2000)->addText($p['radno_mjesto'] ?? '');
+                $table->addCell(1500)->addText($p['type'] ?? '');
+                $table->addCell(2000)->addText($p['profesionalno_oboljenje'] ?? '');
+                $table->addCell(1500)->addText($p['invalidnost_radnika'] ?? '');
+            }
+            // Ubaci tabelu u template
+            $templateProcessor->setComplexBlock('TABLE', $table);
+            $tempFile = tempnam(sys_get_temp_dir(), 'pregledi') . '.docx';
+            $templateProcessor->saveAs($tempFile);
+            return response()->download($tempFile, 'izvjestaj_pregledi.docx')->deleteFileAfterSend(true);
+        } catch (\Exception $e) {
+            Log::error('Greška pri exportu Word izvještaja: ' . $e->getMessage() . ' | ' . $e->getTraceAsString());
+            return response()->json(['error' => 'Greška pri exportu Word izvještaja: ' . $e->getMessage()], 500);
+        }
     }
 
 

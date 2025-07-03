@@ -35,27 +35,13 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
         $redirect = $request->input('redirect', 'dashboard');
 
-        /* $user = Auth::user();
-        if ($user->current_team_id == 1) {
-            return redirect('/ppz/dashboard');
-        }
-        if ($user->current_team_id == 2) {
-            return redirect('/prodaja/dashboard');
-        } */
-        Log:
-        info($request->all());
+        Log::info($request->all());
         Log::info($redirect);
 
-
-
-        if ($redirect === 'ppz i znr') {
-            return redirect('/ppz/dashboard');
+        // Univerzalni redirect za sve sektore
+        if ($redirect && str_starts_with($redirect, '/')) {
+            return redirect($redirect);
         }
-
-        if ($redirect === 'sales') {
-            return redirect('/prodaja/dashboard');
-        }
-
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

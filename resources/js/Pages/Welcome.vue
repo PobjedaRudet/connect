@@ -72,7 +72,7 @@ const sectors = [
     <div class="grid gap-8 lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1">
         <div v-for="sector in sectors" :key="sector.name"
             class="bg-white dark:bg-gray-900 rounded shadow p-8 flex flex-col items-center hover:shadow-lg transition">
-            <Link :href="`/login?redirect=${encodeURIComponent(sector.name.toLowerCase())}`" class="flex flex-col items-center group">
+            <Link :href="`/login?redirect=${encodeURIComponent(sector.link)}`" class="flex flex-col items-center group">
                 <span v-html="sector.icon"></span>
                 <span class="mt-4 text-lg font-semibold group-hover:text-[#FF2D20] transition">{{ sector.name }}</span>
                 <span class="mt-2 text-sm text-gray-500 dark:text-gray-400 text-center">{{ sector.description }}</span>

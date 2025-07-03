@@ -119,6 +119,7 @@ async function sacuvajIzmjenuKontrolnog() {
             <th class="px-4 py-2 text-center">Period</th>
             <th class="px-4 py-2 text-left">Radno mjesto</th>
             <th class="px-4 py-2 text-center">Invalidnost</th>
+            <th class="px-4 py-2 text-center">Posljednji pregled</th>
             <th class="px-4 py-2 text-center">Akcije</th>
           </tr>
         </thead>
@@ -130,6 +131,9 @@ async function sacuvajIzmjenuKontrolnog() {
             <td class="px-4 py-2 text-center">{{ radnik.period }}</td>
             <td class="px-4 py-2 text-left">{{ radnik.radno_mjesto }}</td>
             <td class="px-4 py-2 text-center">{{ radnik.invalidnost_radnika }}</td>
+            <td class="px-4 py-2 text-center">
+              {{ radnik.lastExamDate ? formatDatum(radnik.lastExamDate) : '' }}
+            </td>
             <td class="px-4 py-2 text-center">
               <button @click="prikaziPreglede(radnik)" class="text-blue-600 hover:underline">Pregledi</button>
             </td>

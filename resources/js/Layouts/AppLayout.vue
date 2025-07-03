@@ -47,13 +47,16 @@ const logout = () => {
                                     ZNR I PPZ Dashboard
                                 </NavLink>
                                 <NavLink :href="route('pregledi.index')" :active="route().current('pregledi.index')">
-                                    Ljekarski pregledi
+                                    Spisak uposlenika
                                 </NavLink>
                                 <NavLink :href="route('pregledi.upcoming')" :active="route().current('pregledi.upcoming')">
-                                    Ljekarski pregledi 7 dana
+                                    Ljekarski pregledi
                                 </NavLink>
                                 <NavLink :href="route('pregledi.kontrolni')" :active="route().current('pregledi.kontrolni')">
                                     Kontrolni pregledi
+                                </NavLink>
+                                <NavLink :href="route('ppz.izvjestajPregledi')" :active="route().current('ppz.izvjestajPregledi')">
+                                    Izvještaj ljekarskih pregleda
                                 </NavLink>
                                <!--  <NavLink href="/ppz/godisnji-odmori">
                                     Godišnji odmori

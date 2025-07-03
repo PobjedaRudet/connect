@@ -3,17 +3,29 @@ import { Link, Head } from '@inertiajs/vue3';
 
 const options = [
     {
-        name: 'Ljekarski pregledi',
-        description: 'Pregled i evidencija ljekarskih pregleda radnika.',
+        name: 'Lista uposlenika',
+        description: 'Spisak uposlenika i evidencija ljekarskih pregleda radnika.',
         link: route('pregledi.index'),
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /></svg>`
     },
      {
-        name: 'Ljekarski pregledi 7 dana',
+        name: 'Ljekarski pregledi',
         description: 'Pregled i evidencija ljekarskih pregleda radnika.',
         link: route('pregledi.upcoming'),
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /></svg>`
     },
+      {
+        name: 'Kontrolni pregledi',
+        description: 'Evidencija i unos kontrolnih ljekarskih pregleda radnika.',
+        link: route('pregledi.kontrolni'),
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-3-3v6m9-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`
+    },
+    {
+        name: 'Izvještaj ljekarskih pregleda',
+        description: 'Pregled svih ljekarskih pregleda sa detaljima za PPZ.',
+        link: route().has('ppz.izvjestajPregledi') ? route('ppz.izvjestajPregledi') : '/ppz/izvjestaj-pregledi',
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 014-4h3m4 4v2a4 4 0 01-4 4H7a4 4 0 01-4-4v-2a4 4 0 014-4h3m4-4V7a4 4 0 00-4-4H7a4 4 0 00-4 4v2a4 4 0 004 4h3" /></svg>`
+    }
     /* {
         name: 'Godišnji odmori',
         description: 'Upravljanje i pregled godišnjih odmora radnika.',

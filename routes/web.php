@@ -101,4 +101,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('leaves', LeaveController::class);
 });
 
+Route::get('/ppz/izvjestaj-pregledi', function() {
+    return Inertia::render('PPZ/IzvjestajPregledi');
+})->name('ppz.izvjestajPregledi');
+
 require __DIR__ . '/auth.php';
