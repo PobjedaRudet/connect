@@ -48,13 +48,13 @@ const options = [
 </script>
 
 <template>
-    <Head title="PPZ Dashboard" />
+    <Head title="ZNR I PPZ Dashboard" />
     <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-black relative">
         <!-- Logout dugme -->
         <Link :href="route('logout')" method="post" as="button" class="absolute top-6 right-6 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow">
             Log Out
         </Link>
-        <h1 class="text-2xl font-bold mb-8 text-center text-black dark:text-white">PPZ Dashboard</h1>
+        <h1 class="text-2xl font-bold mb-8 text-center text-black dark:text-white">ZNR I PPZ Dashboard</h1>
         <div class="grid gap-8 lg:grid-cols-2 md:grid-cols-2 sm:grid-cols-1">
             <div
                 v-for="option in options"

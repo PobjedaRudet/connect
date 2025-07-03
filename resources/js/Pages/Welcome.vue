@@ -20,7 +20,7 @@ const sectors = [
     {
         name: 'IT',
         description: 'Information Technology supports all technical infrastructure.',
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 014-4h3m4 4v2a4 4 0 01-4 4H7a4 4 0 01-4-4v-2a4 4 0 014-4h3m4-4V7a4 4 0 00-4-4H7a4 4 0 00-4 4v2a4 4 0 004 4h3" /></svg>`,
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 014-4h3m4 4v2a4 4 0 01-4 4H7a4 4 0 01-4-4v-2a4 4 0 004-4h3m4-4V7a4 4 0 00-4-4H7a4 4 0 00-4 4v2a4 4 0 004 4h3" /></svg>`,
         link: '/sector/it'
     },
     {
@@ -30,10 +30,10 @@ const sectors = [
         link: '/sector/finance'
     },
     {
-        name: 'PPZ I ZNR',
-        description: 'PPZ i ZNR sektor brine o zaštiti na radu i protivpožarnoj sigurnosti.',
+        name: 'ZNR I PPZ',
+        description: 'ZNR I PPZ sektor brine o zaštiti na radu i protivpožarnoj sigurnosti.',
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 4v4m0 4v4" /></svg>`,
-        link: '/sector/finance'
+        link: '/ppz/dashboard'
     },
     {
         name: 'Sales',

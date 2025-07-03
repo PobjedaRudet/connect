@@ -105,7 +105,7 @@ async function sacuvajIzmjenuKontrolnog() {
         Ljekarski pregledi
       </h2>
     </template>
-    <div class="min-h-screen bg-gray-100 p-8">
+    <div class="min-h-screen bg-gray-100 p-8 mx-16">
 
       <div class="mb-4 flex justify-center">
         <input v-model="search" type="text" placeholder="Pretraži po imenu ili prezimenu..." class="border rounded px-3 py-2 w-72" />
@@ -113,18 +113,24 @@ async function sacuvajIzmjenuKontrolnog() {
       <table class="table-auto w-full bg-white shadow rounded">
         <thead class="bg-gray-200">
           <tr>
-            <th class="px-4 py-2">#</th>
-            <th class="px-4 py-2">Ime</th>
-            <th class="px-4 py-2">Prezime</th>
-            <th class="px-4 py-2">Akcije</th>
+            <th class="px-4 py-2 text-center">#</th>
+            <th class="px-4 py-2 text-left">Ime</th>
+            <th class="px-4 py-2 text-left">Prezime</th>
+            <th class="px-4 py-2 text-center">Period</th>
+            <th class="px-4 py-2 text-left">Radno mjesto</th>
+            <th class="px-4 py-2 text-center">Invalidnost</th>
+            <th class="px-4 py-2 text-center">Akcije</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="(radnik, idx) in pagedRadnici" :key="radnik.id" class="border-t">
             <td class="px-4 py-2 text-center">{{ (currentPage - 1) * rowsPerPage + idx + 1 }}</td>
-            <td class="px-4 py-2">{{ radnik.firstName }}</td>
-            <td class="px-4 py-2">{{ radnik.lastName }}</td>
-            <td class="px-4 py-2">
+            <td class="px-4 py-2 text-left">{{ radnik.firstName }}</td>
+            <td class="px-4 py-2 text-left">{{ radnik.lastName }}</td>
+            <td class="px-4 py-2 text-center">{{ radnik.period }}</td>
+            <td class="px-4 py-2 text-left">{{ radnik.radno_mjesto }}</td>
+            <td class="px-4 py-2 text-center">{{ radnik.invalidnost_radnika }}</td>
+            <td class="px-4 py-2 text-center">
               <button @click="prikaziPreglede(radnik)" class="text-blue-600 hover:underline">Pregledi</button>
             </td>
           </tr>
@@ -152,6 +158,7 @@ async function sacuvajIzmjenuKontrolnog() {
                 <th class="px-4 py-2">Datum</th>
                 <th class="px-4 py-2">Tip</th>
                 <th class="px-4 py-2">Komentar</th>
+                <th class="px-4 py-2">Organizacija</th>
                 <th class="px-4 py-2">Kontrolni pregledi</th>
               </tr>
             </thead>
@@ -161,6 +168,7 @@ async function sacuvajIzmjenuKontrolnog() {
                   <td class="px-4 py-2 align-top">{{ formatDatum(pregled.datum_pregleda) }}</td>
                   <td class="px-4 py-2 align-top">{{ pregled.type }}</td>
                   <td class="px-4 py-2 align-top">{{ pregled.komentar }}</td>
+                  <td class="px-4 py-2 align-top">{{ pregled.organizacija }}</td>
                   <td class="px-4 py-2">
                     <button type="button"
                       @click.stop="toggleKontrolniPregledi(pregled.id)"
@@ -171,7 +179,7 @@ async function sacuvajIzmjenuKontrolnog() {
                   </td>
                 </tr>
                 <tr v-if="selectedPregledId === pregled.id">
-                  <td colspan="4" class="bg-gray-50 px-4 py-2">
+                  <td colspan="5" class="bg-gray-50 px-4 py-2">
                     <div v-if="kontrolniPregledi.filter(kp => kp.pregledi_id === pregled.id).length">
                       <table class="table-auto w-full border">
                         <thead>
