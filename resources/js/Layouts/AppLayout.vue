@@ -39,12 +39,7 @@ const logout = () => {
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div class="flex justify-between h-16">
                         <div class="flex">
-                            <!-- Logo -->
-                            <div class="shrink-0 flex items-center">
-                                <Link :href="route('dashboard')">
-                                    <ApplicationMark class="block h-9 w-auto" />
-                                </Link>
-                            </div>
+
 
                             <!-- Navigation Links -->
                             <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
@@ -60,7 +55,7 @@ const logout = () => {
                                 <NavLink :href="route('pregledi.kontrolni')" :active="route().current('pregledi.kontrolni')">
                                     Kontrolni pregledi
                                 </NavLink>
-                                <NavLink href="/ppz/godisnji-odmori">
+                               <!--  <NavLink href="/ppz/godisnji-odmori">
                                     Godišnji odmori
                                 </NavLink>
                                 <NavLink href="/ppz/obuka-radnika">
@@ -68,7 +63,7 @@ const logout = () => {
                                 </NavLink>
                                 <NavLink href="/ppz/radnici-rizik">
                                     Radnici s rizikom
-                                </NavLink>
+                                </NavLink> -->
                             </div>
                         </div>
 
@@ -168,11 +163,9 @@ const logout = () => {
                                         <div class="border-t border-gray-200" />
 
                                         <!-- Authentication -->
-                                        <form @submit.prevent="logout">
-                                            <DropdownLink as="button">
-                                                Log Out
-                                            </DropdownLink>
-                                        </form>
+                                        <DropdownLink :href="route('logout')" method="post" as="button">
+                                            Log Out
+                                        </DropdownLink>
                                     </template>
                                 </Dropdown>
                             </div>
@@ -242,11 +235,9 @@ const logout = () => {
                             </ResponsiveNavLink>
 
                             <!-- Authentication -->
-                            <form method="POST" @submit.prevent="logout">
-                                <ResponsiveNavLink as="button">
-                                    Log Out
-                                </ResponsiveNavLink>
-                            </form>
+                            <ResponsiveNavLink :href="route('logout')" method="post" as="button">
+                                Log Out
+                            </ResponsiveNavLink>
 
                             <!-- Team Management -->
                             <template v-if="$page.props.jetstream.hasTeamFeatures">

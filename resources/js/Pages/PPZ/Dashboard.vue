@@ -14,7 +14,7 @@ const options = [
         link: route('pregledi.upcoming'),
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /></svg>`
     },
-    {
+    /* {
         name: 'Godišnji odmori',
         description: 'Upravljanje i pregled godišnjih odmora radnika.',
         link: '/ppz/godisnji-odmori',
@@ -43,15 +43,18 @@ const options = [
         description: 'Evidencija i unos kontrolnih ljekarskih pregleda radnika.',
         link: route('pregledi.nextMonth'),
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-3-3v6m9-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`
-    },
+    }, */
 ];
 </script>
 
 <template>
     <Head title="PPZ Dashboard" />
-    <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-black">
+    <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-black relative">
+        <!-- Logout dugme -->
+        <Link :href="route('logout')" method="post" as="button" class="absolute top-6 right-6 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow">
+            Log Out
+        </Link>
         <h1 class="text-2xl font-bold mb-8 text-center text-black dark:text-white">PPZ Dashboard</h1>
-
         <div class="grid gap-8 lg:grid-cols-2 md:grid-cols-2 sm:grid-cols-1">
             <div
                 v-for="option in options"
