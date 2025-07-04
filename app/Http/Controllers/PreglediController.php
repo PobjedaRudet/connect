@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Employee;
 use App\Models\Pregledi;
+use App\Models\RadniciPoRedosljedu;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -207,6 +208,7 @@ class PreglediController extends Controller
                     'type' => $p->type,
                     'profesionalno_oboljenje' => $p->employee->profesionalno_oboljenje ?? '',
                     'invalidnost_radnika' => $p->employee->invalidnost_radnika ?? '',
+                    'employee_id' => $p->employee->empID ?? null,
                 ];
             });
         return response()->json($pregledi);
@@ -262,6 +264,14 @@ class PreglediController extends Controller
             Log::error('Greška pri exportu Word izvještaja: ' . $e->getMessage() . ' | ' . $e->getTraceAsString());
             return response()->json(['error' => 'Greška pri exportu Word izvještaja: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * API: Svi radnici po redosljedu
+     */
+    public function apiRadniciPoRedosljedu()
+    {
+        return response()->json(RadniciPoRedosljedu::orderBy('redni_broj', 'asc')->get());
     }
 
 

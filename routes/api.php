@@ -54,3 +54,5 @@ Route::get('/kontrolni-pregledi/by-pregledi', function(\Illuminate\Http\Request 
 Route::get('/ppz-izvjestaj-pregledi', [PreglediController::class, 'apiIzvjestajPregledi']);
 // Export pregleda u Word dokument
 Route::post('/ppz-izvjestaj-pregledi-word', [\App\Http\Controllers\PreglediController::class, 'apiIzvjestajPreglediWord']);
+// Redosljed radnika za izvještaj
+Route::get('/radnici-po-redosljedu', [PreglediController::class, 'apiRadniciPoRedosljedu']);

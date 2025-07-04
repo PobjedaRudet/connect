@@ -11,7 +11,19 @@ async function fetchPregledi() {
   loading.value = true;
   try {
     const { data } = await axios.get('/api/ppz-izvjestaj-pregledi');
-    pregledi.value = data;
+    // Dohvati i redosljed iz nove tabele
+    const { data: redosljedData } = await axios.get('/api/radnici-po-redosljedu');
+    // Mapiraj employee_id -> redni_broj
+    const redniBrojMap = {};
+    for (const r of redosljedData) {
+      redniBrojMap[Number(r.employee_id)] = r.redni_broj;
+    }
+    // Dodaj redni_broj svakom pregledu (ako postoji veza)
+    for (const p of data) {
+      p.redni_broj = redniBrojMap[Number(p.employee_id)] || '';
+    }
+    // Sortiraj po redni_broj
+    pregledi.value = data.sort((a, b) => (a.redni_broj || 99999) - (b.redni_broj || 99999));
   } finally {
     loading.value = false;
   }
