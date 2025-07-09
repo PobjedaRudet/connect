@@ -8,6 +8,10 @@
         <div class="p-6 flex justify-center">
             <div class="w-full max-w-4xl">
                 <h2 class="text-lg font-semibold mb-4">📅 Nadolazeći pregledi za tekući mjesec</h2>
+                <div class="flex justify-between items-center mb-4">
+                    <input v-model="search" type="text" placeholder="Pretraži po imenu ili prezimenu..."
+                        class="border rounded px-3 py-2 w-72" />
+                </div>
                 <div class="overflow-x-auto rounded-lg shadow mb-8 bg-white">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead>
@@ -26,7 +30,7 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-100">
-                            <tr v-for="(item, index) in upcoming" :key="'upcoming-' + index"
+                            <tr v-for="(item, index) in sortedUpcoming" :key="'upcoming-' + index"
                                 :class="{ 'bg-blue-100': selectedUpcoming.includes(index), 'hover:bg-gray-50': !selectedUpcoming.includes(index) }"
                                 class="transition">
                                 <td class="px-4 py-4 text-center">
@@ -71,7 +75,7 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-100">
-                            <tr v-for="(item, index) in expired" :key="'expired-' + index"
+                            <tr v-for="(item, index) in sortedExpired" :key="'expired-' + index"
                                 :class="{ 'bg-red-100': selectedExpired.includes(index), 'hover:bg-red-50': !selectedExpired.includes(index) }"
                                 class="transition">
                                 <td class="px-4 py-4 text-center">
@@ -121,7 +125,12 @@
                         </div>
                         <div class="mb-6">
                             <label class="block text-sm font-medium mb-1">Ustanova</label>
-                            <input type="text" v-model="form.ustanova" class="form-input w-full" required />
+                            <select v-model="form.ustanova" @change="onUstanovaChange" class="form-select w-full" required>
+                                <option value="J.U. Dom zdravlja 'Dr.Isak Samokovlija' Goražde">J.U. Dom zdravlja "Dr.Isak Samokovlija" Goražde</option>
+                                  <option value="J.U. Dom zdravlja 'Dr.Isak Samokovlija' Goražde">PZU "Eurofarm-Centar Poliklinika" PJ Goražde</option>
+                                  <option value="custom">Drugo (upišite ručno)</option>
+                            </select>
+                            <input v-if="showCustomUstanova" type="text" v-model="form.ustanova" placeholder="Unesite naziv ustanove" class="form-input w-full mt-2" required />
                         </div>
                         <div class="flex justify-end space-x-3">
                             <button type="button" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded"
@@ -140,7 +149,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import axios from 'axios';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
@@ -159,6 +168,39 @@ const form = ref({
     kontrolni: '',
     komentar: '',
     ustanova: ''
+});
+
+const search = ref('');
+
+const filteredUpcoming = computed(() => {
+    if (!search.value) return props.upcoming;
+    return props.upcoming.filter(item => {
+        const imePrezime = `${item.employee.firstName} ${item.employee.lastName}`.toLowerCase();
+        return imePrezime.includes(search.value.toLowerCase());
+    });
+});
+const filteredExpired = computed(() => {
+    if (!search.value) return props.expired;
+    return props.expired.filter(item => {
+        const imePrezime = `${item.employee.firstName} ${item.employee.lastName}`.toLowerCase();
+        return imePrezime.includes(search.value.toLowerCase());
+    });
+});
+
+// Dodaj redni_broj u computed sortirane liste
+const sortedUpcoming = computed(() => {
+    return [...filteredUpcoming.value].sort((a, b) => {
+        const aBroj = a.redni_broj ?? 99999;
+        const bBroj = b.redni_broj ?? 99999;
+        return aBroj - bBroj;
+    });
+});
+const sortedExpired = computed(() => {
+    return [...filteredExpired.value].sort((a, b) => {
+        const aBroj = a.redni_broj ?? 99999;
+        const bBroj = b.redni_broj ?? 99999;
+        return aBroj - bBroj;
+    });
 });
 
 const formatDate = (dateStr) => {
@@ -205,4 +247,16 @@ const fetchPregledi = async () => {
     props.upcoming.splice(0, props.upcoming.length, ...data.upcoming);
     props.expired.splice(0, props.expired.length, ...data.expired);
 };
+
+const showCustomUstanova = ref(false);
+
+function onUstanovaChange(e) {
+    if (e.target.value === 'custom') {
+        showCustomUstanova.value = true;
+        form.value.ustanova = '';
+    } else {
+        showCustomUstanova.value = false;
+        form.value.ustanova = e.target.value;
+    }
+}
 </script>

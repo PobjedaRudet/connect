@@ -96,6 +96,16 @@ async function sacuvajIzmjenuKontrolnog() {
     console.error('Greška prilikom čuvanja izmjena:', error);
   }
 }
+function izracunajSljedeciTermin(lastExamDate, period) {
+  if (!lastExamDate || !period) return '';
+  const d = new Date(lastExamDate);
+  if (isNaN(d)) return '';
+  d.setMonth(d.getMonth() + Number(period));
+  const dan = String(d.getDate()).padStart(2, '0');
+  const mjesec = String(d.getMonth() + 1).padStart(2, '0');
+  const godina = d.getFullYear();
+  return `${dan}.${mjesec}.${godina}`;
+}
 </script>
 
 <template>
@@ -120,6 +130,7 @@ async function sacuvajIzmjenuKontrolnog() {
             <th class="px-4 py-2 text-left">Radno mjesto</th>
             <th class="px-4 py-2 text-center">Invalidnost</th>
             <th class="px-4 py-2 text-center">Posljednji pregled</th>
+            <th class="px-4 py-2 text-center">Sljedeći termin</th>
             <th class="px-4 py-2 text-center">Akcije</th>
           </tr>
         </thead>
@@ -133,6 +144,9 @@ async function sacuvajIzmjenuKontrolnog() {
             <td class="px-4 py-2 text-center">{{ radnik.invalidnost_radnika }}</td>
             <td class="px-4 py-2 text-center">
               {{ radnik.lastExamDate ? formatDatum(radnik.lastExamDate) : '' }}
+            </td>
+            <td class="px-4 py-2 text-center">
+              {{ izracunajSljedeciTermin(radnik.lastExamDate, radnik.period) }}
             </td>
             <td class="px-4 py-2 text-center">
               <button @click="prikaziPreglede(radnik)" class="text-blue-600 hover:underline">Pregledi</button>
