@@ -5,15 +5,17 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\PassController;
 use App\Http\Controllers\PreglediController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Mail\UpcomingExamsMail;
 use App\Models\Employee;
+use Carbon\Carbon;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Carbon\Carbon;
+
 
 
 
@@ -100,6 +102,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('passes', PassController::class);
     Route::resource('leaves', LeaveController::class);
 });
+
+Route::resource('products', ProductController::class);
 
 Route::get('/ppz/izvjestaj-pregledi', function() {
     return Inertia::render('PPZ/IzvjestajPregledi');
