@@ -106,6 +106,49 @@ function izracunajSljedeciTermin(lastExamDate, period) {
   const godina = d.getFullYear();
   return `${dan}.${mjesec}.${godina}`;
 }
+
+async function azurirajPregled(pregled) {
+  // Otvori modal za izmjenu pregleda
+  editPregled.value = { ...pregled };
+  showEditPregledModal.value = true;
+}
+
+async function sacuvajIzmjenuPregleda() {
+  if (!editPregled.value) return;
+  try {
+    await axios.put(`/api/pregledi/${editPregled.value.id}`, editPregled.value);
+    showEditPregledModal.value = false;
+    editPregled.value = null;
+    // Osvježi podatke
+    await prikaziPreglede(selectedRadnik.value);
+  } catch (error) {
+    console.error('Greška prilikom ažuriranja pregleda:', error);
+  }
+}
+
+const pregledZaBrisanje = ref(null);
+const showPotvrdaBrisanja = ref(false);
+
+function potvrdiBrisanjePregleda(pregledId) {
+  pregledZaBrisanje.value = pregledId;
+  showPotvrdaBrisanja.value = true;
+}
+
+async function obrisiPregled() {
+  if (!pregledZaBrisanje.value) return;
+  try {
+    await axios.delete(`/api/pregledi/${pregledZaBrisanje.value}`);
+    showPotvrdaBrisanja.value = false;
+    pregledZaBrisanje.value = null;
+    // Osvježi podatke
+    await prikaziPreglede(selectedRadnik.value);
+  } catch (error) {
+    console.error('Greška prilikom brisanja pregleda:', error);
+  }
+}
+
+const showEditPregledModal = ref(false);
+const editPregled = ref(null);
 </script>
 
 <template>
@@ -188,12 +231,27 @@ function izracunajSljedeciTermin(lastExamDate, period) {
                   <td class="px-4 py-2 align-top">{{ pregled.komentar }}</td>
                   <td class="px-4 py-2 align-top">{{ pregled.organizacija }}</td>
                   <td class="px-4 py-2">
-                    <button type="button"
-                      @click.stop="toggleKontrolniPregledi(pregled.id)"
-                      class="text-blue-500 underline cursor-pointer focus:outline-none">
-                      <span v-if="selectedPregledId !== pregled.id">Prikaži</span>
-                      <span v-else>Sakrij</span>
-                    </button>
+                    <div class="flex flex-col space-y-1 items-start">
+                      <button type="button"
+                        @click.stop="toggleKontrolniPregledi(pregled.id)"
+                        class="text-blue-500 underline cursor-pointer focus:outline-none w-full text-left">
+                        <span v-if="selectedPregledId !== pregled.id">Prikaži</span>
+                        <span v-else>Sakrij</span>
+                      </button>
+                      <button @click="azurirajPregled(pregled)" class="text-yellow-600 hover:underline w-full text-left">Izmijeni</button>
+                      <button @click="potvrdiBrisanjePregleda(pregled.id)" class="text-red-600 hover:underline w-full text-left">Obriši</button>
+                    </div>
+      <!-- Modal za potvrdu brisanja pregleda -->
+      <div v-if="showPotvrdaBrisanja" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+        <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+          <h3 class="text-lg font-semibold mb-4">Potvrda brisanja</h3>
+          <p>Da li ste sigurni da želite obrisati ovaj pregled?</p>
+          <div class="flex justify-end space-x-2 mt-6">
+            <button @click="showPotvrdaBrisanja = false; pregledZaBrisanje = null" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded">Otkaži</button>
+            <button @click="obrisiPregled()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">Obriši</button>
+          </div>
+        </div>
+      </div>
                   </td>
                 </tr>
                 <tr v-if="selectedPregledId === pregled.id">
@@ -254,6 +312,35 @@ function izracunajSljedeciTermin(lastExamDate, period) {
             <div class="flex justify-end space-x-2">
               <button @click="closeEditModal" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded">Zatvori</button>
               <button @click="sacuvajIzmjenuKontrolnog()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Sačuvaj</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Modal za izmjenu pregleda -->
+      <div v-if="showEditPregledModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+        <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+          <button @click="showEditPregledModal = false" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700">&times;</button>
+          <h3 class="text-lg font-semibold mb-4">Izmjena pregleda</h3>
+          <div v-if="editPregled">
+            <div class="mb-3">
+              <label class="block text-gray-700 text-sm font-bold mb-1">Datum</label>
+              <input type="date" v-model="editPregled.datum_pregleda" class="border rounded px-3 py-2 w-full" />
+            </div>
+            <div class="mb-3">
+              <label class="block text-gray-700 text-sm font-bold mb-1">Tip</label>
+              <input type="text" v-model="editPregled.type" class="border rounded px-3 py-2 w-full" />
+            </div>
+            <div class="mb-3">
+              <label class="block text-gray-700 text-sm font-bold mb-1">Komentar</label>
+              <input type="text" v-model="editPregled.komentar" class="border rounded px-3 py-2 w-full" />
+            </div>
+            <div class="mb-3">
+              <label class="block text-gray-700 text-sm font-bold mb-1">Organizacija</label>
+              <input type="text" v-model="editPregled.organizacija" class="border rounded px-3 py-2 w-full" />
+            </div>
+            <div class="flex justify-end space-x-2">
+              <button @click="showEditPregledModal = false" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded">Zatvori</button>
+              <button @click="sacuvajIzmjenuPregleda()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Sačuvaj</button>
             </div>
           </div>
         </div>
