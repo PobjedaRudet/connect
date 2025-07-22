@@ -1,4 +1,3 @@
-
 <?php
 
 use Illuminate\Support\Facades\Route;
@@ -13,7 +12,8 @@ use Illuminate\Support\Facades\Log;
 // RESTful update/delete za Pregledi
 Route::put('/pregledi/{id}', [PreglediController::class, 'update']);
 Route::delete('/pregledi/{id}', [PreglediController::class, 'destroy']);
-
+// API ruta za ažuriranje invalidnosti zaposlenika
+Route::put('/employees/{id}/invalidnost', [\App\Http\Controllers\EmployeeController::class, 'updateInvalidnost']);
 
 
 

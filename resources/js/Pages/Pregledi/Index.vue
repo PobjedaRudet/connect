@@ -178,6 +178,26 @@ async function obrisiPregled() {
     console.error('Greška prilikom brisanja pregleda:', error);
   }
 }
+
+const showEditInvalidnostModal = ref(false);
+const editInvalidnostRadnik = ref(null);
+const novaInvalidnost = ref('');
+function otvoriEditInvalidnost(radnik) {
+  editInvalidnostRadnik.value = radnik;
+  novaInvalidnost.value = radnik.invalidnost_radnika || '';
+  showEditInvalidnostModal.value = true;
+}
+async function sacuvajInvalidnost() {
+  if (!editInvalidnostRadnik.value) return;
+  try {
+    await axios.put(`/api/employees/${editInvalidnostRadnik.value.empID}/invalidnost`, { invalidnost_radnika: novaInvalidnost.value });
+    editInvalidnostRadnik.value.invalidnost_radnika = novaInvalidnost.value;
+    showEditInvalidnostModal.value = false;
+    // Osvježi prikaz ako treba
+  } catch (e) {
+    alert('Greška pri ažuriranju invalidnosti!');
+  }
+}
 </script>
 
 <template>
@@ -201,6 +221,7 @@ async function obrisiPregled() {
             <th class="px-4 py-2 text-center">Period</th>
             <th class="px-4 py-2 text-left">Radno mjesto</th>
             <th class="px-4 py-2 text-center">Invalidnost</th>
+            <th class="px-4 py-2 text-center">Izmijeni invalidnost</th>
             <th class="px-4 py-2 text-center">Posljednji pregled</th>
             <th class="px-4 py-2 text-center">Sljedeći termin</th>
             <th class="px-4 py-2 text-center">Akcije</th>
@@ -214,6 +235,9 @@ async function obrisiPregled() {
             <td class="px-4 py-2 text-center">{{ radnik.period }}</td>
             <td class="px-4 py-2 text-left">{{ radnik.radno_mjesto }}</td>
             <td class="px-4 py-2 text-center">{{ radnik.invalidnost_radnika }}</td>
+            <td class="px-4 py-2 text-center">
+              <button @click="otvoriEditInvalidnost(radnik)" class="bg-yellow-400 hover:bg-yellow-500 text-white px-3 py-1 rounded">Izmijeni</button>
+            </td>
             <td class="px-4 py-2 text-center">
               {{ radnik.lastExamDate ? formatDatum(radnik.lastExamDate) : '' }}
             </td>
@@ -381,6 +405,21 @@ async function obrisiPregled() {
               <button @click="showEditPregledModal = false" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded">Zatvori</button>
               <button @click="sacuvajIzmjenuPregleda()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Sačuvaj</button>
             </div>
+          </div>
+        </div>
+      </div>
+      <!-- Modal za izmjenu invalidnosti -->
+      <div v-if="showEditInvalidnostModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+        <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+          <button @click="showEditInvalidnostModal = false" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700">&times;</button>
+          <h3 class="text-lg font-semibold mb-4">Izmjena invalidnosti</h3>
+          <div class="mb-3">
+            <label class="block text-gray-700 text-sm font-bold mb-1">Nova invalidnost</label>
+            <input type="text" v-model="novaInvalidnost" class="border rounded px-3 py-2 w-full" />
+          </div>
+          <div class="flex justify-end space-x-2">
+            <button @click="showEditInvalidnostModal = false" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded">Otkaži</button>
+            <button @click="sacuvajInvalidnost()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Sačuvaj</button>
           </div>
         </div>
       </div>
