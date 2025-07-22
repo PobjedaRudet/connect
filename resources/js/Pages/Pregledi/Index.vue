@@ -107,16 +107,48 @@ function izracunajSljedeciTermin(lastExamDate, period) {
   return `${dan}.${mjesec}.${godina}`;
 }
 
+const showEditPregledModal = ref(false);
+const editPregled = ref(null);
+const showEditCustomOrganizacija = ref(false);
+function onEditOrganizacijaChange(e) {
+  if (e.target.value === 'custom') {
+    showEditCustomOrganizacija.value = true;
+    editPregled.value.organizacija = '';
+  } else {
+    showEditCustomOrganizacija.value = false;
+    editPregled.value.organizacija = e.target.value;
+  }
+}
+
 async function azurirajPregled(pregled) {
-  // Otvori modal za izmjenu pregleda
   editPregled.value = { ...pregled };
+  // Prikaži custom input ako organizacija nije jedna od ponuđenih
+  if (
+    editPregled.value.organizacija !== "J.U. Dom zdravlja 'Dr.Isak Samokovlija' Goražde" &&
+    editPregled.value.organizacija !== "PZU 'Eurofarm-Centar Poliklinika' PJ Goražde"
+  ) {
+    showEditCustomOrganizacija.value = true;
+  } else {
+    showEditCustomOrganizacija.value = false;
+  }
   showEditPregledModal.value = true;
 }
 
 async function sacuvajIzmjenuPregleda() {
   if (!editPregled.value) return;
+  if (!editPregled.value.organizacija || editPregled.value.organizacija.trim() === '') {
+    alert('Polje "Organizacija" je obavezno!');
+    return;
+  }
   try {
-    await axios.put(`/api/pregledi/${editPregled.value.id}`, editPregled.value);
+    // Pripremi podatke koje backend očekuje
+    const payload = {
+      datum_pregleda: editPregled.value.datum_pregleda,
+      type: editPregled.value.type,
+      komentar: editPregled.value.komentar,
+      organizacija: editPregled.value.organizacija
+    };
+    await axios.put(`/api/pregledi/${editPregled.value.id}`, payload);
     showEditPregledModal.value = false;
     editPregled.value = null;
     // Osvježi podatke
@@ -146,9 +178,6 @@ async function obrisiPregled() {
     console.error('Greška prilikom brisanja pregleda:', error);
   }
 }
-
-const showEditPregledModal = ref(false);
-const editPregled = ref(null);
 </script>
 
 <template>
@@ -341,7 +370,12 @@ const editPregled = ref(null);
             </div>
             <div class="mb-3">
               <label class="block text-gray-700 text-sm font-bold mb-1">Organizacija</label>
-              <input type="text" v-model="editPregled.organizacija" class="border rounded px-3 py-2 w-full" />
+              <select v-model="editPregled.organizacija" @change="onEditOrganizacijaChange" class="border rounded px-3 py-2 w-full" required>
+                <option value="J.U. Dom zdravlja 'Dr.Isak Samokovlija' Goražde">J.U. Dom zdravlja "Dr.Isak Samokovlija" Goražde</option>
+                <option value="PZU 'Eurofarm-Centar Poliklinika' PJ Goražde">PZU "Eurofarm-Centar Poliklinika" PJ Goražde</option>
+                <option value="custom">Drugo (upišite ručno)</option>
+              </select>
+              <input v-if="showEditCustomOrganizacija" type="text" v-model="editPregled.organizacija" placeholder="Unesite naziv ustanove" class="border rounded px-3 py-2 w-full mt-2" required />
             </div>
             <div class="flex justify-end space-x-2">
               <button @click="showEditPregledModal = false" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded">Zatvori</button>

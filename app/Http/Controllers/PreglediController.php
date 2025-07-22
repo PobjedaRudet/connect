@@ -274,5 +274,33 @@ class PreglediController extends Controller
         return response()->json(RadniciPoRedosljedu::orderBy('redni_broj', 'asc')->get());
     }
 
+        // API: Izmjena pregleda
+    public function update(Request $request, $id)
+    {
+        Log::info('UPDATE PREGLED request', $request->all());
+        $pregled = Pregledi::findOrFail($id);
+        try {
+            $data = $request->validate([
+                'datum_pregleda' => 'required|date',
+                'type' => 'required|string',
+                'komentar' => 'nullable|string',
+                'organizacija' => 'required|string',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('UPDATE PREGLED validation error', $e->errors());
+            throw $e;
+        }
+        $pregled->update($data);
+        return response()->json(['success' => true, 'pregled' => $pregled]);
+    }
+
+    // API: Brisanje pregleda
+    public function destroy($id)
+    {
+        $pregled = Pregledi::findOrFail($id);
+        $pregled->delete();
+        return response()->json(['success' => true]);
+    }
+
 
 }

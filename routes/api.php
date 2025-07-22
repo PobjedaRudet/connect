@@ -1,5 +1,7 @@
+
 <?php
 
+use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\KontrolniPreglediController;
 use App\Http\Controllers\PreglediController;
@@ -7,7 +9,10 @@ use App\Models\KontrolniPregledi;
 use App\Models\Pregledi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Route;
+
+// RESTful update/delete za Pregledi
+Route::put('/pregledi/{id}', [PreglediController::class, 'update']);
+Route::delete('/pregledi/{id}', [PreglediController::class, 'destroy']);
 
 
 
