@@ -109,4 +109,8 @@ Route::get('/ppz/izvjestaj-pregledi', function() {
     return Inertia::render('PPZ/IzvjestajPregledi');
 })->name('ppz.izvjestajPregledi');
 
+Route::get('/nalozi/nalozi-za-proizvodnju', function () {
+    return Inertia::render('Nalozi/NaloziZaProizvodnju');
+})->name('nalozi.za-proizvodnju');
+
 require __DIR__ . '/auth.php';

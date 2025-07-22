@@ -39,7 +39,8 @@ const sectors = [
         name: 'Sales',
         description: 'Sales drives company revenue and client relationships.',
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 17v-2a4 4 0 014-4h10a4 4 0 014 4v2M16 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`,
-        link: '/sector/sales'
+        link: '/prodaja/dashboard',
+        route: '/prodaja/dashboard', // Dodano za eksplicitno rutiranje
     },
     {
         name: 'Production',
@@ -72,7 +73,7 @@ const sectors = [
     <div class="grid gap-8 lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1">
         <div v-for="sector in sectors" :key="sector.name"
             class="bg-white dark:bg-gray-900 rounded shadow p-8 flex flex-col items-center hover:shadow-lg transition">
-            <Link :href="`/login?redirect=${encodeURIComponent(sector.link)}`" class="flex flex-col items-center group">
+            <Link :href="sector.name === 'Sales' ? sector.route : `/login?redirect=${encodeURIComponent(sector.link)}`" class="flex flex-col items-center group">
                 <span v-html="sector.icon"></span>
                 <span class="mt-4 text-lg font-semibold group-hover:text-[#FF2D20] transition">{{ sector.name }}</span>
                 <span class="mt-2 text-sm text-gray-500 dark:text-gray-400 text-center">{{ sector.description }}</span>
