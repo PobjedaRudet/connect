@@ -328,7 +328,12 @@ const editPregled = ref(null);
             </div>
             <div class="mb-3">
               <label class="block text-gray-700 text-sm font-bold mb-1">Tip</label>
-              <input type="text" v-model="editPregled.type" class="border rounded px-3 py-2 w-full" />
+              <select v-model="editPregled.type" class="border rounded px-3 py-2 w-full">
+                <option value="Sposoban">Sposoban</option>
+                <option value="Nesposoban">Nesposoban</option>
+                <option value="Privremeno nesposoban">Privremeno nesposoban</option>
+                <option value="Ograničen">Ograničen</option>
+              </select>
             </div>
             <div class="mb-3">
               <label class="block text-gray-700 text-sm font-bold mb-1">Komentar</label>
