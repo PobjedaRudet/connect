@@ -14,11 +14,11 @@ class PreglediController extends Controller
 {
     public function index()
     {
-        $radnici = Employee::with(['pregledi' => function($q) {
+        $radnici = Employee::with(['pregledi' => function ($q) {
             $q->orderByDesc('datum_pregleda');
         }])->get();
         // Dodaj lastExamDate svakom radniku
-        $radnici = $radnici->map(function($radnik) {
+        $radnici = $radnici->map(function ($radnik) {
             $radnikArr = $radnik->toArray();
             $lastExam = $radnik->pregledi->first();
             $radnikArr['lastExamDate'] = $lastExam ? $lastExam->datum_pregleda : null;
@@ -76,10 +76,72 @@ class PreglediController extends Controller
             }
         }
         // Log::info("Nadolazeci", $upcoming);
-        return Inertia::render('Pregledi/ZaSedamDana', [
+        /* return Inertia::render('Pregledi/ZaSedamDana', [
             'upcoming' => $upcoming,
             'expired' => $expired
-        ]);
+        ]); */
+        // Radnici koji NEMAJU NIJEDAN pregled
+        // SVI radnici, sa ili bez pregleda
+        $radnici = Employee::with(['pregledi' => function ($q) {
+            $q->orderByDesc('datum_pregleda');
+        }])->get();
+    $bezPregleda = $radnici->filter(function($radnik) {
+        return $radnik->pregledi->isEmpty();
+    })->values()->all(); // pretvori u array
+    Log::info("Bez pregleda");
+    Log::info("Bez pregleda", $bezPregleda);
+
+    return Inertia::render('Pregledi/ZaSedamDana', [
+        'upcoming' => $upcoming,
+        'expired' => $expired,
+        'bezPregleda' => $bezPregleda, // šaljemo i njih
+    ]);
+    }
+
+    public function zaSedamDana()
+    {
+        $today = \Carbon\Carbon::today();
+        $nextWeek = $today->copy()->addDays(30);
+
+        // SVI radnici, sa ili bez pregleda
+        $radnici = Employee::with(['pregledi' => function ($q) {
+            $q->orderByDesc('datum_pregleda');
+        }])->get();
+
+        $upcoming = [];
+        $expired = [];
+
+        foreach ($radnici as $employee) {
+            $lastExam = $employee->pregledi->first();
+            if (!$lastExam || !$employee->period) continue;
+
+            $nextDue = \Carbon\Carbon::parse($lastExam->datum_pregleda)->addMonths((int)$employee->period);
+
+            if ($nextDue->between($today, $nextWeek)) {
+                $upcoming[] = [
+                    'employee' => $employee,
+                    'next_due' => $nextDue,
+                ];
+            } elseif ($nextDue->lessThan($today)) {
+                $expired[] = [
+                    'employee' => $employee,
+                    'next_due' => $nextDue,
+                ];
+            }
+        }
+
+        // Radnici koji NEMAJU NIJEDAN pregled
+    $bezPregleda = $radnici->filter(function($radnik) {
+        return $radnik->pregledi->isEmpty();
+    })->values()->all(); // pretvori u array
+    Log::info("Bez pregleda");
+    Log::info("Bez pregleda", $bezPregleda);
+
+    return Inertia::render('Pregledi/ZaSedamDana', [
+        'upcoming' => $upcoming,
+        'expired' => $expired,
+        'bezPregleda' => $bezPregleda, // šaljemo i njih
+    ]);
     }
 
     public function reportUpcomingNextMonth()
@@ -197,7 +259,7 @@ class PreglediController extends Controller
         $pregledi = Pregledi::with(['employee'])
             ->orderByDesc('datum_pregleda')
             ->get()
-            ->map(function($p) {
+            ->map(function ($p) {
                 return [
                     'organizacija' => $p->organizacija,
                     'datum_pregleda' => $p->datum_pregleda,
@@ -274,7 +336,7 @@ class PreglediController extends Controller
         return response()->json(RadniciPoRedosljedu::orderBy('redni_broj', 'asc')->get());
     }
 
-        // API: Izmjena pregleda
+    // API: Izmjena pregleda
     public function update(Request $request, $id)
     {
         Log::info('UPDATE PREGLED request', $request->all());
@@ -301,6 +363,4 @@ class PreglediController extends Controller
         $pregled->delete();
         return response()->json(['success' => true]);
     }
-
-
 }

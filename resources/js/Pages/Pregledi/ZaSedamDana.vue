@@ -146,22 +146,76 @@
                 </div>
             </div>
         </div>
+
+<div class="p-6 flex justify-center">
+  <div class="w-full max-w-4xl">
+    <h2 class="text-lg font-semibold text-red-700 mb-4">⛔ Radnici bez ijednog pregleda</h2>
+    <div class="overflow-x-auto rounded-lg shadow mb-8 bg-white">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead>
+          <tr class="bg-gray-50">
+            <th class="px-4 py-3"></th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">#</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Zaposleni</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">SAP Id</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Pozicija</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-100">
+          <tr v-for="(radnik, index) in bezPregleda" :key="'bezpregleda-' + radnik.id"
+            :class="{ 'bg-green-100': selectedBezPregleda.includes(radnik.empID), 'hover:bg-gray-50': !selectedBezPregleda.includes(radnik.empID) }"
+            class="transition">
+            <td class="px-4 py-4 text-center">
+              <input type="checkbox" :checked="selectedBezPregleda.includes(radnik.empID)"
+                @change="onCheckboxChange(radnik.empID, null, 'bezPregleda')"
+                class="form-checkbox h-4 w-4 text-green-600" />
+            </td>
+            <td class="px-6 py-4 text-center">{{ index + 1 }}</td>
+            <td class="px-6 py-4">{{ radnik.firstName }} {{ radnik.lastName }}</td>
+            <td class="px-6 py-4">{{ radnik.empID }}</td>
+            <td class="px-6 py-4">{{ radnik.radno_mjesto }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
     </AppLayout>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import AppLayout from '@/Layouts/AppLayout.vue';
 
 const props = defineProps({
     upcoming: Array,
-    expired: Array
+    expired: Array,
+    bezPregleda: Array // dodaj ovo
+});
+
+onMounted(() => {
+    console.log('bezPregleda:', props.bezPregleda);
 });
 
 const selectedUpcoming = ref([]);
 const selectedExpired = ref([]);
+const selectedBezPregleda = ref([]);
 const showPopup = ref(false);
+
+const onCheckboxChange = (empID, index = null, type = 'upcoming') => {
+    let selectedArr;
+    if (type === 'upcoming') selectedArr = selectedUpcoming;
+    else if (type === 'expired') selectedArr = selectedExpired;
+    else if (type === 'bezPregleda') selectedArr = selectedBezPregleda;
+    else return;
+
+    if (selectedArr.value.includes(empID)) {
+        selectedArr.value = selectedArr.value.filter(id => id !== empID);
+    } else {
+        selectedArr.value.push(empID);
+    }
+};
 
 const form = ref({
     datum: '',
@@ -211,8 +265,18 @@ const formatDate = (dateStr) => {
 
 const azurirajPreglede = async () => {
     try {
+        // Kombinuj sve selektovane ID-eve iz svih sekcija, bez duplikata
+        const allSelected = Array.from(new Set([
+            ...selectedUpcoming.value,
+            ...selectedExpired.value,
+            ...selectedBezPregleda.value
+        ]));
+        if (allSelected.length === 0) {
+            alert('Niste odabrali nijednog radnika!');
+            return;
+        }
         await axios.post('/api/pregledi/azuriraj', {
-            ids: selectedUpcoming.value,
+            ids: allSelected,
             ...form.value
         });
         showPopup.value = false;
@@ -227,13 +291,7 @@ const azurirajPreglede = async () => {
     alert('empID: ' + empID);
     toggleUpcoming(index); // pozovi postojeću funkciju za selektovanje
 }; */
-const onCheckboxChange = (empID) => {
-    if (selectedUpcoming.value.includes(empID)) {
-        selectedUpcoming.value = selectedUpcoming.value.filter(id => id !== empID);
-    } else {
-        selectedUpcoming.value.push(empID);
-    }
-};
+// (Ova funkcija je zamijenjena univerzalnom verzijom iznad)
 const toggleUpcoming = (index) => {
     if (selectedUpcoming.value.includes(index)) {
         selectedUpcoming.value = selectedUpcoming.value.filter(i => i !== index);

@@ -92,6 +92,7 @@ Route::get('/pregledi/kontrolni', function () {
     return Inertia::render('Pregledi/KontrolniPregledi');
 })->name('pregledi.kontrolni');
 
+Route::get('/pregledi/za-sedam-dana', [PreglediController::class, 'zaSedamDana']);
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
