@@ -257,6 +257,9 @@ class PreglediController extends Controller
     public function apiIzvjestajPregledi()
     {
         $pregledi = Pregledi::with(['employee'])
+            ->whereHas('employee', function ($query) {
+                $query->where('status', '1');
+            })
             ->orderByDesc('datum_pregleda')
             ->get()
             ->map(function ($p) {

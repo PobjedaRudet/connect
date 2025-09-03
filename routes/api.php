@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
 
+
 // RESTful update/delete za Pregledi
 Route::put('/pregledi/{id}', [PreglediController::class, 'update']);
 Route::delete('/pregledi/{id}', [PreglediController::class, 'destroy']);
@@ -20,11 +21,6 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-Route::get('/test', function () {
-    return response()->json([
-        'message' => 'Hello2, World22!'
-    ]);
-});
 
 Route::get('/employee/{id}', [\App\Http\Controllers\EmployeeController::class, 'showEmployee'])
     ->where('id', '[0-9]+');
