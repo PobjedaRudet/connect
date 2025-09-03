@@ -1,21 +1,19 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\KontrolniPreglediController;
 use App\Http\Controllers\PreglediController;
 use App\Models\KontrolniPregledi;
 use App\Models\Pregledi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
+
 
 // RESTful update/delete za Pregledi
 Route::put('/pregledi/{id}', [PreglediController::class, 'update']);
 Route::delete('/pregledi/{id}', [PreglediController::class, 'destroy']);
-// API ruta za ažuriranje invalidnosti zaposlenika
-Route::put('/employees/{id}/invalidnost', [\App\Http\Controllers\EmployeeController::class, 'updateInvalidnost']);
-
-
 
 
 Route::get('/user', function (Request $request) {
@@ -24,7 +22,7 @@ Route::get('/user', function (Request $request) {
 
 Route::get('/test', function () {
     return response()->json([
-        'message' => 'Hello, World2!'
+        'message' => 'Hello2, World22!'
     ]);
 });
 
@@ -61,3 +59,11 @@ Route::get('/ppz-izvjestaj-pregledi', [PreglediController::class, 'apiIzvjestajP
 Route::post('/ppz-izvjestaj-pregledi-word', [\App\Http\Controllers\PreglediController::class, 'apiIzvjestajPreglediWord']);
 // Redosljed radnika za izvještaj
 Route::get('/radnici-po-redosljedu', [PreglediController::class, 'apiRadniciPoRedosljedu']);
+
+
+// API ruta za ažuriranje statusa zaposlenika
+Route::put('/employees/{id}/status', [EmployeeController::class, 'updateStatus']);
+// API ruta za ažuriranje invalidnosti zaposlenika
+Route::put('/employees/{id}/invalidnost', [EmployeeController::class, 'updateInvalidnost']);
+
+

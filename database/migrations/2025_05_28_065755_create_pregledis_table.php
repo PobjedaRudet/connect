@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('pregledis', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('employee_id')->constrained('employees')->onDelete('cascade');
+            $table->unsignedBigInteger('employee_id');
+            $table->foreign('employee_id')->references('empID')->on('employees')->onDelete('cascade');
             $table->date('datum_pregleda');
             $table->enum('type', ['Sposoban', 'Ograničen', 'Nesposoban']);
             $table->boolean('kontrolni_pregled')->nullable()->comment('Kontrolni pregled nakon 3-6 meseci');

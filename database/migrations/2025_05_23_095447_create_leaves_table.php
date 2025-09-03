@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('leaves', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('worker_id')->constrained()->onDelete('cascade');
+            $table->unsignedBigInteger('employee_id');
+            $table->foreign('employee_id')->references('id')->on('employees')->onDelete('cascade');
             $table->enum('type', ['godišnji', 'bolovanje']);
             $table->date('from');
             $table->date('to');

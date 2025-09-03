@@ -11,18 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('approvals', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('UserId');
-            $table->string('Funkcija', 50);
-            $table->boolean('Odobreno');
-            $table->dateTime('DatumOdobravanja');
-            $table->string('Komentar', 255);
-            $table->timestamps();
-            $table->foreign('UserId')->references('id')->on('users')->onDelete('cascade');
-            $table->foreign('Funkcija')->references('Funkcija')->on('funkcije')->onDelete('cascade');
-
-        });
+        if (!Schema::hasTable('approvals')) {
+            Schema::create('approvals', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('UserId');
+                $table->string('Funkcija', 50);
+                $table->boolean('Odobreno');
+                $table->dateTime('DatumOdobravanja');
+                $table->string('Komentar', 255);
+                $table->timestamps();
+                $table->foreign('UserId')->references('id')->on('users')->onDelete('cascade');
+                $table->foreign('Funkcija')->references('Funkcija')->on('funkcije')->onDelete('cascade');
+            });
+        }
     }
 
     /**

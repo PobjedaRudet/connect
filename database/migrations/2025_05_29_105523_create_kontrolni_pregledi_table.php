@@ -13,7 +13,10 @@ return new class extends Migration
     {
         Schema::create('kontrolni_pregledi', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('pregledi_id')->constrained('pregledis');
+            $table->unsignedBigInteger('pregledi_id');
+            $table->foreign('pregledi_id')->references('id')->on('pregledis')->onDelete('cascade');
+            $table->unsignedBigInteger('employee_id');
+            $table->foreign('employee_id')->references('id')->on('employees')->onDelete('cascade');
             $table->date('datum_kontrolnog_pregleda')->nullable();
             $table->text('kontrolni_komentar')->nullable();
             $table->boolean('status')->default(true)->comment('Status kontrolnog pregleda true ako je aktivan');

@@ -7,6 +7,17 @@ use Illuminate\Http\Request;
 
 class EmployeeController extends Controller
 {
+    // API: Ažuriranje statusa zaposlenika
+    public function updateStatus(Request $request, $id)
+    {
+        $employee = Employee::findOrFail($id);
+        $data = $request->validate([
+            'status' => 'required|in:0,1',
+        ]);
+        $employee->status = $data['status'];
+        $employee->save();
+        return response()->json(['success' => true, 'status' => $employee->status]);
+    }
     public function showEmployee($id)
     {
         // Simulate fetching employee data from a database

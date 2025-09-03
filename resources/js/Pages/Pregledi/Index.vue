@@ -10,6 +10,16 @@ const props = defineProps({
 })
 
 const rowsPerPage = 20;
+
+async function promijeniStatus(radnik) {
+  const noviStatus = radnik.status == 1 ? 0 : 1;
+  try {
+    await axios.put(`/api/employees/${radnik.empID}/status`, { status: noviStatus });
+    radnik.status = noviStatus;
+  } catch (e) {
+    alert('Greška pri promjeni statusa!');
+  }
+}
 const currentPage = ref(1);
 const search = ref('');
 const filteredRadnici = computed(() => {
@@ -220,6 +230,7 @@ async function sacuvajInvalidnost() {
             <th class="px-4 py-2 text-left">Prezime</th>
             <th class="px-4 py-2 text-center">Period</th>
             <th class="px-4 py-2 text-left">Radno mjesto</th>
+            <th class="px-4 py-2 text-center">Status</th>
             <th class="px-4 py-2 text-center">Invalidnost</th>
             <th class="px-4 py-2 text-center">Izmijeni invalidnost</th>
             <th class="px-4 py-2 text-center">Posljednji pregled</th>
@@ -234,6 +245,17 @@ async function sacuvajInvalidnost() {
             <td class="px-4 py-2 text-left">{{ radnik.lastName }}</td>
             <td class="px-4 py-2 text-center">{{ radnik.period }}</td>
             <td class="px-4 py-2 text-left">{{ radnik.radno_mjesto }}</td>
+            <td class="px-4 py-2 text-center">
+              <button
+                :class="[
+                  'px-3 py-1 rounded font-bold',
+                  radnik.status == 1 ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                ]"
+                @click="promijeniStatus(radnik)"
+              >
+                {{ radnik.status == 1 ? 'Aktivan' : 'Neaktivan' }}
+              </button>
+            </td>
             <td class="px-4 py-2 text-center">{{ radnik.invalidnost_radnika }}</td>
             <td class="px-4 py-2 text-center">
               <button @click="otvoriEditInvalidnost(radnik)" class="bg-yellow-400 hover:bg-yellow-500 text-white px-3 py-1 rounded">Izmijeni</button>

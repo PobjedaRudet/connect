@@ -115,3 +115,4 @@ Route::get('/nalozi/nalozi-za-proizvodnju', function () {
 })->name('nalozi.za-proizvodnju');
 
 require __DIR__ . '/auth.php';
+
