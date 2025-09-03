@@ -45,6 +45,9 @@ class KontrolniPreglediController extends Controller
     {
         // Dohvati sve preglede gdje je kontrolni_pregled = 1, 0 je ako , zajedno sa zaposlenikom
         $pregledi = Pregledi::where('kontrolni_pregled', 1)
+            ->whereHas('employee', function ($query) {
+                $query->where('status', '1');
+            })
             ->with('employee')
             ->orderByDesc('datum_pregleda')
             ->get();
