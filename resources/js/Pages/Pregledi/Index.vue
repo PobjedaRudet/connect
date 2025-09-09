@@ -12,10 +12,10 @@ const props = defineProps({
 const rowsPerPage = 20;
 
 async function promijeniActive(radnik) {
-  const noviActive = radnik.active == 1 ? 0 : 1;
+  const noviActive = radnik.Active == 1 ? 0 : 1;
   try {
     await axios.put(`/api/employees/${radnik.empID}/active`, { active: noviActive });
-    radnik.active = noviActive;
+    radnik.Active = noviActive;
   } catch (e) {
     alert('Greška pri promjeni statusa!');
   }
