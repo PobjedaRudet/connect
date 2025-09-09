@@ -47,7 +47,7 @@ class PreglediController extends Controller
         $nextWeek = $today->copy()->addDays(30);
 
         $employees = Employee::whereHas('pregledi') // samo oni koji imaju barem jedan pregled
-            ->where('status', '1')
+            ->where('Active', '1')
             ->with(['pregledi' => function ($query) {
                 $query->orderByDesc('datum_pregleda');
             }])
@@ -259,7 +259,7 @@ class PreglediController extends Controller
     {
         $pregledi = Pregledi::with(['employee'])
             ->whereHas('employee', function ($query) {
-                $query->where('status', '1');
+                $query->where('Active', '1');
             })
             ->orderByDesc('datum_pregleda')
             ->get()

@@ -11,11 +11,11 @@ const props = defineProps({
 
 const rowsPerPage = 20;
 
-async function promijeniStatus(radnik) {
-  const noviStatus = radnik.status == 1 ? 0 : 1;
+async function promijeniActive(radnik) {
+  const noviActive = radnik.active == 1 ? 0 : 1;
   try {
-    await axios.put(`/api/employees/${radnik.empID}/status`, { status: noviStatus });
-    radnik.status = noviStatus;
+    await axios.put(`/api/employees/${radnik.empID}/active`, { active: noviActive });
+    radnik.active = noviActive;
   } catch (e) {
     alert('Greška pri promjeni statusa!');
   }
@@ -230,7 +230,7 @@ async function sacuvajInvalidnost() {
             <th class="px-4 py-2 text-left">Prezime</th>
             <th class="px-4 py-2 text-center">Period</th>
             <th class="px-4 py-2 text-left">Radno mjesto</th>
-            <th class="px-4 py-2 text-center">Status</th>
+            <th class="px-4 py-2 text-center">Active</th>
             <th class="px-4 py-2 text-center">Invalidnost</th>
             <th class="px-4 py-2 text-center">Izmijeni invalidnost</th>
             <th class="px-4 py-2 text-center">Posljednji pregled</th>
@@ -249,11 +249,11 @@ async function sacuvajInvalidnost() {
               <button
                 :class="[
                   'px-3 py-1 rounded font-bold',
-                  radnik.status == 1 ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+                  radnik.Active == 1 ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
                 ]"
-                @click="promijeniStatus(radnik)"
+                @click="promijeniActive(radnik)"
               >
-                {{ radnik.status == 1 ? 'Aktivan' : 'Neaktivan' }}
+                {{ radnik.Active == 1 ? 'Aktivan' : 'Neaktivan' }}
               </button>
             </td>
             <td class="px-4 py-2 text-center">{{ radnik.invalidnost_radnika }}</td>

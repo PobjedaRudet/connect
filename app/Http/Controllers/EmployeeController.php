@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
@@ -7,16 +6,16 @@ use Illuminate\Http\Request;
 
 class EmployeeController extends Controller
 {
-    // API: Ažuriranje statusa zaposlenika
-    public function updateStatus(Request $request, $id)
+    // API: Ažuriranje kolone Active zaposlenika
+    public function updateActive(Request $request, $id)
     {
         $employee = Employee::findOrFail($id);
         $data = $request->validate([
-            'status' => 'required|in:0,1',
+            'active' => 'required|in:0,1',
         ]);
-        $employee->status = $data['status'];
+        $employee->active = $data['active'];
         $employee->save();
-        return response()->json(['success' => true, 'status' => $employee->status]);
+        return response()->json(['success' => true, 'active' => $employee->active]);
     }
     public function showEmployee($id)
     {

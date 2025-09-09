@@ -6,6 +6,7 @@ use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\PassController;
 use App\Http\Controllers\PreglediController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductionOrderController;
 use App\Http\Controllers\ProfileController;
 use App\Mail\UpcomingExamsMail;
 use App\Models\Employee;
@@ -16,6 +17,19 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+// API za CE oznaku
+Route::get('/getCeOznaka', [App\Http\Controllers\ProductController::class, 'getCeOznaka']);
+
+// API za broj naloga
+Route::get('/getOrderNumber', [ProductionOrderController::class, 'getOrderNumber']);
+
+Route::get('/productionorders/createorder', [ProductionOrderController::class, 'create'])->name('productionorders.createorder');
+/* Route::get('/productionorders/createorder', function () {
+    return "Hello";
+}); */
+
+// API za productslist
+Route::get('/productslist', [App\Http\Controllers\ProductController::class, 'numeredlist']);
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -102,9 +116,11 @@ Route::get('/ppz/izvjestaj-pregledi', function() {
     return Inertia::render('PPZ/IzvjestajPregledi');
 })->name('ppz.izvjestajPregledi');
 
-Route::get('/nalozi/nalozi-za-proizvodnju', function () {
-    return Inertia::render('Nalozi/NaloziZaProizvodnju');
-})->name('nalozi.za-proizvodnju');
+
+
+Route::get('/nalozi/nalozi-za-proizvodnju', [ProductionOrderController::class, 'showForm'])->name('nalozi.za-proizvodnju');
+
+Route::post('/productionorders', [ProductionOrderController::class, 'store'])->name('productionorders.store');
 
 require __DIR__ . '/auth.php';
 

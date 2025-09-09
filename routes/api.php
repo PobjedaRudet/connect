@@ -57,8 +57,8 @@ Route::post('/ppz-izvjestaj-pregledi-word', [\App\Http\Controllers\PreglediContr
 Route::get('/radnici-po-redosljedu', [PreglediController::class, 'apiRadniciPoRedosljedu']);
 
 
-// API ruta za ažuriranje statusa zaposlenika
-Route::put('/employees/{id}/status', [EmployeeController::class, 'updateStatus']);
+// API ruta za ažuriranje aktivnosti zaposlenika
+Route::put('/employees/{id}/active', [EmployeeController::class, 'updateActive']);
 // API ruta za ažuriranje invalidnosti zaposlenika
 Route::put('/employees/{id}/invalidnost', [EmployeeController::class, 'updateInvalidnost']);
 
