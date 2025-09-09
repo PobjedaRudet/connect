@@ -218,8 +218,9 @@ class PreglediController extends Controller
         $nextWeek = $today->copy()->addDays(30);
 
         $employees = \App\Models\Employee::whereHas('pregledi')
+            ->where('Active', 1)
             ->with(['pregledi' => function ($query) {
-                $query->orderByDesc('datum_pregleda')->limit(10);
+            $query->orderByDesc('datum_pregleda')->limit(10);
             }])
             ->get();
 
