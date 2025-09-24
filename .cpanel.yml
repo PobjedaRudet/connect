@@ -4,6 +4,6 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/pobjeda/public_html/connect
+    - export DEPLOYPATH=/home/pcelars5/public_html/connect
     - /bin/cp -R * $DEPLOYPATH
 
