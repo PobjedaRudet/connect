@@ -12,15 +12,7 @@
               <label class="block text-xs text-gray-500 dark:text-gray-400">Pretraga</label>
               <input v-model="q" type="text" class="form-input rounded-md dark:bg-gray-700 dark:text-gray-200" placeholder="Broj ili opis..." />
             </div>
-            <div>
-              <label class="block text-xs text-gray-500 dark:text-gray-400">Status</label>
-              <select v-model="status" class="form-input rounded-md dark:bg-gray-700 dark:text-gray-200">
-                <option value="">(sve)</option>
-                <option value="na odobrenju">na odobrenju</option>
-                <option value="odobreno">odobreno</option>
-                <option value="odbijeno">odbijeno</option>
-              </select>
-            </div>
+
             <div class="ml-auto">
               <button @click="load(1)" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Osvježi</button>
             </div>
@@ -86,7 +78,8 @@ const rows = ref([]);
 const page = ref(1);
 const total = ref(0);
 const perPage = ref(20);
-const status = ref('');
+// Always show only orders with Status = "Na čekanju" for Radnik
+const status = ref('Na čekanju');
 const q = ref('');
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / perPage.value)));
@@ -95,7 +88,7 @@ const selectAll = ref(false);
 async function load(p=1) {
   page.value = p;
   try {
-    const { data } = await axios.get('/productionorders/created', {
+    const { data } = await axios.get('/productionorders/mine/created', {
       params: { page: page.value, status: status.value, q: q.value }
     });
     rows.value = (data.data || []).map(o => ({...o, _sel: false}));
@@ -140,7 +133,7 @@ async function sendSelected() {
   }
 }
 
-watch([status, q], () => load(1));
+watch([q], () => load(1));
 onMounted(() => load(1));
 </script>
 

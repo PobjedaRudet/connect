@@ -1,7 +1,7 @@
 <template>
-  <ProductionAppLayout title="Odobreni nalozi (Radnik)">
+  <ProductionAppLayout title="Status naloga">
     <template #header>
-      <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">Odobreni nalozi</h2>
+  <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">Status naloga</h2>
     </template>
 
     <div class="py-8">
@@ -86,7 +86,7 @@
   const page = ref(1);
   const total = ref(0);
   const perPage = ref(20);
-  const status = ref('na odobrenju');
+  const status = ref('');
   const q = ref('');
   const oneUpTarget = ref(null);
 
@@ -96,7 +96,7 @@
   async function load(p=1) {
     page.value = p;
     try {
-      const { data } = await axios.get('/productionorders/radnik/approved', {
+      const { data } = await axios.get('/productionorders/created', {
         params: { page: page.value, status: status.value, q: q.value }
       });
       rows.value = (data.data || []);

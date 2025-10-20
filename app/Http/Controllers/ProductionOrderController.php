@@ -136,7 +136,7 @@ class ProductionOrderController extends Controller
                       ->orWhere('Description', 'like', "%$q%");
                 });
             })
-            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(20, ['id','OrderNumber','OrderDate','partner_id','user_id','Status','created_at']);
 
         return response()->json($orders);
@@ -329,6 +329,7 @@ class ProductionOrderController extends Controller
                 'partner_id' => 'required|integer|exists:partners,id',
                 'OrderDate' => 'required|date',
                 'Description' => 'nullable|string|max:1000',
+                'AtestPaketa' => 'nullable|string|max:255',
                 'Status' => 'nullable|string|max:50',
                 'token' => 'nullable|string|max:255',
                 'created_by' => 'nullable|integer|exists:users,id',

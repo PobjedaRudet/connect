@@ -11,7 +11,13 @@
           <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg p-4">
             <div class="flex justify-between items-center mb-3">
               <div class="text-sm text-gray-600 dark:text-gray-300">Spisak naloga koji čekaju odobrenje</div>
-              <button @click="loadPending" class="px-3 py-1 bg-blue-600 text-white rounded">Osvježi</button>
+              <div class="flex items-center gap-2">
+                <button @click="bulkApprove" :disabled="selected.length===0" class="px-3 py-1 rounded text-white"
+                        :class="selected.length===0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'">
+                  Odobri odabrano<span v-if="selected.length>0"> ({{ selected.length }})</span>
+                </button>
+                <button @click="loadPending" class="px-3 py-1 bg-blue-600 text-white rounded">Osvježi</button>
+              </div>
             </div>
 
             <div v-if="pending.length === 0" class="text-sm text-gray-500 dark:text-gray-300">Nema naloga za odobrenje.</div>
@@ -20,6 +26,9 @@
               <table class="min-w-full text-sm">
                 <thead>
                   <tr class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                    <th class="px-3 py-2 text-left w-8">
+                      <input type="checkbox" :checked="pending.length>0 && selected.length===pending.length" @change="toggleSelectAll($event)" />
+                    </th>
                     <th class="px-3 py-2 text-left">Broj</th>
                     <th class="px-3 py-2 text-left">Partner</th>
                     <th class="px-3 py-2 text-left">Opis</th>
@@ -28,6 +37,9 @@
                 </thead>
                 <tbody>
                   <tr v-for="o in pending" :key="o.id" class="border-b border-gray-200 dark:border-gray-700">
+                    <td class="px-3 py-2">
+                      <input type="checkbox" :value="o.current_approval_id" v-model="selected" />
+                    </td>
                     <td class="px-3 py-2 font-medium">
                       <a :href="`/productionorders/${o.id}`" class="text-blue-600 hover:underline">{{ o.OrderNumber }}</a>
                     </td>
@@ -63,11 +75,14 @@ import ProductionAppLayout from '@/Layouts/ProductionAppLayout.vue';
 
 // Pending approvals
 const pending = ref([]);
+const selected = ref([]); // holds current_approval_id values
 
 async function loadPending() {
   try {
     const { data } = await axios.get('/approvals/pending');
     pending.value = (data?.data || []).map(o => ({...o, _comment: ''}));
+    const visibleIds = new Set(pending.value.map(o => o.current_approval_id));
+    selected.value = selected.value.filter(id => visibleIds.has(id));
   } catch (e) {
     console.error('Greška pri učitavanju odobrenja', e);
   }
@@ -94,6 +109,27 @@ async function reject(o) {
   } catch (e) {
     alert(e?.response?.data?.message || 'Greška pri odbijanju');
   }
+}
+
+function toggleSelectAll(ev) {
+  const checked = ev.target.checked;
+  if (checked) {
+    selected.value = pending.value.map(o => o.current_approval_id);
+  } else {
+    selected.value = [];
+  }
+}
+
+async function bulkApprove() {
+  if (selected.value.length === 0) return;
+  const ids = [...selected.value];
+  const results = await Promise.allSettled(ids.map(id => axios.post(`/approvals/${id}/approve`, {})));
+  const ok = results.filter(r => r.status === 'fulfilled').length;
+  const fail = results.length - ok;
+  if (fail > 0) {
+    alert(`Odobreno: ${ok}, Neuspješno: ${fail}.`);
+  }
+  await loadPending();
 }
 
 onMounted(() => { loadPending(); });

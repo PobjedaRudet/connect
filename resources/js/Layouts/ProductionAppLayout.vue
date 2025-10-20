@@ -72,7 +72,7 @@ onMounted(() => {
                                     Kreirani nalozi
                                 </NavLink>
                                 <NavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.radnik.odobreni')" :active="route().current('nalozi.radnik.odobreni')">
-                                    Odobreni nalozi
+                                    Status naloga
                                 </NavLink>
                                 <NavLink v-if="userFunkcija && userFunkcija!=='Radnik'"
                                          :href="userFunkcija==='Direktor Komercijale' ? route('approvals.director.sales') : (userFunkcija==='Direktor Proizvodnje' ? route('approvals.director.production') : (userFunkcija==='Šef Operative' ? route('approvals.chief.operations') : route('approvals.mine')))"
@@ -231,7 +231,7 @@ onMounted(() => {
                             Kreirani nalozi
                         </ResponsiveNavLink>
                         <ResponsiveNavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.radnik.odobreni')" :active="route().current('nalozi.radnik.odobreni')">
-                            Odobreni nalozi
+                            Status naloga
                         </ResponsiveNavLink>
                         <ResponsiveNavLink v-if="userFunkcija && userFunkcija!=='Radnik'"
                                            :href="userFunkcija==='Direktor Komercijale' ? route('approvals.director.sales') : (userFunkcija==='Direktor Proizvodnje' ? route('approvals.director.production') : (userFunkcija==='Šef Operative' ? route('approvals.chief.operations') : route('approvals.mine')))"

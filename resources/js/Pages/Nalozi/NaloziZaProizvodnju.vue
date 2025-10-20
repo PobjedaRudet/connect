@@ -273,7 +273,7 @@ const form = ref({
     Tip: '',
     BojaDuzinaProvodnika: '',
     Pakovanje: '',
-    AtestPaketa: '',
+    AtestPaketa: 'DA   4G/Y21/S/08',
     CeOznaka: '',
     KlasaOpasnosti: '',
     UNBroj: '',
