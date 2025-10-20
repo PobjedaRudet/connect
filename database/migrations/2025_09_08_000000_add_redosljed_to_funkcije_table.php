@@ -12,7 +12,6 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('funkcije', function (Blueprint $table) {
-            $table->id();
             $table->integer('Redosljed')->after('Opis');
         });
     }

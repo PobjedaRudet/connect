@@ -30,6 +30,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'funkcija',
         'password',
     ];
 
@@ -65,5 +66,10 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function funkcijaRef()
+    {
+        return $this->belongsTo(\App\Models\Funkcija::class, 'funkcija', 'Funkcija');
     }
 }

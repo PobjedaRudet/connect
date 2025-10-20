@@ -1,6 +1,7 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { ref, computed, onMounted } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
 import ApplicationMark from '@/Components/ApplicationMark.vue';
 import Banner from '@/Components/Banner.vue';
 import Dropdown from '@/Components/Dropdown.vue';
@@ -25,6 +26,27 @@ const switchToTeam = (team) => {
 const logout = () => {
     router.post(route('logout'));
 };
+
+const page = usePage();
+const userFunkcija = computed(() => (page?.props?.auth?.user?.funkcija ?? null));
+
+const pendingApprovalsCount = ref(0);
+async function refreshPending() {
+    if (userFunkcija.value && userFunkcija.value !== 'Radnik') {
+        try {
+            const { data } = await axios.get('/approvals/pending');
+            pendingApprovalsCount.value = Array.isArray(data?.data) ? data.data.length : 0;
+        } catch (e) {
+            pendingApprovalsCount.value = 0;
+        }
+    } else {
+        pendingApprovalsCount.value = 0;
+    }
+}
+
+onMounted(() => {
+    refreshPending();
+});
 </script>
 
 <template>
@@ -43,16 +65,26 @@ const logout = () => {
 
                             <!-- Navigation Links -->
                             <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                                <NavLink :href="route('ppz.dashboard')" :active="route().current('ppz.dashboard')">
-                                    Pregled naloga
+                                <NavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.za-proizvodnju')" :active="route().current('nalozi.za-proizvodnju')">
+                                    Kreiraj nalog
                                 </NavLink>
-                                <NavLink :href="route('pregledi.index')" :active="route().current('pregledi.index')">
-                                    Statusi naloga
+                                <NavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.kreirani')" :active="route().current('nalozi.kreirani')">
+                                    Kreirani nalozi
                                 </NavLink>
-                                <NavLink :href="route('pregledi.upcoming')" :active="route().current('pregledi.upcoming')">
-                                    Odobrenja
+                                <NavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.radnik.odobreni')" :active="route().current('nalozi.radnik.odobreni')">
+                                    Odobreni nalozi
                                 </NavLink>
-
+                                <NavLink v-if="userFunkcija && userFunkcija!=='Radnik'"
+                                         :href="userFunkcija==='Direktor Komercijale' ? route('approvals.director.sales') : (userFunkcija==='Direktor Proizvodnje' ? route('approvals.director.production') : (userFunkcija==='Šef Operative' ? route('approvals.chief.operations') : route('approvals.mine')))"
+                                         :active="route().current('approvals.mine') || route().current('approvals.director.sales') || route().current('approvals.director.production') || route().current('approvals.chief.operations')">
+                                    <span>Odobrenja</span>
+                                    <span v-if="pendingApprovalsCount>0" class="ml-2 inline-flex items-center justify-center text-xs font-semibold rounded-full bg-red-600 text-white px-2 py-0.5">
+                                        {{ pendingApprovalsCount }}
+                                    </span>
+                                </NavLink>
+                                <NavLink v-if="userFunkcija && userFunkcija!=='Radnik'" :href="route('orders.status')" :active="route().current('orders.status')">
+                                    Status naloga
+                                </NavLink>
                             </div>
                         </div>
 
@@ -192,8 +224,25 @@ const logout = () => {
                 <!-- Responsive Navigation Menu -->
                 <div :class="{'block': showingNavigationDropdown, 'hidden': ! showingNavigationDropdown}" class="sm:hidden">
                     <div class="pt-2 pb-3 space-y-1">
-                        <ResponsiveNavLink :href="route('ppz.dashboard')" :active="route().current('ppz.dashboard')">
-                            Dashboard
+                        <ResponsiveNavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.za-proizvodnju')" :active="route().current('nalozi.za-proizvodnju')">
+                            Kreiraj nalog
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.kreirani')" :active="route().current('nalozi.kreirani')">
+                            Kreirani nalozi
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.radnik.odobreni')" :active="route().current('nalozi.radnik.odobreni')">
+                            Odobreni nalozi
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink v-if="userFunkcija && userFunkcija!=='Radnik'"
+                                           :href="userFunkcija==='Direktor Komercijale' ? route('approvals.director.sales') : (userFunkcija==='Direktor Proizvodnje' ? route('approvals.director.production') : (userFunkcija==='Šef Operative' ? route('approvals.chief.operations') : route('approvals.mine')))"
+                                           :active="route().current('approvals.mine') || route().current('approvals.director.sales') || route().current('approvals.director.production') || route().current('approvals.chief.operations')">
+                            <span>Odobrenja</span>
+                            <span v-if="pendingApprovalsCount>0" class="ml-2 inline-flex items-center justify-center text-xs font-semibold rounded-full bg-red-600 text-white px-2 py-0.5">
+                                {{ pendingApprovalsCount }}
+                            </span>
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink v-if="userFunkcija && userFunkcija!=='Radnik'" :href="route('orders.status')" :active="route().current('orders.status')">
+                            Status naloga
                         </ResponsiveNavLink>
                     </div>
 

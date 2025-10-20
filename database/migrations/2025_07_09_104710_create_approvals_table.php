@@ -14,7 +14,7 @@ return new class extends Migration
         if (!Schema::hasTable('approvals')) {
             Schema::create('approvals', function (Blueprint $table) {
                 $table->id();
-                $table->unsignedBigInteger('UserId');
+                $table->unsignedBigInteger('UserId')->nullable();
                 $table->string('Funkcija', 50);
                 $table->boolean('Odobreno');
                 $table->dateTime('DatumOdobravanja');

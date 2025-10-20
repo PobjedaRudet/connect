@@ -21,7 +21,7 @@ return new class extends Migration
                 $table->string('Code');
                 $table->string('UoM_meter')->nullable();
                 $table->Integer('UsporenjeMs')->nullable();
-                $table->Integer('UNNumber')->nullable();
+                $table->string('UNNumber', 16)->nullable();
                 $table->string('HazardClass')->nullable();
                 $table->string('CEMarkNumber')->nullable();
                 $table->Integer('NumeraProizvoda')->nullable();

@@ -7,6 +7,7 @@ use App\Http\Controllers\PassController;
 use App\Http\Controllers\PreglediController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductionOrderController;
+use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\ProfileController;
 use App\Mail\UpcomingExamsMail;
 use App\Models\Employee;
@@ -18,12 +19,12 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 // API za CE oznaku
-Route::get('/getCeOznaka', [App\Http\Controllers\ProductController::class, 'getCeOznaka']);
+Route::get('/getCeOznaka', [App\Http\Controllers\ProductController::class, 'getCeOznaka'])->middleware(['auth']);
 
 // API za broj naloga
-Route::get('/getOrderNumber', [ProductionOrderController::class, 'getOrderNumber']);
+Route::get('/getOrderNumber', [ProductionOrderController::class, 'getOrderNumber'])->middleware(['auth']);
 
-Route::get('/productionorders/createorder', [ProductionOrderController::class, 'create'])->name('productionorders.createorder');
+Route::get('/productionorders/createorder', [ProductionOrderController::class, 'create'])->middleware(['auth'])->name('productionorders.createorder');
 /* Route::get('/productionorders/createorder', function () {
     return "Hello";
 }); */
@@ -38,19 +39,19 @@ Route::get('/', function () {
         'laravelVersion' => Application::VERSION,
         'phpVersion' => PHP_VERSION,
     ]);
-});
+})->middleware(['auth']);
 
 Route::get('/ppz/dashboard', function () {
     return Inertia::render('PPZ/Dashboard');
-})->name('ppz.dashboard');
+})->middleware(['auth'])->name('ppz.dashboard');
 
 Route::get('/prodaja/dashboard', function () {
-    return Inertia::render('Prodaja/Dashboard');
-})->name('prodaja.dashboard');
+    return Inertia::render('Nalozi/ProdajaDashboard');
+})->middleware(['auth'])->name('prodaja.dashboard');
 
 Route::get('/private', function () {
     return Inertia::render('PrivacyPolicy');
-})->name('private');
+})->middleware(['auth'])->name('private');
 
 Route::get('/send-pregledi-email', function () {
     $today = Carbon::today();
@@ -85,20 +86,20 @@ Route::get('/send-pregledi-email', function () {
     Mail::to($recipients)->send(new UpcomingExamsMail($upcoming, $expired));
 
     return 'Mail poslan.';
-});
+})->middleware(['auth']);
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::get('/pregledi/index', [PreglediController::class, 'index'])->name('pregledi.index');
-Route::get('/pregledi/upcoming', [PreglediController::class, 'reportUpcoming'])->name('pregledi.upcoming');
-Route::get('/pregledi/nextMonth', [PreglediController::class, 'reportUpcomingNextMonth'])->name('pregledi.nextMonth');
+Route::get('/pregledi/index', [PreglediController::class, 'index'])->middleware(['auth'])->name('pregledi.index');
+Route::get('/pregledi/upcoming', [PreglediController::class, 'reportUpcoming'])->middleware(['auth'])->name('pregledi.upcoming');
+Route::get('/pregledi/nextMonth', [PreglediController::class, 'reportUpcomingNextMonth'])->middleware(['auth'])->name('pregledi.nextMonth');
 Route::get('/pregledi/kontrolni', function () {
     return Inertia::render('Pregledi/KontrolniPregledi');
-})->name('pregledi.kontrolni');
+})->middleware(['auth'])->name('pregledi.kontrolni');
 
-Route::get('/pregledi/za-sedam-dana', [PreglediController::class, 'zaSedamDana']);
+Route::get('/pregledi/za-sedam-dana', [PreglediController::class, 'zaSedamDana'])->middleware(['auth']);
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -108,19 +109,69 @@ Route::middleware('auth')->group(function () {
     Route::resource('attendances', AttendanceController::class);
     Route::resource('passes', PassController::class);
     Route::resource('leaves', LeaveController::class);
+    // Approvals
+    Route::post('/approvals/send', [ApprovalController::class, 'sendForApproval'])->name('approvals.send');
+    Route::get('/approvals/pending', [ApprovalController::class, 'pending'])->name('approvals.pending');
+    Route::post('/approvals/{approval}/approve', [ApprovalController::class, 'approve'])->name('approvals.approve');
+    Route::post('/approvals/{approval}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
+    Route::post('/approvals/order/{order}/approve-one-up', [ApprovalController::class, 'approveOneUp'])->name('approvals.approveOneUp');
+    // Approver-only pages (not Radnik)
+    Route::get('/odobrenja/moja', function () { return Inertia::render('Nalozi/OdobrenjaZaSefaKomercijale'); })
+        ->middleware('funkcije:Šef Komercijale,Direktor Komercijale,Direktor Proizvodnje,Šef Operative')
+        ->name('approvals.mine');
+    Route::get('/nalozi/status', function () { return Inertia::render('Nalozi/StatusNaloga'); })
+        ->middleware('funkcije:Šef Komercijale,Direktor Komercijale,Direktor Proizvodnje,Šef Operative')
+        ->name('orders.status');
+
+    // Direktor Komercijale dedicated approvals page
+    Route::get('/odobrenja/direktor-komercijale', function () { return Inertia::render('Nalozi/OdobrenjaDirektoraKomercijale'); })
+        ->middleware('funkcije:Direktor Komercijale')
+        ->name('approvals.director.sales');
+
+    // Direktor Proizvodnje dedicated approvals page
+    Route::get('/odobrenja/direktor-proizvodnje', function () { return Inertia::render('Nalozi/OdobrenjaDirektoraProizvodnje'); })
+        ->middleware('funkcije:Direktor Proizvodnje')
+        ->name('approvals.director.production');
+
+    // Šef Operative dedicated approvals page
+    Route::get('/odobrenja/sef-operative', function () { return Inertia::render('Nalozi/OdobrenjaSefaOperative'); })
+        ->middleware('funkcije:Šef Operative')
+        ->name('approvals.chief.operations');
+    // Orders list for sending
+    Route::get('/productionorders/mine/for-sending', [ProductionOrderController::class, 'myForSending'])->name('productionorders.mine.forSending');
+    // Radnik approved orders data (for one-up action)
+    Route::get('/productionorders/radnik/approved', [ProductionOrderController::class, 'radnikApproved'])->name('productionorders.radnik.approved');
 });
 
-Route::resource('products', ProductController::class);
+Route::resource('products', ProductController::class)->middleware(['auth']);
 
 Route::get('/ppz/izvjestaj-pregledi', function() {
     return Inertia::render('PPZ/IzvjestajPregledi');
-})->name('ppz.izvjestajPregledi');
+})->middleware(['auth'])->name('ppz.izvjestajPregledi');
 
 
 
-Route::get('/nalozi/nalozi-za-proizvodnju', [ProductionOrderController::class, 'showForm'])->name('nalozi.za-proizvodnju');
+// Radnik-only pages
+Route::get('/nalozi/nalozi-za-proizvodnju', [ProductionOrderController::class, 'showForm'])
+    ->middleware(['auth','funkcije:Radnik'])->name('nalozi.za-proizvodnju');
+Route::get('/nalozi/kreirani', function() {
+    return Inertia::render('Nalozi/KreiraniNalozi');
+})->middleware(['auth','verified','funkcije:Radnik'])->name('nalozi.kreirani');
+Route::get('/nalozi/radnik/odobreni', function() {
+    return Inertia::render('Nalozi/OdobreniNaloziRadnik');
+})->middleware(['auth','verified','funkcije:Radnik'])->name('nalozi.radnik.odobreni');
+    Route::get('/productionorders/mine/created', [ProductionOrderController::class, 'myCreated'])->middleware(['auth'])->name('productionorders.mine.created');
+    Route::get('/productionorders/created', [ProductionOrderController::class, 'created'])->middleware(['auth'])->name('productionorders.created');
 
-Route::post('/productionorders', [ProductionOrderController::class, 'store'])->name('productionorders.store');
+Route::post('/productionorders', [ProductionOrderController::class, 'store'])->middleware(['auth'])->name('productionorders.store');
+Route::get('/productionorders/{order}', [ProductionOrderController::class, 'details'])->middleware(['auth'])->name('productionorders.show');
+Route::get('/api/productionorders/{order}', [ProductionOrderController::class, 'detailsJson'])->middleware(['auth'])->name('productionorders.show.json');
 
+// Lista proizvoda za BIHNEL proizvode
+Route::get('/productslistBihnel', [ProductController::class, 'numeredlistBihnel'])->middleware(['auth']);
+// Lista proizvoda za BK-6 proizvode
+Route::get('/productslistBK6', [ProductController::class, 'numeredlistBK6'])->middleware(['auth']);
+// Lista proizvoda za BK-8 proizvode
+Route::get('/productslistBK8', [ProductController::class, 'numeredlistBK8'])->middleware(['auth']);
 require __DIR__ . '/auth.php';
 

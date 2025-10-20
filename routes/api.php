@@ -63,3 +63,5 @@ Route::put('/employees/{id}/active', [EmployeeController::class, 'updateActive']
 Route::put('/employees/{id}/invalidnost', [EmployeeController::class, 'updateInvalidnost']);
 
 
+
+

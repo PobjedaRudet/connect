@@ -1,11 +1,22 @@
 <script setup>
-import { Link, Head } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { Link, Head, usePage } from '@inertiajs/vue3';
 
-const options = [
+const page = usePage();
+const userFunkcija = computed(() => page?.props?.auth?.user?.funkcija ?? null);
+const ordersLink = computed(() => {
+    if (!userFunkcija.value) return '/nalozi/nalozi-za-proizvodnju';
+    if (userFunkcija.value === 'Direktor Komercijale') return '/odobrenja/direktor-komercijale';
+    if (userFunkcija.value === 'Direktor Proizvodnje') return '/odobrenja/direktor-proizvodnje';
+    if (userFunkcija.value !== 'Radnik') return '/odobrenja/moja';
+    return '/nalozi/nalozi-za-proizvodnju';
+});
+
+const options = computed(() => [
     {
         name: 'Nalozi',
         description: 'Pregled i evidencija ljekarskih pregleda radnika.',
-        link: '/nalozi/nalozi-za-proizvodnju',
+        link: ordersLink.value,
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /></svg>`
     },
     {
@@ -26,7 +37,7 @@ const options = [
         link: '/ppz/radnici-rizik',
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /></svg>`
     },
-];
+]);
 </script>
 
 <template>

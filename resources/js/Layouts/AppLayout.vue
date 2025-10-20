@@ -1,6 +1,6 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import ApplicationMark from '@/Components/ApplicationMark.vue';
 import Banner from '@/Components/Banner.vue';
 import Dropdown from '@/Components/Dropdown.vue';
@@ -25,6 +25,9 @@ const switchToTeam = (team) => {
 const logout = () => {
     router.post(route('logout'));
 };
+
+const page = usePage();
+const userFunkcija = computed(() => (page?.props?.auth?.user?.funkcija ?? null));
 </script>
 
 <template>
@@ -57,6 +60,13 @@ const logout = () => {
                                 </NavLink>
                                 <NavLink :href="route('ppz.izvjestajPregledi')" :active="route().current('ppz.izvjestajPregledi')">
                                     Izvještaj ljekarskih pregleda
+                                </NavLink>
+                                <!-- Approvals/Orders navigation for approvers (e.g., Šef Komercijale) -->
+                                <NavLink v-if="userFunkcija && userFunkcija!=='Radnik'" :href="route('approvals.mine')" :active="route().current('approvals.mine')">
+                                    Odobrenja
+                                </NavLink>
+                                <NavLink v-if="userFunkcija && userFunkcija!=='Radnik'" :href="route('orders.status')" :active="route().current('orders.status')">
+                                    Status naloga
                                 </NavLink>
                                <!--  <NavLink href="/ppz/godisnji-odmori">
                                     Godišnji odmori
@@ -208,6 +218,12 @@ const logout = () => {
                     <div class="pt-2 pb-3 space-y-1">
                         <ResponsiveNavLink :href="route('ppz.dashboard')" :active="route().current('ppz.dashboard')">
                             Dashboard
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink v-if="userFunkcija && userFunkcija!=='Radnik'" :href="route('approvals.mine')" :active="route().current('approvals.mine')">
+                            Odobrenja
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink v-if="userFunkcija && userFunkcija!=='Radnik'" :href="route('orders.status')" :active="route().current('orders.status')">
+                            Status naloga
                         </ResponsiveNavLink>
                     </div>
 

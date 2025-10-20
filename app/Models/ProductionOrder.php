@@ -27,10 +27,30 @@ class ProductionOrder extends Model
         'DatumPrijema',
         'token',
         'Napomena',
+        'dodatno',
         'parent_nalog_id',
         'user_id',
         'partner_id',
     ];
 
-    // Dodaj relacije po potrebi
+    // Relacije
+    public function approvals()
+    {
+        return $this->hasMany(Approval::class, 'order_id');
+    }
+
+    public function details()
+    {
+        return $this->hasMany(ProductionOrderDetail::class, 'production_order_id');
+    }
+
+    public function partner()
+    {
+        return $this->belongsTo(Partner::class);
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 }
