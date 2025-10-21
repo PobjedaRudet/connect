@@ -154,9 +154,8 @@ function goBack() {
       return;
     }
   } catch {}
-  // Fallback: send to a neutral, role-agnostic page that all roles can access
-  // Status page is available to approver roles; if that fails, home ('/') is auth-protected and allowed
-  window.location.href = '/nalozi/status';
+  // Fallback: po zahtjevu vraćamo na Kreirane naloge
+  window.location.href = '/nalozi/kreirani';
 }
 
 // Local render-function components to avoid runtime template compilation

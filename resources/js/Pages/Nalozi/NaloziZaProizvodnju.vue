@@ -12,7 +12,7 @@
                     <div
                         class="col-span-2 p-6 text-gray-900 dark:text-gray-100 border-r border-gray-300 dark:border-gray-700">
                         <div class="text-center pb-5">
-                            Kreiraj nalog
+                            {{ formTitle }}
                         </div>
                         <!-- Partner dropdown -->
                         <div class="mb-4">
@@ -46,7 +46,7 @@
                                         nalog</label>
                                     <select v-model="form.VezaNaNalog" id="vezaNaNalog"
                                         class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200">
-                                        <option value="">(bez veze na nalog)</option>
+                                        <option value="">(veza na nalog)</option>
                                         <option v-for="order in workingOrders" :key="order.id" :value="order.id">
                                             {{ order.OrderNumber }}
                                         </option>
@@ -156,6 +156,14 @@
                                         required />
                                 </div>
                                 <div class="col-span-1">
+                                    <label for="DatumPredaje"
+                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Datum
+                                        Predaje</label>
+                                    <input type="date" v-model="form.DatumPredaje" id="datumPredaje" @input="datumPredajeManuallyEdited = true"
+                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
+                                        required />
+                                </div>
+                                <div class="col-span-1">
                                     <label for="RokIsporuke"
                                         class="block text-sm font-medium text-gray-700 dark:text-gray-200">Rok
                                         Isporuke</label>
@@ -163,22 +171,15 @@
                                         class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
                                         required />
                                 </div>
-                                <div class="col-span-3">
+                                <div class="col-span-4">
                                     <label for="Dodatno"
                                         class="block text-sm font-medium text-gray-700 dark:text-gray-200">Dodatno</label>
-                                    <textarea v-model="form.dodatno" id="dodatno"
+                                    <textarea v-model="form.dodatno" id="dodatno" @input="dodatnoManuallyEdited = true"
                                         class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
+                                        rows="3"
                                         maxlength="250"
                                         placeholder="Unesite dodatne informacije..."
                                     ></textarea>
-                                </div>
-                                <div class="col-span-1">
-                                    <label for="DatumPredaje"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Datum
-                                        Predaje</label>
-                                    <input type="date" v-model="form.DatumPredaje" id="datumPredaje" @input="datumPredajeManuallyEdited = true"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
-                                        required />
                                 </div>
 
                                 <div class="col-span-4">
@@ -191,7 +192,7 @@
                             </div>
                             <div class="flex items-center justify-end mt-4">
                                 <button id="pregledBtn" type="submit"
-                                    class="inline-flex items-center px-4 py-2 bg-gray-800 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 focus:outline-none focus:border-gray-900 focus:ring ring-gray-300 dark:focus:ring-gray-600 disabled:opacity-25 transition ease-in-out duration-150">Pregled</button>
+                                    class="inline-flex items-center px-4 py-2 bg-gray-800 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 focus:outline-none focus:border-gray-900 focus:ring ring-gray-300 dark:focus:ring-gray-600 disabled:opacity-25 transition ease-in-out duration-150">{{ submitLabel }}</button>
                             </div>
                         </form>
                     </div>
@@ -211,24 +212,23 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="(p, idx) in productListNew" :key="p.id || p.NumeraProizvoda || idx"
+                                    <tr v-for="(p, idx) in productListNew" :key="`${p.id ?? ''}-${p.NumeraProizvoda ?? idx}`"
                                         class="border-b">
                                         <td class="p-2 text-center">
                                             <input type="checkbox"
-                                                :id="'product-checkbox-' + (p.id || p.NumeraProizvoda || idx)"
+                                                :id="'product-checkbox-' + (p.id ?? p.NumeraProizvoda ?? idx)"
                                                 v-model="p.selected" />
                                         </td>
                                         <td class="p-2">
                                             <label :for="'product-checkbox-' + (p.id || p.NumeraProizvoda || idx)"
                                                 class="cursor-pointer">
-                                                <span v-if="p.NumeraProizvoda !== undefined">{{ p.NumeraProizvoda
-                                                }}</span>
-                                                <span v-if="p.SkraceniNaziv"> - {{ p.SkraceniNaziv }}</span>
-                                                <span v-else> - stavka {{ idx + 1 }}</span>
+                                                <span v-if="p.NumeraProizvoda">{{ p.NumeraProizvoda }}</span>
+                                                <span v-else-if="p.SkraceniNaziv">{{ p.SkraceniNaziv }}</span>
+                                                <span v-else>- stavka {{ idx + 1 }}</span>
                                             </label>
                                         </td>
                                         <td class="p-2 text-center">
-                                            <span v-if="p.UoM_meter !== undefined">{{ p.UoM_meter }}</span>
+                                            <span v-if="p.UoM_meter != null">{{ p.UoM_meter }}</span>
                                         </td>
                                         <td class="p-2">
                                             <input type="number" min="0" class="w-20 px-2 py-1 border rounded"
@@ -274,20 +274,29 @@ const form = ref({
     BojaDuzinaProvodnika: '',
     Pakovanje: '',
     AtestPaketa: 'DA   4G/Y21/S/08',
-    CeOznaka: '',
+    CeOznaka: 'DA',
     KlasaOpasnosti: '',
     UNBroj: '',
-    RokIsporuke: '',
+    RokIsporuke: '-',
     DatumPredaje: '',
     // DatumPrijema is intentionally not part of the creation payload; it will be set upon final approval by Šef Operative
     dodatno: '',
-    Napomena: '',
+    Napomena: '-',
 });
 
 const workingOrders = ref(props.workingOrders || []);
 const partners = ref(props.partners || []);
+const dodatnoManuallyEdited = ref(false);
 const productSuggestions = ref([]);
 const productListNew = ref([]);
+const isHydrating = ref(false);
+const isEditMode = ref(false);
+// In edit mode, preserve details-based product list until user changes inputs
+const preferDetailsList = ref(false);
+const editId = ref(null);
+
+const formTitle = computed(() => isEditMode.value ? 'Uredi nalog' : 'Kreiraj nalog');
+const submitLabel = computed(() => isEditMode.value ? 'Sačuvaj izmjene' : 'Pregled');
 
 // Da li je izabran BIHNEL (koristi se za disable polja Metraza/VrstaProvodnika/Tip)
 const isBihnelSelected = computed(() => /BIHNEL/i.test(form.value.Description || ''));
@@ -440,6 +449,8 @@ async function getOrderNumber() {
 }
 
 watch(() => form.value.Description, async (newValue) => {
+    if (isHydrating.value) return;
+    if (isEditMode.value && preferDetailsList.value) { preferDetailsList.value = false; return; }
     if (!newValue || newValue.length === 0) {
         productSuggestions.value = [];
         return;
@@ -502,6 +513,8 @@ watch(() => form.value.Description, async (newValue) => {
 });
 
 watch([() => form.value.Description, () => form.value.VrstaProvodnika], async ([desc, provodnik]) => {
+    if (isHydrating.value) return;
+    if (isEditMode.value && preferDetailsList.value) { preferDetailsList.value = false; return; }
     if (desc && provodnik) {
         // Za BIHNEL već smo popunili vrijednosti direktno iz liste – preskačemo dummy endpoint
         if (/BIHNEL/i.test(desc)) return;
@@ -521,6 +534,8 @@ watch([() => form.value.Description, () => form.value.VrstaProvodnika], async ([
 });
 
 watch([() => form.value.Description, () => form.value.Metraza, () => form.value.VrstaProvodnika, () => form.value.Tip], async ([desc, metraza, provodnik, tip]) => {
+    if (isHydrating.value) return;
+    if (isEditMode.value && preferDetailsList.value) { preferDetailsList.value = false; return; }
     // Izbjegni generički poziv kada su specijalni proizvodi (BK-6/BK-8/BIHNEL) aktivni
     if (/(^|\b)BK[-\s]?6(\b|$)/i.test(desc) || /(^|\b)BK[-\s]?8(\s+(LP|MS))?(\b|$)/i.test(desc) || /BIHNEL/i.test(desc)) {
         return;
@@ -552,9 +567,22 @@ const datumPredajeManuallyEdited = ref(false);
 
 // Auto-fill DatumPredaje with OrderDate unless user edits DatumPredaje manually
 watch(() => form.value.OrderDate, (newVal) => {
+    if (isHydrating.value) return;
     if (newVal && !datumPredajeManuallyEdited.value) {
         form.value.DatumPredaje = newVal;
     }
+});
+
+// Ako korisnik nije ručno mijenjao polje 'Dodatno' i nismo u edit modu,
+// popuni ga po izboru partnera koristeći partners.oznaka
+watch(() => form.value.partner_id, (newVal) => {
+    if (isHydrating.value) return;
+    if (isEditMode.value) return;
+    if (!newVal) return;
+    if (dodatnoManuallyEdited.value) return;
+    const p = partners.value.find(pp => String(pp.id) === String(newVal));
+    const oznaka = (p && p.oznaka) ? String(p.oznaka) : '';
+    form.value.dodatno = `Etikete sa potrebnim informacijama : DA / ${oznaka}\nPalete omotati 7 puta streč folijom. \nPlan paletiranja: Naknadno.`;
 });
 
 async function submitForm() {
@@ -581,18 +609,145 @@ async function submitForm() {
         const payload = { ...form.value, productListNew: selectedProducts };
         console.log('Submitted productListNew:', selectedProducts);
         console.log('Forma:', form.value);
-        await axios.post('/productionorders', payload);
-
-        alert('Podaci su poslani!');
-        window.location.reload();
+        if (isEditMode.value && editId.value) {
+            await axios.put(`/productionorders/${editId.value}`, payload);
+            alert('Nalog je ažuriran.');
+            window.location.href = '/nalozi/kreirani';
+        } else {
+            await axios.post('/productionorders', payload);
+            alert('Podaci su poslani!');
+            window.location.reload();
+        }
     } catch (error) {
         alert('Greška pri slanju podataka!');
         console.error(error);
     }
 }
 
-onMounted(() => {
-    getOrderNumber();
+async function loadForEdit(id) {
+    try {
+        isHydrating.value = true;
+        const { data } = await axios.get(`/api/productionorders/${id}`);
+        const ord = data?.order;
+        if (!ord) return;
+        editId.value = ord.id;
+        form.value.partner_id = ord.partner?.id || '';
+        form.value.OrderNumber = ord.OrderNumber || '';
+        form.value.OrderDate = ord.OrderDate || '';
+        form.value.Description = ord.Description || '';
+        form.value.Metraza = ord.Metraza ?? '';
+        form.value.VrstaProvodnika = ord.VrstaProvodnika ?? '';
+        form.value.Tip = ord.Tip ?? '';
+        form.value.BojaDuzinaProvodnika = ord.BojaDuzinaProvodnika ?? '';
+        form.value.Pakovanje = ord.Pakovanje ?? '';
+        form.value.AtestPaketa = ord.AtestPaketa ?? form.value.AtestPaketa;
+        form.value.CeOznaka = ord.CeOznaka ?? '';
+        form.value.KlasaOpasnosti = ord.KlasaOpasnosti ?? '';
+        form.value.UNBroj = ord.UNBroj != null ? String(ord.UNBroj) : '';
+        form.value.RokIsporuke = ord.RokIsporuke ?? '';
+        form.value.DatumPredaje = ord.DatumPredaje || '';
+        form.value.dodatno = ord.dodatno ?? '';
+        form.value.Napomena = ord.Napomena ?? '';
+
+        // Build selection map from existing details (id preferred, fallback by Numera+UoM)
+        const selectionById = new Map();
+        const selectionByKey = new Map();
+        for (const d of (ord.details || [])) {
+            const pid = d.product?.id ?? null;
+            const qty = Number(d.quantity ?? 0);
+            if (pid) selectionById.set(Number(pid), qty);
+            const key = (d.product?.NumeraProizvoda ?? null) && (d.product?.UoM_meter ?? null)
+                ? `${d.product.NumeraProizvoda}|${d.product.UoM_meter}`
+                : null;
+            if (key) selectionByKey.set(key, qty);
+        }
+
+        // Load full product list for current description and preselect existing choices
+        await refreshProductListForEdit(selectionById, selectionByKey);
+    } catch (e) {
+        console.error('Greška pri učitavanju naloga za uređivanje', e);
+        alert('Ne može se učitati nalog za uređivanje.');
+    } finally {
+        isHydrating.value = false;
+    }
+}
+
+async function refreshProductListForEdit(selectionById, selectionByKey) {
+    const desc = (form.value.Description || '').trim();
+    if (!desc) { productListNew.value = []; return; }
+
+    // Decide which list to load, mirroring watcher logic
+    const isBK6 = /(^|\b)BK[-\s]?6(\b|$)/i.test(desc);
+    const isBK8 = /(^|\b)BK[-\s]?8(\b|$)/i.test(desc);
+    const hasLP = /\bLP\b/i.test(desc);
+    const hasMS = /\bMS\b/i.test(desc);
+    const isBihnel = /BIHNEL/i.test(desc);
+
+    try {
+        if (isBihnel) {
+            await setupProductListBihnel();
+        } else if (isBK6) {
+            await setupProductListBK6();
+        } else if (isBK8) {
+            const variant = hasLP ? 'LP' : (hasMS ? 'MS' : undefined);
+            await setupProductListBK8(variant);
+        } else {
+            // Generic list fetch (same as watcher)
+            const metraza = form.value.Metraza;
+            const provodnik = form.value.VrstaProvodnika;
+            const tip = form.value.Tip;
+            if (desc && metraza && provodnik && tip) {
+                const { data } = await axios.get(`/productslist?query=${encodeURIComponent(desc)}&uom_meter=${metraza}&provodnik=${encodeURIComponent(provodnik)}&tip=${encodeURIComponent(tip)}`);
+                if (Array.isArray(data)) {
+                    productListNew.value = data.sort((a, b) => {
+                        const an = Number(a?.NumeraProizvoda);
+                        const bn = Number(b?.NumeraProizvoda);
+                        if (Number.isNaN(an) || Number.isNaN(bn)) return 0;
+                        return an - bn;
+                    }).map(p => ({ ...p, selected: false, kolicina: '' }));
+                } else {
+                    productListNew.value = [];
+                }
+            } else {
+                productListNew.value = [];
+            }
+        }
+
+        // Apply selection from details onto the loaded list
+        for (const p of productListNew.value) {
+            const pid = Number(p.id ?? NaN);
+            const key = (p.NumeraProizvoda != null && p.UoM_meter != null)
+                ? `${p.NumeraProizvoda}|${p.UoM_meter}`
+                : null;
+            let qty = undefined;
+            if (Number.isFinite(pid) && selectionById.has(pid)) {
+                qty = selectionById.get(pid);
+            } else if (key && selectionByKey.has(key)) {
+                qty = selectionByKey.get(key);
+            }
+            if (qty !== undefined) {
+                p.selected = true;
+                p.kolicina = qty;
+            } else {
+                p.selected = false;
+                if (p.kolicina == null) p.kolicina = '';
+            }
+        }
+    } catch (err) {
+        console.error('Greška pri učitavanju liste numera (edit)', err);
+    }
+}
+
+onMounted(async () => {
+    const params = new URLSearchParams(window.location.search);
+    const edit = params.get('edit');
+    if (edit) {
+        isEditMode.value = true;
+        preferDetailsList.value = true;
+        await loadForEdit(edit);
+    } else {
+        await getOrderNumber();
+    }
     console.log('OrderNumbers:', workingOrders.value.map(o => o.OrderNumber));
     // Dobavi workingOrders i ostale podatke po potrebi
 });

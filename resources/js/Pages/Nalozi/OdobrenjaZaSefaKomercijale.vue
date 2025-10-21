@@ -119,14 +119,10 @@ function toggleSelectAll(ev) {
 
 async function bulkApprove() {
   if (selected.value.length === 0) return;
-  // optional confirmation
-  // if (!confirm(`Odobriti ${selected.value.length} odabranih naloga?`)) return;
-  const ids = [...selected.value];
-  const results = await Promise.allSettled(ids.map(id => axios.post(`/approvals/${id}/approve`, {})));
-  const ok = results.filter(r => r.status === 'fulfilled').length;
-  const fail = results.length - ok;
-  if (fail > 0) {
-    alert(`Odobreno: ${ok}, Neuspješno: ${fail}.`);
+  try {
+    await axios.post('/approvals/bulk-approve', { approval_ids: selected.value });
+  } catch (e) {
+    alert(e?.response?.data?.message || 'Greška pri masovnom odobravanju');
   }
   await load();
 }

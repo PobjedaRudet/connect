@@ -64,7 +64,7 @@ onMounted(() => {
 
 
                             <!-- Navigation Links -->
-                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex items-center">
                                 <NavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.za-proizvodnju')" :active="route().current('nalozi.za-proizvodnju')">
                                     Kreiraj nalog
                                 </NavLink>
@@ -85,6 +85,39 @@ onMounted(() => {
                                 <NavLink v-if="userFunkcija && userFunkcija!=='Radnik'" :href="route('orders.status')" :active="route().current('orders.status')">
                                     Status naloga
                                 </NavLink>
+
+                                <NavLink v-if="userFunkcija==='Direktor Proizvodnje'" :href="route('planning.index')" :active="route().current('planning.index')">
+                                    Planiranje
+                                </NavLink>
+                                <NavLink v-if="userFunkcija==='Direktor Proizvodnje'" :href="route('planning.gantt')" :active="route().current('planning.gantt')">
+                                    Gantt
+                                </NavLink>
+
+                                <!-- Izvještaji dropdown (samo Direktor Komercijale) -->
+                                <Dropdown v-if="userFunkcija==='Direktor Komercijale'" align="left" width="56">
+                                    <template #trigger>
+                                        <button type="button" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-600 bg-white hover:text-gray-800 focus:outline-none focus:bg-gray-50 transition">
+                                            Izvještaji
+                                            <svg class="ms-2 -me-0.5 size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+                                            </svg>
+                                        </button>
+                                    </template>
+                                    <template #content>
+                                        <DropdownLink :href="route('reports.customers')" :class="{ 'font-semibold': route().current('reports.customers') }">
+                                            Po kupcima
+                                        </DropdownLink>
+                                        <DropdownLink :href="route('reports.products')" :class="{ 'font-semibold': route().current('reports.products') }">
+                                            Po proizvodima
+                                        </DropdownLink>
+                                        <DropdownLink :href="route('reports.monthly')" :class="{ 'font-semibold': route().current('reports.monthly') }">
+                                            Mjesečni
+                                        </DropdownLink>
+                                        <DropdownLink :href="route('reports.yearly')" :class="{ 'font-semibold': route().current('reports.yearly') }">
+                                            Godišnji
+                                        </DropdownLink>
+                                    </template>
+                                </Dropdown>
                             </div>
                         </div>
 
@@ -243,6 +276,9 @@ onMounted(() => {
                         </ResponsiveNavLink>
                         <ResponsiveNavLink v-if="userFunkcija && userFunkcija!=='Radnik'" :href="route('orders.status')" :active="route().current('orders.status')">
                             Status naloga
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink v-if="userFunkcija==='Direktor Proizvodnje'" :href="route('planning.gantt')" :active="route().current('planning.gantt')">
+                            Gantt
                         </ResponsiveNavLink>
                     </div>
 

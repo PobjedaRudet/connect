@@ -10,7 +10,7 @@
           <div class="flex flex-wrap items-end gap-3">
             <div>
               <label class="block text-xs text-gray-500 dark:text-gray-400">Pretraga</label>
-              <input v-model="q" type="text" class="form-input rounded-md dark:bg-gray-700 dark:text-gray-200" placeholder="Broj ili opis..." />
+              <input v-model="q" type="text" class="form-input rounded-md dark:bg-gray-700 dark:text-gray-200" placeholder="Broj, partner ili proizvod..." />
             </div>
 
             <div class="ml-auto">
@@ -28,15 +28,21 @@
                   <th class="px-3 py-2 text-left">Partner</th>
                   <th class="px-3 py-2 text-left">Kreirao</th>
                   <th class="px-3 py-2 text-left">Status</th>
+                  <th class="px-3 py-2 text-left">Uk. količina</th>
                   <th class="px-3 py-2 text-left">Kreirano</th>
+                  <th class="px-3 py-2 text-left">Akcija</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="o in rows" :key="o.id" class="border-b border-gray-200 dark:border-gray-700">
                   <td class="px-3 py-2"><input type="checkbox" v-model="o._sel" :disabled="(o.Status||'').startsWith('na odobrenju') || o.Status==='odobreno'"/></td>
                   <td class="px-3 py-2">
-                    <div class="font-medium">
+                    <div class="font-medium flex flex-wrap items-center gap-2">
                       <a :href="route('productionorders.show', { order: o.id })" class="text-blue-600 hover:underline">{{ o.OrderNumber }}</a>
+                      <span class="text-gray-700 dark:text-gray-200">—</span>
+                      <span class="text-gray-800 dark:text-gray-100">
+                        {{ primaryProductName(o) }}
+                      </span>
                     </div>
                     <div v-if="o.Description" class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">{{ o.Description }}</div>
                   </td>
@@ -44,7 +50,15 @@
                   <td class="px-3 py-2">{{ o.partner?.name ?? '' }}</td>
                   <td class="px-3 py-2">{{ o.creator?.name ?? '' }}</td>
                   <td class="px-3 py-2">{{ o.Status }}</td>
+                  <td class="px-3 py-2">{{ formatQty(totalQuantity(o)) }}</td>
                   <td class="px-3 py-2">{{ formatDate(o.created_at) }}</td>
+                  <td class="px-3 py-2">
+                    <div class="flex items-center gap-2">
+                      <button v-if="canEdit(o)" @click="goEdit(o)" class="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600">Uredi</button>
+                      <button v-if="isPending(o)" @click="removeOrder(o)" class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700">Obriši</button>
+                      <button @click="duplicate(o)" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-800">Dupliciraj</button>
+                    </div>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -133,7 +147,75 @@ async function sendSelected() {
   }
 }
 
-watch([q], () => load(1));
+function canEdit(o) {
+  const st = (o.Status || '').toLowerCase();
+  if (st.startsWith('na odobrenju')) return false;
+  if (st === 'odobreno' || st === 'odbijeno') return false;
+  return true;
+}
+
+function isPending(o) {
+  const s = (o.Status || '').toLowerCase();
+  return s === 'na čekanju' || s === 'na čekanju' || s === 'na cekanju' || s === '';
+}
+
+function goEdit(o) {
+  window.location.href = `/nalozi/nalozi-za-proizvodnju?edit=${o.id}`;
+}
+
+async function duplicate(o) {
+  try {
+    const { data } = await axios.post(`/productionorders/${o.id}/duplicate`, {});
+    const newId = data?.id;
+    if (newId) {
+      window.location.href = `/nalozi/nalozi-za-proizvodnju?edit=${newId}`;
+    } else {
+      alert('Nalog je dupliciran.');
+      await load(page.value);
+    }
+  } catch (e) {
+    alert(e?.response?.data?.message || 'Greška pri dupliciranju naloga');
+  }
+}
+
+function totalQuantity(o) {
+  // Prefer backend aggregate if present, else sum details quantities
+  if (o.total_quantity != null) return Number(o.total_quantity);
+  const details = o.details || [];
+  return details.reduce((sum, d) => sum + Number(d?.quantity || 0), 0);
+}
+
+function formatQty(v) {
+  if (v == null || isNaN(v)) return '';
+  // show integers without decimals
+  return Number.isInteger(v) ? String(v) : v.toFixed(2);
+}
+
+function primaryProductName(o) {
+  // Prefer first detail's product name; fallback to Description if no details
+  const details = o.details || [];
+  if (details.length > 0 && details[0]?.product) {
+    return details[0].product.SkraceniNaziv || details[0].product.Naziv || '(proizvod)';
+  }
+  return o.Description || '(bez opisa)';
+}
+
+async function removeOrder(o) {
+  if (!confirm(`Obrisati nalog ${o.OrderNumber}?`)) return;
+  try {
+    await axios.delete(`/productionorders/${o.id}`);
+    await load(page.value);
+  } catch (e) {
+    alert(e?.response?.data?.message || 'Greška pri brisanju naloga');
+  }
+}
+
+// Debounced auto-refresh while typing
+let searchDebounce = null;
+watch([q], () => {
+  if (searchDebounce) clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => load(1), 350);
+});
 onMounted(() => load(1));
 </script>
 

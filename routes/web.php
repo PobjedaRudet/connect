@@ -17,6 +17,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\ProductionPlanningController;
 
 // API za CE oznaku
 Route::get('/getCeOznaka', [App\Http\Controllers\ProductController::class, 'getCeOznaka'])->middleware(['auth']);
@@ -44,6 +46,13 @@ Route::get('/', function () {
 Route::get('/ppz/dashboard', function () {
     return Inertia::render('PPZ/Dashboard');
 })->middleware(['auth'])->name('ppz.dashboard');
+
+// Planiranje proizvodnje (Direktor Proizvodnje)
+Route::middleware(['auth'])->group(function () {
+    Route::get('/planiranje/proizvodnja', [ProductionPlanningController::class, 'index'])->name('planning.index');
+    Route::post('/planiranje/proizvodnja', [ProductionPlanningController::class, 'store'])->name('planning.store');
+    Route::get('/planiranje/gantt', [ProductionPlanningController::class, 'gantt'])->name('planning.gantt');
+});
 
 Route::get('/prodaja/dashboard', function () {
     return Inertia::render('Nalozi/ProdajaDashboard');
@@ -113,6 +122,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/approvals/send', [ApprovalController::class, 'sendForApproval'])->name('approvals.send');
     Route::get('/approvals/pending', [ApprovalController::class, 'pending'])->name('approvals.pending');
     Route::post('/approvals/{approval}/approve', [ApprovalController::class, 'approve'])->name('approvals.approve');
+    Route::post('/approvals/bulk-approve', [ApprovalController::class, 'bulkApprove'])->name('approvals.bulkApprove');
     Route::post('/approvals/{approval}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
     Route::post('/approvals/order/{order}/approve-one-up', [ApprovalController::class, 'approveOneUp'])->name('approvals.approveOneUp');
     // Approver-only pages (not Radnik)
@@ -141,6 +151,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/productionorders/mine/for-sending', [ProductionOrderController::class, 'myForSending'])->name('productionorders.mine.forSending');
     // Radnik approved orders data (for one-up action)
     Route::get('/productionorders/radnik/approved', [ProductionOrderController::class, 'radnikApproved'])->name('productionorders.radnik.approved');
+    // Update and duplicate production orders
+    Route::put('/productionorders/{order}', [ProductionOrderController::class, 'update'])->name('productionorders.update');
+    Route::post('/productionorders/{order}/duplicate', [ProductionOrderController::class, 'duplicate'])->name('productionorders.duplicate');
+    Route::delete('/productionorders/{order}', [ProductionOrderController::class, 'destroy'])->name('productionorders.destroy');
 });
 
 Route::resource('products', ProductController::class)->middleware(['auth']);
@@ -148,6 +162,20 @@ Route::resource('products', ProductController::class)->middleware(['auth']);
 Route::get('/ppz/izvjestaj-pregledi', function() {
     return Inertia::render('PPZ/IzvjestajPregledi');
 })->middleware(['auth'])->name('ppz.izvjestajPregledi');
+
+// Izvještaji za Direktora Komercijale
+Route::middleware(['auth'])->group(function () {
+    Route::get('/izvjestaji/kupci', [ReportsController::class, 'byCustomers'])->name('reports.customers');
+    Route::get('/izvjestaji/proizvodi', [ReportsController::class, 'byProducts'])->name('reports.products');
+    Route::get('/izvjestaji/mjesecni', [ReportsController::class, 'monthly'])->name('reports.monthly');
+    Route::get('/izvjestaji/godisnji', [ReportsController::class, 'yearly'])->name('reports.yearly');
+
+    // JSON endpoints for charts
+    Route::get('/api/izvjestaji/kupci', [ReportsController::class, 'byCustomersJson'])->name('api.reports.customers');
+    Route::get('/api/izvjestaji/proizvodi', [ReportsController::class, 'byProductsJson'])->name('api.reports.products');
+    Route::get('/api/izvjestaji/mjesecni', [ReportsController::class, 'monthlyJson'])->name('api.reports.monthly');
+    Route::get('/api/izvjestaji/godisnji', [ReportsController::class, 'yearlyJson'])->name('api.reports.yearly');
+});
 
 
 

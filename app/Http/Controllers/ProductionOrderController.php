@@ -24,7 +24,8 @@ class ProductionOrderController extends Controller
         $order->load([
             'partner:id,name',
             'creator:id,name,email',
-            'details.product:id,SkraceniNaziv,Naziv,JedinicaMjere',
+            // Include NumeraProizvoda and UoM_meter so UI can show 'numere proizvoda' after duplicate/edit
+            'details.product:id,SkraceniNaziv,Naziv,JedinicaMjere,NumeraProizvoda,UoM_meter',
             'approvals.user:id,name'
         ]);
 
@@ -67,6 +68,8 @@ class ProductionOrderController extends Controller
                         'Naziv' => $d->product->Naziv,
                         'SkraceniNaziv' => $d->product->SkraceniNaziv,
                         'JedinicaMjere' => $d->product->JedinicaMjere,
+                        'NumeraProizvoda' => $d->product->NumeraProizvoda ?? null,
+                        'UoM_meter' => $d->product->UoM_meter ?? null,
                     ] : null,
                 ];
             })->values(),
@@ -122,7 +125,14 @@ class ProductionOrderController extends Controller
         $q = $request->string('q')->toString();
 
         $orders = ProductionOrder::where('user_id', $userId)
-            ->with(['partner:id,name', 'creator:id,name'])
+            ->with([
+                'partner:id,name',
+                'creator:id,name',
+                // include first-level product info to show product name in list
+                'details.product:id,SkraceniNaziv,Naziv'
+            ])
+            // include aggregated total quantity for quick display
+            ->withSum('details as total_quantity', 'quantity')
             ->when($status !== '', function ($qq) use ($status) {
                 if ($status === 'na odobrenju') {
                     $qq->where('Status', 'like', 'na odobrenju%');
@@ -133,11 +143,18 @@ class ProductionOrderController extends Controller
             ->when($q !== '', function ($qq) use ($q) {
                 $qq->where(function ($w) use ($q) {
                     $w->where('OrderNumber', 'like', "%$q%")
-                      ->orWhere('Description', 'like', "%$q%");
+                      ->orWhere('Description', 'like', "%$q%")
+                      ->orWhereHas('partner', function ($p) use ($q) {
+                          $p->where('name', 'like', "%$q%");
+                      })
+                      ->orWhereHas('details.product', function ($p) use ($q) {
+                          $p->where('Naziv', 'like', "%$q%")
+                            ->orWhere('SkraceniNaziv', 'like', "%$q%");
+                      });
                 });
             })
             ->orderByDesc('id')
-            ->paginate(20, ['id','OrderNumber','OrderDate','partner_id','user_id','Status','created_at']);
+            ->paginate(20, ['id','OrderNumber','OrderDate','Description','partner_id','user_id','Status','created_at']);
 
         return response()->json($orders);
     }
@@ -272,11 +289,18 @@ class ProductionOrderController extends Controller
             ->when($q !== '', function ($qq) use ($q) {
                 $qq->where(function ($w) use ($q) {
                     $w->where('OrderNumber', 'like', "%$q%")
-                      ->orWhere('Description', 'like', "%$q%");
+                      ->orWhere('Description', 'like', "%$q%")
+                      ->orWhereHas('partner', function ($p) use ($q) {
+                          $p->where('name', 'like', "%$q%");
+                      })
+                      ->orWhereHas('details.product', function ($p) use ($q) {
+                          $p->where('Naziv', 'like', "%$q%")
+                            ->orWhere('SkraceniNaziv', 'like', "%$q%");
+                      });
                 });
             })
             ->orderByDesc('created_at')
-            ->paginate(20, ['id','OrderNumber','OrderDate','partner_id','user_id','Status','created_at']);
+            ->paginate(20, ['id','OrderNumber','OrderDate','Description','partner_id','user_id','Status','created_at']);
 
         // Return paginator payload and include immediate superior funkcija for tooltip/UI hints
         $payload = $orders->toArray();
@@ -310,7 +334,7 @@ class ProductionOrderController extends Controller
     public function showForm()
     {
         $workingOrders = ProductionOrder::all();
-        $partners = Partner::all(['id', 'name']);
+        $partners = Partner::all(['id', 'name', 'oznaka']);
         Log::info($workingOrders);
         return Inertia::render('Nalozi/NaloziZaProizvodnju', [
             'workingOrders' => $workingOrders,
@@ -408,6 +432,115 @@ class ProductionOrderController extends Controller
         } catch (Exception $e) {
             Log::error("Error: {$e->getMessage()}");
             return response()->json(['message' => 'An error occurred while saving the order.'], 500);
+        }
+    }
+
+    public function update(Request $request, ProductionOrder $order)
+    {
+        // Only creator can edit, and only if not approved by superior yet (i.e., not in 'na odobrenju%' or 'odobreno'/'odbijeno')
+        if ($order->user_id !== Auth::id()) {
+            return response()->json(['message' => 'Nemate ovlaštenje za izmjenu ovog naloga.'], 403);
+        }
+        if (($order->Status && str_starts_with(mb_strtolower($order->Status), 'na odobrenju')) || in_array($order->Status, ['odobreno','odbijeno'])) {
+            return response()->json(['message' => 'Nalog se ne može uređivati nakon slanja na odobrenje ili finalne odluke.'], 422);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'partner_id' => 'required|integer|exists:partners,id',
+            'OrderDate' => 'required|date',
+            'Description' => 'nullable|string|max:1000',
+            'AtestPaketa' => 'nullable|string|max:255',
+            'token' => 'nullable|string|max:255',
+            // Product list validation
+            'productListNew' => 'required|array|min:1',
+            'productListNew.*.id' => 'required|integer|exists:products,id',
+            'productListNew.*.quantity' => 'required|numeric|min:1',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Neispravni podaci', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $request->except('productListNew');
+        $data['partner_id'] = $request->input('partner_id');
+        // Preserve immutable fields
+        unset($data['OrderNumber'], $data['user_id'], $data['Status'], $data['DatumPrijema']);
+
+        $order->update($data);
+
+        // Replace details
+        ProductionOrderDetail::where('production_order_id', $order->id)->delete();
+        foreach ($request->input('productListNew', []) as $product) {
+            ProductionOrderDetail::create([
+                'production_order_id' => $order->id,
+                'product_id' => $product['id'],
+                'quantity' => $product['quantity'],
+            ]);
+        }
+
+        return response()->json(['message' => 'Nalog je ažuriran.']);
+    }
+
+    public function duplicate(ProductionOrder $order)
+    {
+        // Only creator can duplicate
+        if ($order->user_id !== Auth::id()) {
+            return response()->json(['message' => 'Nemate ovlaštenje za dupliciranje ovog naloga.'], 403);
+        }
+
+        // Create next OrderNumber
+        $lastOrder = ProductionOrder::orderByRaw('CAST(SUBSTRING_INDEX(OrderNumber, "/", 1) AS UNSIGNED) DESC')->first();
+        if ($lastOrder && preg_match('/^(\d+)/', $lastOrder->OrderNumber, $matches)) {
+            $nextNumber = intval($matches[1]) + 1;
+        } else {
+            $nextNumber = 1;
+        }
+        $yearShort = date('y');
+        $orderNumber = $nextNumber . '/' . $yearShort;
+
+        $new = $order->replicate([
+            'OrderNumber', 'DatumPrijema', 'Status', 'created_at', 'updated_at'
+        ]);
+        $new->OrderNumber = $orderNumber;
+        $new->Status = 'Na čekanju';
+        $new->DatumPrijema = null;
+        $new->user_id = Auth::id();
+        $new->push();
+
+        // Clone details (replicate full record to preserve all per-detail columns)
+        $details = ProductionOrderDetail::where('production_order_id', $order->id)->get();
+        foreach ($details as $d) {
+            $newDetail = $d->replicate();
+            $newDetail->production_order_id = $new->id;
+            $newDetail->push();
+        }
+
+        return response()->json(['message' => 'Nalog je dupliciran.', 'id' => $new->id]);
+    }
+
+    public function destroy(ProductionOrder $order)
+    {
+        // Only the creator can delete and only when order is still pending (Na čekanju)
+        if ($order->user_id !== Auth::id()) {
+            return response()->json(['message' => 'Nemate ovlaštenje za brisanje ovog naloga.'], 403);
+        }
+
+        $status = mb_strtolower($order->Status ?? '');
+        // Allow delete if status is empty/null (legacy) or exactly "na čekanju"
+        if ($status !== '' && $status !== 'na čekanju') {
+            return response()->json(['message' => 'Samo nalozi u statusu "Na čekanju" mogu biti obrisani.'], 422);
+        }
+
+        try {
+            // Remove related records first (safety if no DB cascade)
+            $order->details()->delete();
+            $order->approvals()->delete();
+            $order->delete();
+
+            return response()->json(['message' => 'Nalog je obrisan.']);
+        } catch (\Throwable $e) {
+            Log::error('Greška pri brisanju naloga', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+            return response()->json(['message' => 'Greška pri brisanju naloga.'], 500);
         }
     }
 }

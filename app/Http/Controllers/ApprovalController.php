@@ -28,7 +28,7 @@ class ApprovalController extends Controller
         $notifyMap = [];
         DB::transaction(function () use ($data, $hierarchy, $user, &$notifyMap) {
             foreach ($data['order_ids'] as $orderId) {
-                $order = ProductionOrder::findOrFail($orderId);
+                $order = ProductionOrder::with(['partner', 'creator', 'details.product'])->findOrFail($orderId);
                 // Only creator can send
                 if ($order->user_id !== $user->id) {
                     abort(403, 'Nemate ovlaštenje za slanje ovog naloga.');
@@ -71,7 +71,27 @@ class ApprovalController extends Controller
                 $order->update(['Status' => $nextF ? ("na odobrenju kod " . $nextF) : 'na odobrenju']);
                 if ($nextF) {
                     $notifyMap[$nextF] = $notifyMap[$nextF] ?? [];
-                    $notifyMap[$nextF][] = [$order->OrderNumber, $order->Description];
+                    // Prepare enriched info for email lines
+                    $partnerName = $order->partner?->name ?? '';
+                    // Prefer order-level fields; fall back to first detail's product when missing
+                    $type = $order->Tip ?: optional($order->details->first()?->product)->TypeOfProduct;
+                    $metraza = $order->Metraza;
+                    $provodnik = $order->VrstaProvodnika ?: optional($order->details->first()?->product)->VrstaProvodnika;
+                    $totalQty = (float) ($order->details->sum('quantity'));
+                    $createdAt = optional($order->created_at)->format('Y-m-d H:i');
+                    $creatorName = $order->creator?->name ?? '';
+
+                    $notifyMap[$nextF][] = [
+                        'number' => $order->OrderNumber,
+                        'desc' => $order->Description,
+                        'partner' => $partnerName,
+                        'type' => $type,
+                        'metraza' => $metraza,
+                        'provodnik' => $provodnik,
+                        'total_qty' => $totalQty,
+                        'created_at' => $createdAt,
+                        'creator' => $creatorName,
+                    ];
                 }
             }
         });
@@ -81,7 +101,19 @@ class ApprovalController extends Controller
             $recipients = User::where('funkcija', $funkcija)->pluck('email')->filter()->unique()->values()->all();
             if (!empty($recipients)) {
                 $subject = 'Novi nalozi na odobrenje';
-                $lines = array_map(fn($o) => "- Nalog: {$o[0]} | {$o[1]}", $orders);
+                // Each line includes: number, desc, partner, type, metraza, provodnik, total quantity, created at, creator
+                $lines = array_map(function ($o) {
+                    $num = $o['number'] ?? '';
+                    $desc = $o['desc'] ?? '';
+                    $partner = $o['partner'] ?? '';
+                    $type = $o['type'] ?? '';
+                    $metraza = $o['metraza'] ?? '';
+                    $prov = $o['provodnik'] ?? '';
+                    $qty = $o['total_qty'] ?? '';
+                    $created = $o['created_at'] ?? '';
+                    $creator = $o['creator'] ?? '';
+                    return "- Nalog: {$num} | {$desc} | Kupac: {$partner} | Tip: {$type} | Metraža: {$metraza} | Provodnik: {$prov} | Količina: {$qty} | Kreirano: {$created} | Kreirao: {$creator}";
+                }, $orders);
                 $body = "Poštovani,\n\nSljedeći nalozi čekaju vaše odobrenje ({$funkcija}):\n" . implode("\n", $lines) . "\n\nHvala.";
                 foreach ($recipients as $email) {
                     Mail::raw($body, function ($message) use ($email, $subject) {
@@ -228,24 +260,15 @@ class ApprovalController extends Controller
                 $update['DatumPrijema'] = $approval->DatumOdobravanja ?? now();
             }
             ProductionOrder::where('id', $approval->order_id)->update($update);
-            // If Šef Operative approved (final step), notify all involved + creator
+            // If Šef Operative approved (final step), notify all participants (creator + actual approvers) with enriched details
             if ($approval->Funkcija === 'Šef Operative') {
-                $order = ProductionOrder::with('creator')->find($approval->order_id);
+                $order = ProductionOrder::with(['partner','creator','details.product','approvals'])->find($approval->order_id);
                 if ($order) {
-                    // Collect recipients: all users with funkcija in this order's approval flow (except mass 'Radnik'), plus the creator
-                    $funkcije = Approval::where('order_id', $order->id)->pluck('Funkcija')->unique()->values()->all();
-                    $funkcije = array_values(array_filter($funkcije, fn($f) => $f !== 'Radnik'));
-                    $roleRecipients = User::whereIn('funkcija', $funkcije)->pluck('email')->filter();
-                    $creatorEmail = optional($order->creator)->email;
-                    $recipients = collect($roleRecipients)
-                        ->when($creatorEmail, fn($c) => $c->push($creatorEmail))
-                        ->unique()
-                        ->values()
-                        ->all();
-
+                    $line = $this->buildOrderEmailLine($order);
+                    $recipients = $this->getOrderParticipantsEmails($order);
                     if (!empty($recipients)) {
                         $subject = 'Nalog odobren';
-                        $body = "Poštovani,\n\nNalog je odobren.\n\nBroj: {$order->OrderNumber}\nOpis: {$order->Description}\nStatus: odobreno\nOdobrio: Šef Operative\n\nHvala.";
+                        $body = "Poštovani,\n\nSljedeći nalozi su odobreni (finalno):\n" . $line . "\n\nHvala.";
                         foreach ($recipients as $email) {
                             Mail::raw($body, function ($message) use ($email, $subject) {
                                 $message->to($email)->subject($subject);
@@ -324,6 +347,176 @@ class ApprovalController extends Controller
         return response()->json(['message' => 'Odbijeno.']);
     }
 
+    // Bulk approve multiple approvals by current user's funkcija, consolidating notification to next funkcija
+    public function bulkApprove(Request $request)
+    {
+        $data = $request->validate([
+            'approval_ids' => 'required|array|min:1',
+            'approval_ids.*' => 'integer|exists:approvals,id',
+        ]);
+
+        $user = Auth::user();
+        $funkcija = $this->mapUserToFunkcija($user);
+        if (!$funkcija) {
+            return response()->json(['message' => 'Vaša funkcija nije postavljena ili ne postoji u šifrarniku funkcija.'], 403);
+        }
+
+        $hierarchy = Funkcija::orderBy('Redosljed')->pluck('Funkcija')->toArray();
+        $notifyMap = []; // nextFunkcija => [enriched order info]
+        $finalNotify = []; // recipientEmail => [lines] for final approval by Šef Operative
+        $ok = 0; $fail = 0;
+
+        DB::transaction(function () use ($data, $user, $funkcija, $hierarchy, &$notifyMap, &$ok, &$fail, &$finalNotify) {
+            foreach ($data['approval_ids'] as $id) {
+                /** @var Approval $approval */
+                $approval = Approval::find($id);
+                if (!$approval) { $fail++; continue; }
+
+                // Enforce it's the user's own funkcija approval and still pending
+                if ($approval->Funkcija !== $funkcija || $approval->Odobreno !== null) { $fail++; continue; }
+
+                // Ensure all previous approvals are approved
+                $aPos = array_search($approval->Funkcija, $hierarchy, true);
+                $prev = array_slice($hierarchy, 0, $aPos);
+                $prevAllApproved = true;
+                foreach ($prev as $pf) {
+                    $prevApproval = Approval::where('order_id', $approval->order_id)->where('Funkcija', $pf)->first();
+                    if (!$prevApproval || $prevApproval->Odobreno !== true) { $prevAllApproved = false; break; }
+                }
+                if (!$prevAllApproved) { $fail++; continue; }
+
+                // Approve current
+                $approval->fill([
+                    'UserId' => $user->id,
+                    'Odobreno' => true,
+                    'DatumOdobravanja' => now(),
+                    'signed_by_proxy' => false,
+                ])->save();
+
+                // Move order to next step or finalize
+                $order = ProductionOrder::with(['partner','creator','details.product'])->find($approval->order_id);
+                if (!$order) { $fail++; continue; }
+
+                $allApproved = Approval::where('order_id', $order->id)->whereNull('Odobreno')->doesntExist()
+                    && Approval::where('order_id', $order->id)->where('Odobreno', false)->doesntExist();
+                if ($allApproved) {
+                    $update = ['Status' => 'odobreno'];
+                    if ($approval->Funkcija === 'Šef Operative') {
+                        $update['DatumPrijema'] = $approval->DatumOdobravanja ?? now();
+                    }
+                    $order->update($update);
+                    // If final step performed by Šef Operative, prepare consolidated participant notifications
+                    if ($approval->Funkcija === 'Šef Operative') {
+                        $line = $this->buildOrderEmailLine($order);
+                        $recipients = $this->getOrderParticipantsEmails($order);
+                        foreach ($recipients as $email) {
+                            $finalNotify[$email] = $finalNotify[$email] ?? [];
+                            $finalNotify[$email][] = $line;
+                        }
+                    }
+                } else {
+                    $pending = Approval::where('order_id', $order->id)->whereNull('Odobreno')
+                        ->orderByRaw("FIELD(Funkcija, '" . implode("','", $hierarchy) . "')")
+                        ->pluck('Funkcija')->toArray();
+                    $nextF = null;
+                    foreach ($pending as $pf) { if ($pf !== 'Radnik') { $nextF = $pf; break; } }
+                    if ($nextF) {
+                        $order->update(['Status' => 'na odobrenju kod ' . $nextF]);
+                        // Enrich info for consolidated email to nextF
+                        $partnerName = $order->partner?->name ?? '';
+                        $type = $order->Tip ?: optional($order->details->first()?->product)->TypeOfProduct;
+                        $metraza = $order->Metraza;
+                        $provodnik = $order->VrstaProvodnika ?: optional($order->details->first()?->product)->VrstaProvodnika;
+                        $totalQty = (float) ($order->details->sum('quantity'));
+                        $createdAt = optional($order->created_at)->format('Y-m-d H:i');
+                        $creatorName = $order->creator?->name ?? '';
+
+                        $notifyMap[$nextF] = $notifyMap[$nextF] ?? [];
+                        $notifyMap[$nextF][] = [
+                            'number' => $order->OrderNumber,
+                            'desc' => $order->Description,
+                            'partner' => $partnerName,
+                            'type' => $type,
+                            'metraza' => $metraza,
+                            'provodnik' => $provodnik,
+                            'total_qty' => $totalQty,
+                            'created_at' => $createdAt,
+                            'creator' => $creatorName,
+                        ];
+                    }
+                }
+
+                $ok++;
+            }
+        });
+
+        // Send one consolidated email per next funkcija (e.g., Direktor Komercijale)
+        foreach ($notifyMap as $funkcijaNext => $orders) {
+            $recipients = User::where('funkcija', $funkcijaNext)->pluck('email')->filter()->unique()->values()->all();
+            if (!empty($recipients)) {
+                $subject = 'Novi nalozi na odobrenje';
+                $lines = array_map(function ($o) {
+                    $num = $o['number'] ?? '';
+                    $desc = $o['desc'] ?? '';
+                    $partner = $o['partner'] ?? '';
+                    $type = $o['type'] ?? '';
+                    $metraza = $o['metraza'] ?? '';
+                    $prov = $o['provodnik'] ?? '';
+                    $qty = $o['total_qty'] ?? '';
+                    $created = $o['created_at'] ?? '';
+                    $creator = $o['creator'] ?? '';
+                    return "- Nalog: {$num} | {$desc} | Kupac: {$partner} | Tip: {$type} | Metraža: {$metraza} | Provodnik: {$prov} | Količina: {$qty} | Kreirano: {$created} | Kreirao: {$creator}";
+                }, $orders);
+                $body = "Poštovani,\n\nSljedeći nalozi čekaju vaše odobrenje ({$funkcijaNext}):\n" . implode("\n", $lines) . "\n\nHvala.";
+                foreach ($recipients as $email) {
+                    Mail::raw($body, function ($message) use ($email, $subject) {
+                        $message->to($email)->subject($subject);
+                    });
+                }
+            }
+        }
+
+        // Send consolidated final-approval emails to participants (Šef Operative case)
+        foreach ($finalNotify as $email => $lines) {
+            if (empty($lines)) continue;
+            $subject = 'Nalozi odobreni';
+            $body = "Poštovani,\n\nSljedeći nalozi su odobreni (finalno):\n" . implode("\n", $lines) . "\n\nHvala.";
+            Mail::raw($body, function ($message) use ($email, $subject) {
+                $message->to($email)->subject($subject);
+            });
+        }
+
+        return response()->json(['message' => "Odobreno: {$ok}, Neuspješno: {$fail}."]);
+    }
+
+    private function buildOrderEmailLine(ProductionOrder $order): string
+    {
+        $partnerName = $order->partner?->name ?? '';
+        $type = $order->Tip ?: optional($order->details->first()?->product)->TypeOfProduct;
+        $metraza = $order->Metraza;
+        $provodnik = $order->VrstaProvodnika ?: optional($order->details->first()?->product)->VrstaProvodnika;
+        $totalQty = (float) ($order->details->sum('quantity'));
+        $createdAt = optional($order->created_at)->format('Y-m-d H:i');
+        $creatorName = $order->creator?->name ?? '';
+        $desc = $order->Description ?? '';
+        return "- Nalog: {$order->OrderNumber} | {$desc} | Kupac: {$partnerName} | Tip: {$type} | Metraža: {$metraza} | Provodnik: {$provodnik} | Količina: {$totalQty} | Kreirano: {$createdAt} | Kreirao: {$creatorName}";
+    }
+
+    private function getOrderParticipantsEmails(ProductionOrder $order): array
+    {
+        // Creator + all actual approvers for this order
+        $creatorEmail = optional($order->creator)->email;
+        $approvals = $order->relationLoaded('approvals') ? $order->approvals : Approval::where('order_id', $order->id)->get();
+        $userIds = $approvals->whereNotNull('UserId')->where('Odobreno', true)->pluck('UserId')->unique()->values()->all();
+        $approverEmails = empty($userIds) ? collect() : User::whereIn('id', $userIds)->pluck('email');
+        return collect([$creatorEmail])
+            ->merge($approverEmails)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     // Approve one level above (immediate superior) for a given order
     public function approveOneUp(Request $request, ProductionOrder $order)
     {
@@ -384,21 +577,13 @@ class ApprovalController extends Controller
             }
             ProductionOrder::where('id', $order->id)->update($update);
             if ($approval->Funkcija === 'Šef Operative') {
-                $orderR = ProductionOrder::with('creator')->find($order->id);
+                $orderR = ProductionOrder::with(['partner','creator','details.product','approvals'])->find($order->id);
                 if ($orderR) {
-                    $funkcije = Approval::where('order_id', $orderR->id)->pluck('Funkcija')->unique()->values()->all();
-                    $funkcije = array_values(array_filter($funkcije, fn($f) => $f !== 'Radnik'));
-                    $roleRecipients = User::whereIn('funkcija', $funkcije)->pluck('email')->filter();
-                    $creatorEmail = optional($orderR->creator)->email;
-                    $recipients = collect($roleRecipients)
-                        ->when($creatorEmail, fn($c) => $c->push($creatorEmail))
-                        ->unique()
-                        ->values()
-                        ->all();
-
+                    $line = $this->buildOrderEmailLine($orderR);
+                    $recipients = $this->getOrderParticipantsEmails($orderR);
                     if (!empty($recipients)) {
                         $subject = 'Nalog odobren';
-                        $body = "Poštovani,\n\nNalog je odobren.\n\nBroj: {$orderR->OrderNumber}\nOpis: {$orderR->Description}\nStatus: odobreno\nOdobrio: Šef Operative\n\nHvala.";
+                        $body = "Poštovani,\n\nSljedeći nalozi su odobreni (finalno):\n" . $line . "\n\nHvala.";
                         foreach ($recipients as $email) {
                             Mail::raw($body, function ($message) use ($email, $subject) {
                                 $message->to($email)->subject($subject);

@@ -10,11 +10,11 @@
           <div class="flex flex-wrap items-end gap-3">
             <div>
               <label class="block text-xs text-gray-500 dark:text-gray-400">Pretraga</label>
-              <input v-model="q" type="text" class="form-input rounded-md dark:bg-gray-700 dark:text-gray-200" placeholder="Broj ili opis..." />
+              <input v-model="q" @input="queueLoad" type="text" class="form-input rounded-md dark:bg-gray-700 dark:text-gray-200" placeholder="Broj, partner ili proizvod..." />
             </div>
             <div>
               <label class="block text-xs text-gray-500 dark:text-gray-400">Status</label>
-              <select v-model="status" class="form-input rounded-md dark:bg-gray-700 dark:text-gray-200">
+              <select v-model="status" @change="queueLoad" class="form-input rounded-md dark:bg-gray-700 dark:text-gray-200">
                 <option value="">(sve)</option>
                 <option value="na odobrenju">na odobrenju</option>
                 <option value="odobreno">odobreno</option>
@@ -53,10 +53,13 @@
                   <td class="px-3 py-2">{{ o.Status }}</td>
                   <td class="px-3 py-2">{{ formatDate(o.created_at) }}</td>
                   <td class="px-3 py-2">
-                    <div class="flex items-center">
+                    <div class="flex items-center gap-2">
                       <div v-if="((o.Status || '').toLowerCase().startsWith('na odobrenju')) && (o.one_up_pending_count > 0) && (o.my_step_approved_count > 0)">
                         <button @click="approveOneUp(o)" :title="tooltipText" class="px-3 py-1 bg-red-700 text-white rounded hover:bg-red-800">Odobri (1 nivo iznad)</button>
                       </div>
+                      <button v-if="canEdit(o) && isOwner(o)" @click="goEdit(o)" class="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600">Uredi</button>
+                      <button v-if="isPending(o) && isOwner(o)" @click="removeOrder(o)" class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700">Obriši</button>
+                      <button v-if="isOwner(o)" @click="duplicate(o)" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-800">Dupliciraj</button>
                     </div>
                   </td>
                 </tr>
@@ -80,7 +83,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import ProductionAppLayout from '@/Layouts/ProductionAppLayout.vue';
 
@@ -91,6 +95,8 @@ const perPage = ref(20);
 const status = ref('');
 const q = ref('');
 const oneUpTarget = ref(null);
+const pageCtx = usePage();
+const currentUserId = computed(() => pageCtx?.props?.auth?.user?.id ?? null);
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / perPage.value)));
 const tooltipText = computed(() => {
@@ -113,6 +119,16 @@ async function load(p=1) {
   }
 }
 
+// Debounced auto-refresh while typing / changing filters
+let searchDebounce = null;
+function queueLoad() {
+  if (searchDebounce) clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => load(1), 350);
+}
+
+watch(q, queueLoad);
+watch(status, queueLoad);
+
 function formatDate(dt) {
   if (!dt) return '';
   try { return new Date(dt).toLocaleString(); } catch { return dt; }
@@ -134,6 +150,56 @@ async function approveOneUp(o) {
     await load(page.value);
   } catch (e) {
     alert(e?.response?.data?.message || 'Greška pri odobravanju (1 nivo iznad)');
+  }
+}
+
+function canEdit(o) {
+  const st = (o.Status || '').toLowerCase();
+  if (st.startsWith('na odobrenju')) return false;
+  if (st === 'odobreno' || st === 'odbijeno') return false;
+  return true;
+}
+
+function isPending(o) {
+  const s = (o.Status || '').toLowerCase();
+  return s === 'na čekanju' || s === 'na čekanju' || s === 'na cekanju' || s === '';
+}
+
+function isOwner(o) {
+  const uid = Number(currentUserId?.value ?? NaN);
+  const oid = Number(o?.user_id ?? NaN);
+  return Number.isFinite(uid) && Number.isFinite(oid) && uid === oid;
+}
+
+function goEdit(o) {
+  window.location.href = `/nalozi/nalozi-za-proizvodnju?edit=${o.id}`;
+}
+
+async function duplicate(o) {
+  try {
+    const { data } = await axios.post(`/productionorders/${o.id}/duplicate`, {});
+    const newId = data?.id;
+    if (newId) {
+      // Open edit page for the new order so user can adjust
+      window.location.href = `/nalozi/nalozi-za-proizvodnju?edit=${newId}`;
+    } else {
+      alert('Nalog je dupliciran.');
+      await load(page.value);
+    }
+  } catch (e) {
+    alert(e?.response?.data?.message || 'Greška pri dupliciranju naloga');
+  }
+}
+
+async function removeOrder(o) {
+  if (!isOwner(o)) { alert('Možete brisati samo svoje naloge.'); return; }
+  if (!isPending(o)) { alert('Moguće je obrisati samo naloge u statusu "Na čekanju".'); return; }
+  if (!confirm(`Obrisati nalog ${o.OrderNumber}?`)) return;
+  try {
+    await axios.delete(`/productionorders/${o.id}`);
+    await load(page.value);
+  } catch (e) {
+    alert(e?.response?.data?.message || 'Greška pri brisanju naloga');
   }
 }
 </script>
