@@ -12,39 +12,39 @@ onMounted(() => {
 // SVG ikone za sektore
 const sectors = [
     {
-        name: 'HR',
-        description: 'Human Resources manages employee relations and benefits.',
+        name: 'Pravna služba',
+        description: 'Pravna služba upravlja odnosima s zaposlenicima.',
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
         link: '/sector/hr'
     },
     {
-        name: 'IT',
-        description: 'Information Technology supports all technical infrastructure.',
+        name: 'IT služba',
+        description: 'IT služba održava svu tehničku infrastrukturu.',
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 014-4h3m4 4v2a4 4 0 01-4 4H7a4 4 0 01-4-4v-2a4 4 0 004-4h3m4-4V7a4 4 0 00-4-4H7a4 4 0 00-4 4v2a4 4 0 004 4h3" /></svg>`,
         link: '/sector/it'
     },
     {
-        name: 'Finance',
-        description: 'Finance handles company budgeting and accounting.',
+        name: 'Finansije',
+        description: 'Finansije se bave budžetiranjem i računovodstvom kompanije.',
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 4v4m0 4v4" /></svg>`,
         link: '/sector/finance'
     },
     {
-        name: 'ZNR I PPZ',
-        description: 'ZNR I PPZ sektor brine o zaštiti na radu i protivpožarnoj sigurnosti.',
+        name: 'PPZ i ZNR',
+        description: 'PPZ i ZNR sektor brine o zaštiti na radu i protivpožarnoj sigurnosti.',
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 4v4m0 4v4" /></svg>`,
         link: '/ppz/dashboard'
     },
     {
-        name: 'Sales',
-        description: 'Sales drives company revenue and client relationships.',
+        name: 'Prodaja',
+        description: 'Prodaja pokreće prihode kompanije i odnose s klijentima.',
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 17v-2a4 4 0 014-4h10a4 4 0 014 4v2M16 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`,
         link: '/prodaja/dashboard',
         route: '/prodaja/dashboard', // Dodano za eksplicitno rutiranje
     },
     {
-        name: 'Production',
-        description: 'Production oversees manufacturing and operations.',
+        name: 'Proizvodnja',
+        description: 'Proizvodnja nadgleda proizvodnju i operacije.',
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 014-4h3m4 4v2a4 4 0 01-4 4H7a4 4 0 01-4-4v-2a4 4 0 014-4h3" /></svg>`,
         link: '/sector/production'
     },
@@ -73,7 +73,7 @@ const sectors = [
     <div class="grid gap-8 lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1">
         <div v-for="sector in sectors" :key="sector.name"
             class="bg-white dark:bg-gray-900 rounded shadow p-8 flex flex-col items-center hover:shadow-lg transition">
-            <Link :href="sector.name === 'Sales' ? sector.route : `/login?redirect=${encodeURIComponent(sector.link)}`" class="flex flex-col items-center group">
+            <Link :href="sector.link" class="flex flex-col items-center group">
                 <span v-html="sector.icon"></span>
                 <span class="mt-4 text-lg font-semibold group-hover:text-[#FF2D20] transition">{{ sector.name }}</span>
                 <span class="mt-2 text-sm text-gray-500 dark:text-gray-400 text-center">{{ sector.description }}</span>

@@ -29,6 +29,7 @@
                   </th>
                   <th class="px-3 py-2 text-left">Broj</th>
                   <th class="px-3 py-2 text-left">Partner</th>
+                  <th class="px-3 py-2 text-left">Uk. količina</th>
                   <th class="px-3 py-2 text-left">Opis</th>
                   <th class="px-3 py-2 text-left w-64">Akcija</th>
                 </tr>
@@ -43,12 +44,16 @@
                   </td>
                   <td class="px-3 py-2">{{ o.partner || '' }}</td>
                   <td class="px-3 py-2">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
+                      {{ formatQty(o.total_quantity) }}
+                    </span>
+                  </td>
+                  <td class="px-3 py-2">
                     <div class="truncate max-w-lg" :title="o.Description">{{ o.Description }}</div>
                   </td>
                   <td class="px-3 py-2">
                     <div class="flex gap-2 items-center">
                       <button @click="approve(o)" class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700">Odobri</button>
-                      <input v-model="o._comment" type="text" placeholder="Komentar (za odbijanje)" class="form-input rounded-md dark:bg-gray-700 dark:text-gray-200 w-48"/>
                       <button @click="reject(o)" class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700">Odbij</button>
                     </div>
                   </td>
@@ -73,7 +78,7 @@ const selected = ref([]); // holds current_approval_id values
 async function loadPending() {
   try {
     const { data } = await axios.get('/approvals/pending');
-    pending.value = (data?.data || []).map(o => ({...o, _comment: ''}));
+  pending.value = (data?.data || []);
     const visibleIds = new Set(pending.value.map(o => o.current_approval_id));
     selected.value = selected.value.filter(id => visibleIds.has(id));
   } catch (e) {
@@ -91,11 +96,8 @@ async function approve(o) {
 }
 
 async function reject(o) {
-  const Komentar = (o._comment || '').trim();
-  if (!Komentar) {
-    alert('Komentar je obavezan za odbijanje.');
-    return;
-  }
+  const Komentar = (prompt('Unesite komentar za odbijanje:', '') || '').trim();
+  if (!Komentar) { alert('Komentar je obavezan za odbijanje.'); return; }
   try {
     await axios.post(`/approvals/${o.current_approval_id}/reject`, { Komentar });
     await loadPending();
@@ -126,6 +128,12 @@ async function bulkApprove() {
 }
 
 onMounted(() => { loadPending(); });
+
+function formatQty(v) {
+  const n = Number(v ?? 0);
+  if (!isFinite(n)) return '0';
+  return n % 1 === 0 ? n.toString() : n.toFixed(2);
+}
 </script>
 
 <style>

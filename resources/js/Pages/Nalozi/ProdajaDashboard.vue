@@ -15,27 +15,21 @@ const ordersLink = computed(() => {
 const options = computed(() => [
     {
         name: 'Nalozi',
-        description: 'Pregled i evidencija ljekarskih pregleda radnika.',
+        description: 'Kreiranje i pregled naloga za proizvodnju.',
         link: ordersLink.value,
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /></svg>`
     },
     {
-        name: 'Godišnji odmori',
-        description: 'Upravljanje i pregled godišnjih odmora radnika.',
-        link: '/ppz/godisnji-odmori',
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>`
-    },
-    {
-        name: 'Obuka radnika',
-        description: 'Evidencija i planiranje obuka za radnike.',
-        link: '/ppz/obuka-radnika',
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0v6m0 0H6m6 0h6" /></svg>`
+        name: 'Kupci',
+        description: 'Kreiranje, pregled i uređivanje kupaca.',
+        link: '/kupci',
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-4-4h-3m-4 6H2v-2a4 4 0 014-4h3m6-4a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`
     },
     {
         name: 'Proizvodi',
-        description: 'Pregled i upravljanje radnicima na rizičnim radnim mjestima.',
-        link: '/ppz/radnici-rizik',
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" /></svg>`
+        description: 'Pregled i upravljanje proizvodima.',
+        link: '/proizvodi',
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7l9-4 9 4-9 4-9-4zm0 8l9 4 9-4M3 7v8" /></svg>`
     },
 ]);
 </script>

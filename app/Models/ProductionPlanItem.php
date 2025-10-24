@@ -14,6 +14,10 @@ class ProductionPlanItem extends Model
         'production_order_id',
         'start_date',
         'end_date',
+        'percent',
+        'delivery_date',
+        'placeholder_label',
+        'placeholder_partner',
     ];
 
     public function plan()

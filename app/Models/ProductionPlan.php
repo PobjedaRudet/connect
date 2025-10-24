@@ -12,6 +12,7 @@ class ProductionPlan extends Model
     protected $fillable = [
         'objekat',
         'laboracija_datum',
+        'delivery_date',
         'planned_by',
     ];
 

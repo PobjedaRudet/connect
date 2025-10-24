@@ -3,7 +3,10 @@
     <template #header>
       <div class="flex items-center justify-between">
         <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">Detalji naloga — {{ order?.OrderNumber }}</h2>
-        <button type="button" @click="goBack" class="text-sm text-blue-600 hover:underline">← Nazad</button>
+        <div class="flex items-center gap-3">
+          <button v-if="canVoid" type="button" @click="voidOrder" class="px-3 py-1.5 rounded bg-red-600 text-white hover:bg-red-700">Poništi</button>
+          <button type="button" @click="goBack" class="text-sm text-blue-600 hover:underline">← Nazad</button>
+        </div>
       </div>
     </template>
 
@@ -11,6 +14,10 @@
       <div class="max-w-6xl mx-auto sm:px-6 lg:px-8">
         <div v-if="order" class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
           <div class="p-6">
+            <div v-if="order?.is_void" class="mb-4 p-3 rounded bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-200">
+              Ovaj nalog je poništen (nevažeći).
+              <span v-if="order?.void_reason" class="block text-sm mt-1 text-red-600 dark:text-red-300">Razlog: {{ order.void_reason }}</span>
+            </div>
             <!-- Grid: Left = Podaci o nalogu | Right = Proizvodi i količine -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <!-- Left column: Podaci o nalogu -->
@@ -44,7 +51,7 @@
 
                 <SectionCard title="Odobrenja (timeline)">
                   <div class="space-y-3">
-                    <div v-for="a in (order?.approvals || [])" :key="a.id" class="flex gap-3 items-start">
+                    <div v-for="a in sortedApprovals" :key="a.id" class="flex gap-3 items-start">
                       <div class="mt-1 w-2 h-2 rounded-full" :class="a.Odobreno === true ? 'bg-green-500' : (a.Odobreno === false ? 'bg-red-500' : 'bg-gray-400')"></div>
                       <div class="text-sm">
                         <div class="font-medium text-gray-900 dark:text-gray-100">{{ a.Funkcija }}
@@ -103,6 +110,8 @@
 
 <script setup>
 import { ref, computed, onMounted, defineComponent, h } from 'vue';
+import { usePage } from '@inertiajs/vue3';
+import axios from 'axios';
 import ProductionAppLayout from '@/Layouts/ProductionAppLayout.vue';
 
 const props = defineProps({
@@ -111,6 +120,17 @@ const props = defineProps({
 
 const localOrder = ref(props.order);
 const order = computed(() => localOrder.value);
+const page = usePage();
+const myFunkcija = computed(() => (page?.props?.auth?.user?.funkcija ?? '').toLowerCase());
+const canVoid = computed(() => {
+  if (!order.value || order.value.is_void) return false;
+  const st = (order.value.Status || '').toLowerCase();
+  const isPending = st === 'na čekanju' || st === 'na čekanju' || st === 'na cekanju' || st === '';
+  const isOnApproval = st.startsWith('na odobrenju');
+  const f = myFunkcija.value;
+  const allowed = f === 'šef komercijale' || f === 'sef komercijale' || f === 'direktor komercijale';
+  return allowed && (isPending || isOnApproval);
+});
 
 function formatDateOnly(dt) {
   if (!dt) return '';
@@ -119,6 +139,43 @@ function formatDateOnly(dt) {
     return d.toLocaleDateString();
   } catch { return dt; }
 }
+
+// Odobrenja sort po hijerarhiji: Radnik -> Šef Komercijale -> Direktor Komercijale -> Direktor Proizvodnje -> Šef Operative
+const FUNKCIJA_ORDER = [
+  'radnik',
+  'šef komercijale',
+  'sef komercijale',
+  'direktor komercijale',
+  'direktor proizvodnje',
+  'šef operative',
+  'sef operative',
+];
+function normalizeFunkcija(s) {
+  return String(s || '').trim().toLowerCase();
+}
+function rankForFunkcija(s) {
+  const n = normalizeFunkcija(s);
+  const idx = FUNKCIJA_ORDER.indexOf(n);
+  return idx === -1 ? 999 : idx;
+}
+function timeValue(dt) {
+  if (!dt) return Number.POSITIVE_INFINITY;
+  const t = Date.parse(dt);
+  return isNaN(t) ? Number.POSITIVE_INFINITY : t;
+}
+const sortedApprovals = computed(() => {
+  const arr = [...(order.value?.approvals || [])];
+  arr.sort((a,b) => {
+    const ra = rankForFunkcija(a.Funkcija);
+    const rb = rankForFunkcija(b.Funkcija);
+    if (ra !== rb) return ra - rb;
+    // secondary by approval date (undefined last)
+    const ta = timeValue(a.DatumOdobravanja);
+    const tb = timeValue(b.DatumOdobravanja);
+    return ta - tb;
+  });
+  return arr;
+});
 
 onMounted(async () => {
   if (!localOrder.value) {
@@ -156,6 +213,19 @@ function goBack() {
   } catch {}
   // Fallback: po zahtjevu vraćamo na Kreirane naloge
   window.location.href = '/nalozi/kreirani';
+}
+
+async function voidOrder() {
+  if (!order.value) return;
+  if (!confirm(`Poništiti nalog ${order.value.OrderNumber}?`)) return;
+  const reason = prompt('Razlog poništavanja (opciono):', '') || '';
+  try {
+    await axios.delete(`/productionorders/${order.value.id}`, { data: { reason } });
+    alert('Nalog je poništen.');
+    goBack();
+  } catch (e) {
+    alert(e?.response?.data?.message || 'Greška pri poništavanju naloga');
+  }
 }
 
 // Local render-function components to avoid runtime template compilation

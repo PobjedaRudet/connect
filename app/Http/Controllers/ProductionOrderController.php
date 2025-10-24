@@ -35,6 +35,9 @@ class ProductionOrderController extends Controller
             'OrderDate' => $order->OrderDate,
             'Description' => $order->Description,
             'Status' => $order->Status,
+            'is_void' => (bool)($order->is_void ?? false),
+            'voided_at' => optional($order->voided_at)->toDateTimeString(),
+            'void_reason' => $order->void_reason,
             'BojaDuzinaProvodnika' => $order->BojaDuzinaProvodnika,
             'Pakovanje' => $order->Pakovanje,
             'Tip' => $order->Tip,
@@ -154,7 +157,7 @@ class ProductionOrderController extends Controller
                 });
             })
             ->orderByDesc('id')
-            ->paginate(20, ['id','OrderNumber','OrderDate','Description','partner_id','user_id','Status','created_at']);
+            ->paginate(20, ['id','OrderNumber','OrderDate','Description','partner_id','user_id','Status','created_at','is_void','voided_at','void_reason']);
 
         return response()->json($orders);
     }
@@ -227,7 +230,7 @@ class ProductionOrderController extends Controller
                 });
             })
             ->orderByDesc('created_at')
-            ->paginate(20, ['id','OrderNumber','OrderDate','partner_id','user_id','Status','created_at']);
+            ->paginate(20, ['id','OrderNumber','OrderDate','partner_id','user_id','Status','created_at','is_void']);
 
         $payload = $orders->toArray();
         $payload['one_up_target_funkcija'] = $targetF;
@@ -269,6 +272,7 @@ class ProductionOrderController extends Controller
 
         $orders = ProductionOrder::query()
             ->with(['partner:id,name', 'creator:id,name'])
+            ->withSum('details as total_quantity', 'quantity')
             ->when($targetF !== null, function ($qq) use ($targetF) {
                 $qq->withCount(['approvals as one_up_pending_count' => function ($aq) use ($targetF) {
                     $aq->where('Funkcija', $targetF)->whereNull('Odobreno');
@@ -300,7 +304,7 @@ class ProductionOrderController extends Controller
                 });
             })
             ->orderByDesc('created_at')
-            ->paginate(20, ['id','OrderNumber','OrderDate','Description','partner_id','user_id','Status','created_at']);
+            ->paginate(20, ['id','OrderNumber','OrderDate','Description','partner_id','user_id','Status','created_at','is_void']);
 
         // Return paginator payload and include immediate superior funkcija for tooltip/UI hints
         $payload = $orders->toArray();
@@ -437,6 +441,9 @@ class ProductionOrderController extends Controller
 
     public function update(Request $request, ProductionOrder $order)
     {
+        if ($order->is_void) {
+            return response()->json(['message' => 'Nalog je poništen (nevažeći) i ne može se uređivati.'], 422);
+        }
         // Only creator can edit, and only if not approved by superior yet (i.e., not in 'na odobrenju%' or 'odobreno'/'odbijeno')
         if ($order->user_id !== Auth::id()) {
             return response()->json(['message' => 'Nemate ovlaštenje za izmjenu ovog naloga.'], 403);
@@ -518,29 +525,52 @@ class ProductionOrderController extends Controller
         return response()->json(['message' => 'Nalog je dupliciran.', 'id' => $new->id]);
     }
 
-    public function destroy(ProductionOrder $order)
+    public function destroy(Request $request, ProductionOrder $order)
     {
-        // Only the creator can delete and only when order is still pending (Na čekanju)
-        if ($order->user_id !== Auth::id()) {
-            return response()->json(['message' => 'Nemate ovlaštenje za brisanje ovog naloga.'], 403);
+        // Creator OR roles Šef Komercijale / Direktor Komercijale can void when pending
+        $user = Auth::user();
+        $userIsCreator = $order->user_id === ($user?->id ?? null);
+        $userFunkcija = $user?->funkcija ?? '';
+        $canByRole = in_array(mb_strtolower($userFunkcija, 'UTF-8'), [
+            mb_strtolower('Šef Komercijale', 'UTF-8'),
+            mb_strtolower('Sef Komercijale', 'UTF-8'),
+            mb_strtolower('Direktor Komercijale', 'UTF-8'),
+        ], true);
+        if (!$userIsCreator && !$canByRole) {
+            return response()->json(['message' => 'Nemate ovlaštenje za poništavanje ovog naloga.'], 403);
+        }
+
+        if ($order->is_void) {
+            return response()->json(['message' => 'Nalog je već poništen.'], 200);
         }
 
         $status = mb_strtolower($order->Status ?? '');
-        // Allow delete if status is empty/null (legacy) or exactly "na čekanju"
-        if ($status !== '' && $status !== 'na čekanju') {
-            return response()->json(['message' => 'Samo nalozi u statusu "Na čekanju" mogu biti obrisani.'], 422);
+        $isPending = ($status === '' || $status === 'na čekanju');
+        $isOnApproval = str_starts_with($status, 'na odobrenju');
+        // Rules:
+        // - Creator: samo ako je Na čekanju (kao i ranije)
+        // - Šef/Direktor Komercijale: dozvoljeno ako je Na čekanju ili Na odobrenju
+        $allowed = false;
+        if ($userIsCreator && $isPending) {
+            $allowed = true;
+        } elseif ($canByRole && ($isPending || $isOnApproval)) {
+            $allowed = true;
+        }
+        if (!$allowed) {
+            return response()->json(['message' => 'Poništavanje nije dozvoljeno za trenutni status naloga.'], 422);
         }
 
         try {
-            // Remove related records first (safety if no DB cascade)
-            $order->details()->delete();
-            $order->approvals()->delete();
-            $order->delete();
+            $reason = $request->input('reason');
+            $order->is_void = true;
+            $order->voided_at = now();
+            if ($reason) { $order->void_reason = $reason; }
+            $order->save();
 
-            return response()->json(['message' => 'Nalog je obrisan.']);
+            return response()->json(['message' => 'Nalog je poništen i ostaje vidljiv kao nevažeći.']);
         } catch (\Throwable $e) {
-            Log::error('Greška pri brisanju naloga', ['order_id' => $order->id, 'error' => $e->getMessage()]);
-            return response()->json(['message' => 'Greška pri brisanju naloga.'], 500);
+            Log::error('Greška pri poništavanju naloga', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+            return response()->json(['message' => 'Greška pri poništavanju naloga.'], 500);
         }
     }
 }

@@ -28,6 +28,7 @@ const logout = () => {
 
 const page = usePage();
 const userFunkcija = computed(() => (page?.props?.auth?.user?.funkcija ?? null));
+const isAdmin = computed(() => !!(page?.props?.auth?.user?.isadmin));
 </script>
 
 <template>
@@ -46,19 +47,19 @@ const userFunkcija = computed(() => (page?.props?.auth?.user?.funkcija ?? null))
 
                             <!-- Navigation Links -->
                             <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                                <NavLink :href="route('ppz.dashboard')" :active="route().current('ppz.dashboard')">
+                                <NavLink v-if="isAdmin || userFunkcija==='PPZ'" :href="route('ppz.dashboard')" :active="route().current('ppz.dashboard')">
                                     ZNR I PPZ Dashboard
                                 </NavLink>
-                                <NavLink :href="route('pregledi.index')" :active="route().current('pregledi.index')">
+                                <NavLink v-if="isAdmin || userFunkcija==='PPZ'" :href="route('pregledi.index')" :active="route().current('pregledi.index')">
                                     Spisak uposlenika
                                 </NavLink>
-                                <NavLink :href="route('pregledi.upcoming')" :active="route().current('pregledi.upcoming')">
+                                <NavLink v-if="isAdmin || userFunkcija==='PPZ'" :href="route('pregledi.upcoming')" :active="route().current('pregledi.upcoming')">
                                     Ljekarski pregledi
                                 </NavLink>
-                                <NavLink :href="route('pregledi.kontrolni')" :active="route().current('pregledi.kontrolni')">
+                                <NavLink v-if="isAdmin || userFunkcija==='PPZ'" :href="route('pregledi.kontrolni')" :active="route().current('pregledi.kontrolni')">
                                     Kontrolni pregledi
                                 </NavLink>
-                                <NavLink :href="route('ppz.izvjestajPregledi')" :active="route().current('ppz.izvjestajPregledi')">
+                                <NavLink v-if="isAdmin || userFunkcija==='PPZ'" :href="route('ppz.izvjestajPregledi')" :active="route().current('ppz.izvjestajPregledi')">
                                     Izvještaj ljekarskih pregleda
                                 </NavLink>
                                 <!-- Approvals/Orders navigation for approvers (e.g., Šef Komercijale) -->
@@ -160,6 +161,14 @@ const userFunkcija = computed(() => (page?.props?.auth?.user?.funkcija ?? null))
                                     </template>
 
                                     <template #content>
+                                        <div class="block px-4 py-2 text-xs text-gray-400">
+                                            Navigacija
+                                        </div>
+
+                                        <DropdownLink v-if="$page.props.auth?.user?.isadmin" :href="route('admin.page-access')">
+                                            Admin
+                                        </DropdownLink>
+
                                         <!-- Account Management -->
                                         <div class="block px-4 py-2 text-xs text-gray-400">
                                             Manage Account
@@ -216,8 +225,20 @@ const userFunkcija = computed(() => (page?.props?.auth?.user?.funkcija ?? null))
                 <!-- Responsive Navigation Menu -->
                 <div :class="{'block': showingNavigationDropdown, 'hidden': ! showingNavigationDropdown}" class="sm:hidden">
                     <div class="pt-2 pb-3 space-y-1">
-                        <ResponsiveNavLink :href="route('ppz.dashboard')" :active="route().current('ppz.dashboard')">
+                        <ResponsiveNavLink v-if="isAdmin || userFunkcija==='PPZ'" :href="route('ppz.dashboard')" :active="route().current('ppz.dashboard')">
                             Dashboard
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink v-if="isAdmin || userFunkcija==='PPZ'" :href="route('pregledi.index')" :active="route().current('pregledi.index')">
+                            Spisak uposlenika
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink v-if="isAdmin || userFunkcija==='PPZ'" :href="route('pregledi.upcoming')" :active="route().current('pregledi.upcoming')">
+                            Ljekarski pregledi
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink v-if="isAdmin || userFunkcija==='PPZ'" :href="route('pregledi.kontrolni')" :active="route().current('pregledi.kontrolni')">
+                            Kontrolni pregledi
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink v-if="isAdmin || userFunkcija==='PPZ'" :href="route('ppz.izvjestajPregledi')" :active="route().current('ppz.izvjestajPregledi')">
+                            Izvještaj ljekarskih pregleda
                         </ResponsiveNavLink>
                         <ResponsiveNavLink v-if="userFunkcija && userFunkcija!=='Radnik'" :href="route('approvals.mine')" :active="route().current('approvals.mine')">
                             Odobrenja
@@ -245,6 +266,9 @@ const userFunkcija = computed(() => (page?.props?.auth?.user?.funkcija ?? null))
                         </div>
 
                         <div class="mt-3 space-y-1">
+                            <ResponsiveNavLink v-if="$page.props.auth?.user?.isadmin" :href="route('admin.page-access')" :active="route().current('admin.page-access')">
+                                Admin: Pristup stranicama
+                            </ResponsiveNavLink>
                             <ResponsiveNavLink :href="route('profile.show')" :active="route().current('profile.show')">
                                 Profile
                             </ResponsiveNavLink>

@@ -34,8 +34,8 @@ const pendingApprovalsCount = ref(0);
 async function refreshPending() {
     if (userFunkcija.value && userFunkcija.value !== 'Radnik') {
         try {
-            const { data } = await axios.get('/approvals/pending');
-            pendingApprovalsCount.value = Array.isArray(data?.data) ? data.data.length : 0;
+            const { data } = await axios.get('/approvals/pending?summary=1');
+            pendingApprovalsCount.value = typeof data?.count === 'number' ? data.count : 0;
         } catch (e) {
             pendingApprovalsCount.value = 0;
         }
@@ -65,6 +65,10 @@ onMounted(() => {
 
                             <!-- Navigation Links -->
                             <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex items-center">
+                                <!-- Dashboard (always visible) -->
+                                <NavLink href="/prodaja/dashboard" :active="$page.url && $page.url.startsWith('/prodaja/dashboard')">
+                                    Dashboard
+                                </NavLink>
                                 <NavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.za-proizvodnju')" :active="route().current('nalozi.za-proizvodnju')">
                                     Kreiraj nalog
                                 </NavLink>
@@ -91,6 +95,9 @@ onMounted(() => {
                                 </NavLink>
                                 <NavLink v-if="userFunkcija==='Direktor Proizvodnje'" :href="route('planning.gantt')" :active="route().current('planning.gantt')">
                                     Gantt
+                                </NavLink>
+                                <NavLink v-if="userFunkcija==='Direktor Proizvodnje'" :href="route('planning.holidays.index')" :active="route().current('planning.holidays.index')">
+                                    Praznici
                                 </NavLink>
 
                                 <!-- Izvještaji dropdown (samo Direktor Komercijale) -->
@@ -206,12 +213,21 @@ onMounted(() => {
                                             Manage Account
                                         </div>
 
+                                        <DropdownLink v-if="$page.props.auth?.user?.isadmin" :href="route('admin.page-access')">
+                                            Admin: Pristup stranicama
+                                        </DropdownLink>
+
                                         <DropdownLink :href="route('profile.show')">
                                             Profile
                                         </DropdownLink>
 
                                         <DropdownLink v-if="$page.props.jetstream.hasApiFeatures" :href="route('api-tokens.index')">
                                             API Tokens
+                                        </DropdownLink>
+
+                                        <!-- Quick link to Dashboard -->
+                                        <DropdownLink href="/prodaja/dashboard">
+                                            Dashboard
                                         </DropdownLink>
 
                                         <div class="border-t border-gray-200" />
@@ -257,6 +273,10 @@ onMounted(() => {
                 <!-- Responsive Navigation Menu -->
                 <div :class="{'block': showingNavigationDropdown, 'hidden': ! showingNavigationDropdown}" class="sm:hidden">
                     <div class="pt-2 pb-3 space-y-1">
+                        <!-- Dashboard at the top on mobile -->
+                        <ResponsiveNavLink href="/prodaja/dashboard" :active="$page.url && $page.url.startsWith('/prodaja/dashboard')">
+                            Dashboard
+                        </ResponsiveNavLink>
                         <ResponsiveNavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.za-proizvodnju')" :active="route().current('nalozi.za-proizvodnju')">
                             Kreiraj nalog
                         </ResponsiveNavLink>
@@ -280,6 +300,11 @@ onMounted(() => {
                         <ResponsiveNavLink v-if="userFunkcija==='Direktor Proizvodnje'" :href="route('planning.gantt')" :active="route().current('planning.gantt')">
                             Gantt
                         </ResponsiveNavLink>
+                        <ResponsiveNavLink v-if="userFunkcija==='Direktor Proizvodnje'" :href="route('planning.holidays.index')" :active="route().current('planning.holidays.index')">
+                            Praznici
+                        </ResponsiveNavLink>
+
+
                     </div>
 
                     <!-- Responsive Settings Options -->
@@ -300,12 +325,20 @@ onMounted(() => {
                         </div>
 
                         <div class="mt-3 space-y-1">
+                            <ResponsiveNavLink v-if="$page.props.auth?.user?.isadmin" :href="route('admin.page-access')">
+                                Admin: Pristup stranicama
+                            </ResponsiveNavLink>
                             <ResponsiveNavLink :href="route('profile.show')" :active="route().current('profile.show')">
                                 Profile
                             </ResponsiveNavLink>
 
                             <ResponsiveNavLink v-if="$page.props.jetstream.hasApiFeatures" :href="route('api-tokens.index')" :active="route().current('api-tokens.index')">
                                 API Tokens
+                            </ResponsiveNavLink>
+
+                            <!-- Quick link to Dashboard -->
+                            <ResponsiveNavLink href="/prodaja/dashboard">
+                                Dashboard
                             </ResponsiveNavLink>
 
                             <!-- Authentication -->

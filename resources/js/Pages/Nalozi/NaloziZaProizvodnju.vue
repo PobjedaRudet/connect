@@ -1,90 +1,88 @@
 <template>
-    <ProductionAppLayout title="Nalozi za proizvodnju">
+    <ProductionAppLayout :title="formTitle">
         <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-                Nalozi
-            </h2>
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">{{ formTitle }}</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Unesite podatke o partneru, specifikaciji i proizvodima, pa nastavite.</p>
+                </div>
+            </div>
         </template>
-        <div class="flex py-12">
-            <div class="flex max-w-7xl mx-auto sm:px-6 lg:px-8">
-                <div
-                    class="bg-white grid grid-cols-3 gap-4 dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg w-full">
-                    <div
-                        class="col-span-2 p-6 text-gray-900 dark:text-gray-100 border-r border-gray-300 dark:border-gray-700">
-                        <div class="text-center pb-5">
-                            {{ formTitle }}
-                        </div>
-                        <!-- Partner dropdown -->
-                        <div class="mb-4">
-                            <label for="partner_id"
-                                class="block text-sm font-medium text-gray-700 dark:text-gray-200">Partner <span class="text-red-500">*</span></label>
-                            <select v-model="form.partner_id" id="partner_id"
-                                :class="['form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200', form.partner_id === '' ? 'border-red-500' : '']"
-                                required>
-                                <option value="" disabled>Izaberi partnera</option>
-                                <option v-for="partner in partners" :key="partner.id" :value="partner.id">
-                                    {{ partner.name }}
-                                </option>
-                            </select>
-                            <span v-if="partnerError" class="text-red-500 text-xs">Morate izabrati partnera!</span>
-                        </div>
-                        <form @submit.prevent="submitForm">
-                            <input type="hidden" v-model="form.productListNew">
-                            <input type="hidden" v-model="form.user_id">
-                            <div class="grid grid-cols-4 gap-4">
-                                <div class="col-span-1">
-                                    <label for="OrderNumber"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Broj
-                                        naloga</label>
-                                    <input type="text" v-model="form.OrderNumber" id="orderNumber"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
-                                        disabled />
-                                </div>
-                                <div class="col-span-1">
-                                    <label for="VezaNaNalog"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Veza na
-                                        nalog</label>
-                                    <select v-model="form.VezaNaNalog" id="vezaNaNalog"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200">
-                                        <option value="">(veza na nalog)</option>
-                                        <option v-for="order in workingOrders" :key="order.id" :value="order.id">
-                                            {{ order.OrderNumber }}
-                                        </option>
+        <div class="py-8">
+            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left: Main form -->
+                    <div class="lg:col-span-2">
+                        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+                            <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+                                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Osnovni podaci</h3>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Partner, broj naloga i datum.</p>
+                            </div>
+                            <div class="p-5 text-gray-900 dark:text-gray-100">
+                                <!-- Partner dropdown -->
+                                <div class="mb-4">
+                                    <label for="partner_id" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Partner <span class="text-red-500">*</span></label>
+                                    <select v-model="form.partner_id" id="partner_id"
+                                            :class="['form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-blue-200', form.partner_id === '' ? 'border-red-500' : '']"
+                                            required>
+                                        <option value="" disabled>Izaberi partnera</option>
+                                        <option v-for="partner in partners" :key="partner.id" :value="partner.id">{{ partner.name }}</option>
                                     </select>
-                                </div>
-                                <div class="col-span-1">
-                                    <label for="OrderDate"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Order
-                                        Date</label>
-                                    <input type="date" v-model="form.OrderDate" id="orderDate"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
-                                        required />
-                                </div>
-                                <div class="col-span-1">
-                                    <label for="Description"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Naziv</label>
-                                    <input list="productSuggestions" v-model="form.Description" id="productInput"
-                                        class="form-control rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
-                                        placeholder="Unesi naziv proizvoda..." />
-                                    <datalist id="productSuggestions">
-                                        <option v-for="product in productSuggestions" :key="product" :value="product" />
-                                    </datalist>
-                                </div>
-                                <div class="col-span-1">
-                                    <label for="metraza"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Metraža</label>
-                                    <input type="number" v-model.number="form.Metraza" id="metraza"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200 disabled:opacity-60"
-                                        :disabled="isBK6Selected || isBK8Selected || isBihnelSelected"
-                                        step="0.01" required />
+                                    <div class="mt-2 text-xs">
+                                        <a href="/kupci/novi" class="text-blue-600 hover:underline" target="_blank">Dodaj novog kupca</a>
+                                    </div>
+                                    <p v-if="partnerError" class="text-red-600 text-xs mt-1">Morate izabrati partnera.</p>
                                 </div>
 
-                                <div class="col-span-1">
+                                <form @submit.prevent="submitForm" class="space-y-6">
+                                    <input type="hidden" v-model="form.productListNew">
+                                    <input type="hidden" v-model="form.user_id">
+
+                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                        <div>
+                                            <label for="orderNumber" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Broj naloga</label>
+                                            <input type="text" v-model="form.OrderNumber" id="orderNumber"
+                                                   class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200" disabled />
+                                        </div>
+                                        <div>
+                                            <label for="vezaNaNalog" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Veza na nalog</label>
+                                            <select v-model="form.VezaNaNalog" id="vezaNaNalog"
+                                                    class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200">
+                                                <option value="">(veza na nalog)</option>
+                                                <option v-for="order in workingOrders" :key="order.id" :value="order.id">{{ order.OrderNumber }}</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="orderDate" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Datum naloga</label>
+                                            <input type="date" v-model="form.OrderDate" id="orderDate"
+                                                   class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200" required />
+                                        </div>
+                                        <div>
+                                            <label for="productInput" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Naziv</label>
+                                            <input list="productSuggestions" v-model="form.Description" id="productInput"
+                                                   class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200" placeholder="Unesi naziv proizvoda..." />
+                                            <datalist id="productSuggestions">
+                                                <option v-for="product in productSuggestions" :key="product" :value="product" />
+                                            </datalist>
+                                        </div>
+                                    </div>
+
+                                    <div class="px-0 pt-0">
+                                        <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-2">Specifikacija</h4>
+                                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                            <div>
+                                                <label for="metraza" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Metraža</label>
+                                                <input type="number" v-model.number="form.Metraza" id="metraza"
+                                                       class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200 disabled:opacity-60"
+                                                       :disabled="isBK6Selected || isBK8Selected || isBihnelSelected" step="0.01" required />
+                                            </div>
+
+                                            <div>
                                     <label for="VrstaProvodnika"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Vrsta
+                                        class="block text-xs font-medium text-gray-600 dark:text-gray-300">Vrsta
                                         provodnika</label>
                                     <select v-model="form.VrstaProvodnika" id="vrstaProvodnika"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200 disabled:opacity-60"
+                                        class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200 disabled:opacity-60"
                                         :disabled="isBK6Selected || isBK8Selected || isBihnelSelected"
                                         required>
                                             <option value="-">-</option>
@@ -94,151 +92,158 @@
                                         <option value="V">V</option>
                                         <option value="Zn">Zn</option>
                                     </select>
-                                </div>
-                                <div class="col-span-1">
+                                            </div>
+                                            <div>
                                     <label for="Tip"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Tip</label>
+                                        class="block text-xs font-medium text-gray-600 dark:text-gray-300">Tip</label>
                                     <select v-model="form.Tip" id="tip"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200 disabled:opacity-60"
+                                        class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200 disabled:opacity-60"
                                         :disabled="isBK6Selected || isBK8Selected || isBihnelSelected"
                                         required>
                                             <option value="-">-</option>
                                         <option value="A">A</option>
                                         <option value="B">B</option>
                                     </select>
-                                </div>
-                                <div class="col-span-1">
+                                            </div>
+                                            <div>
                                     <label for="BojaDuzinaProvodnika"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Boja Duzina
+                                        class="block text-xs font-medium text-gray-600 dark:text-gray-300">Boja/Dužina
                                         Provodnika</label>
                                     <input type="text" v-model="form.BojaDuzinaProvodnika" id="bojaDuzinaProvodnika"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200 disabled:opacity-60"
+                                        class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200 disabled:opacity-60"
                                         :disabled="isBK6Selected || isBK8Selected || isBihnelSelected"
                                         required />
-                                </div>
-                                <div class="col-span-2">
+                                            </div>
+                                            <div class="md:col-span-2">
                                     <label for="Pakovanje"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Pakovanje</label>
+                                        class="block text-xs font-medium text-gray-600 dark:text-gray-300">Pakovanje</label>
                                     <textarea v-model="form.Pakovanje" id="pakovanje"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
+                                        class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
                                         required></textarea>
-                                </div>
-                                <div class="col-span-1">
+                                            </div>
+                                            <div>
                                     <label for="AtestPaketa"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Atest
+                                        class="block text-xs font-medium text-gray-600 dark:text-gray-300">Atest
                                         Paketa</label>
                                     <input type="text" v-model="form.AtestPaketa" id="atestPaketa"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
+                                        class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
                                         required />
-                                </div>
-                                <div class="col-span-1">
+                                            </div>
+                                            <div>
                                     <label for="CeOznaka"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Ce
+                                        class="block text-xs font-medium text-gray-600 dark:text-gray-300">CE
                                         Oznaka</label>
                                     <input type="text" v-model="form.CeOznaka" id="ceOznaka"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
+                                        class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
                                         required />
-                                </div>
-                                <div class="col-span-1">
+                                            </div>
+                                            <div>
                                     <label for="KlasaOpasnosti"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Klasa
+                                        class="block text-xs font-medium text-gray-600 dark:text-gray-300">Klasa
                                         Opasnosti</label>
                                     <input type="text" v-model="form.KlasaOpasnosti" id="klasaOpasnosti"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
+                                        class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
                                         required />
-                                </div>
-                                <div class="col-span-1">
+                                            </div>
+                                            <div>
                                     <label for="UNBroj"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">UN
+                                        class="block text-xs font-medium text-gray-600 dark:text-gray-300">UN
                                         Broj</label>
                                     <input type="text" v-model="form.UNBroj" id="unBroj"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
+                                        class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
                                         required />
-                                </div>
-                                <div class="col-span-1">
+                                            </div>
+                                            <div>
                                     <label for="DatumPredaje"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Datum
+                                        class="block text-xs font-medium text-gray-600 dark:text-gray-300">Datum
                                         Predaje</label>
                                     <input type="date" v-model="form.DatumPredaje" id="datumPredaje" @input="datumPredajeManuallyEdited = true"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
+                                        class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
                                         required />
-                                </div>
-                                <div class="col-span-1">
+                                            </div>
+                                            <div>
                                     <label for="RokIsporuke"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Rok
+                                        class="block text-xs font-medium text-gray-600 dark:text-gray-300">Rok
                                         Isporuke</label>
                                     <input type="text" v-model="form.RokIsporuke" id="rokIsporuke"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
+                                        class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
                                         required />
-                                </div>
-                                <div class="col-span-4">
+                                            </div>
+                                            <div class="md:col-span-2">
                                     <label for="Dodatno"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Dodatno</label>
+                                        class="block text-xs font-medium text-gray-600 dark:text-gray-300">Dodatno</label>
                                     <textarea v-model="form.dodatno" id="dodatno" @input="dodatnoManuallyEdited = true"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
+                                        class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
                                         rows="3"
                                         maxlength="250"
                                         placeholder="Unesite dodatne informacije..."
                                     ></textarea>
-                                </div>
-
-                                <div class="col-span-4">
+                                            </div>
+                                            <div class="md:col-span-2">
                                     <label for="Napomena"
-                                        class="block text-sm font-medium text-gray-700 dark:text-gray-200">Napomena</label>
+                                        class="block text-xs font-medium text-gray-600 dark:text-gray-300">Napomena</label>
                                     <textarea v-model="form.Napomena" id="napomena"
-                                        class="form-input rounded-md shadow-sm mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
+                                        class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
                                         required></textarea>
-                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex items-center justify-end mt-1">
+                                            <button id="pregledBtn" type="submit"
+                                                    class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-300">
+                                                Kreiraj nalog
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
                             </div>
-                            <div class="flex items-center justify-end mt-4">
-                                <button id="pregledBtn" type="submit"
-                                    class="inline-flex items-center px-4 py-2 bg-gray-800 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 focus:outline-none focus:border-gray-900 focus:ring ring-gray-300 dark:focus:ring-gray-600 disabled:opacity-25 transition ease-in-out duration-150">{{ submitLabel }}</button>
-                            </div>
-                        </form>
+                        </div>
                     </div>
-                    <div class="flex col-span-1 p-1 grid grid-cols-1 bg-white dark:bg-gray-800">
-                        <div class="mt-8">
-                            <label for="productSelect"
-                                class="block text-sm font-medium text-gray-700 dark:text-gray-200">Numere
-                                proizvoda</label>
-                            <table id="productListNew"
-                                class="mt-4 w-full text-gray-700 dark:text-gray-200 border-collapse">
-                                <thead>
-                                    <tr class="bg-gray-100 dark:bg-gray-700">
-                                        <th class="p-2 border">Odaberi</th>
-                                        <th class="p-2 border">Naziv</th>
-                                        <th class="p-2 border">Metraža</th>
-                                        <th class="p-2 border">Količina</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="(p, idx) in productListNew" :key="`${p.id ?? ''}-${p.NumeraProizvoda ?? idx}`"
-                                        class="border-b">
-                                        <td class="p-2 text-center">
-                                            <input type="checkbox"
-                                                :id="'product-checkbox-' + (p.id ?? p.NumeraProizvoda ?? idx)"
-                                                v-model="p.selected" />
-                                        </td>
-                                        <td class="p-2">
-                                            <label :for="'product-checkbox-' + (p.id || p.NumeraProizvoda || idx)"
-                                                class="cursor-pointer">
-                                                <span v-if="p.NumeraProizvoda">{{ p.NumeraProizvoda }}</span>
-                                                <span v-else-if="p.SkraceniNaziv">{{ p.SkraceniNaziv }}</span>
-                                                <span v-else>- stavka {{ idx + 1 }}</span>
-                                            </label>
-                                        </td>
-                                        <td class="p-2 text-center">
-                                            <span v-if="p.UoM_meter != null">{{ p.UoM_meter }}</span>
-                                        </td>
-                                        <td class="p-2">
-                                            <input type="number" min="0" class="w-20 px-2 py-1 border rounded"
-                                                v-model="p.kolicina" placeholder="Količina" />
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <div class="mt-2 text-xs text-gray-500 dark:text-gray-400" v-cloak>
-                                <!--         {{ debugText }} -->
+                    <!-- Right: Products panel -->
+                    <div class="lg:col-span-1">
+                        <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm sticky top-20">
+                            <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+                                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Numere proizvoda</h3>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Označite i unesite količine.</p>
+                            </div>
+                            <div class="p-4">
+                                <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                                    <table id="productListNew" class="min-w-full text-sm">
+                                        <thead class="sticky top-0 z-10">
+                                            <tr class="bg-gray-50 dark:bg-gray-700/70 text-gray-700 dark:text-gray-200">
+                                                <th class="p-2 text-center">Odaberi</th>
+                                                <th class="p-2 text-left">Naziv</th>
+                                                <th class="p-2 text-center">Metraža</th>
+                                                <th class="p-2 text-center">Količina</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                                            <tr v-for="(p, idx) in productListNew" :key="`${p.id ?? ''}-${p.NumeraProizvoda ?? idx}`" class="hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                                                <td class="p-2 text-center">
+                                                    <input type="checkbox" :id="'product-checkbox-' + (p.id ?? p.NumeraProizvoda ?? idx)" v-model="p.selected" />
+                                                </td>
+                                                <td class="p-2">
+                                                    <label :for="'product-checkbox-' + (p.id || p.NumeraProizvoda || idx)" class="cursor-pointer">
+                                                        <div class="font-medium">
+                                                          {{ p.SkraceniNaziv || p.Naziv || p.name || (p.product_name) || (p.id ? `Proizvod #${p.id}` : `Stavka #${idx+1}`) }}
+                                                        </div>
+                                                        <div v-if="p.NumeraProizvoda" class="text-xs text-gray-500 dark:text-gray-400">Numera: {{ p.NumeraProizvoda }}</div>
+                                                    </label>
+                                                </td>
+                                                <td class="p-2 text-center">
+                                                    <span v-if="p.UoM_meter != null">{{ p.UoM_meter }}</span>
+                                                </td>
+                                                <td class="p-2 text-center">
+                                                    <input type="number" min="0" class="w-24 px-2 py-1 border rounded dark:bg-gray-700 dark:text-gray-100" v-model="p.kolicina" placeholder="Količina" />
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="mt-3 text-xs text-gray-500 dark:text-gray-400 flex items-center justify-between">
+                                    <span>Odabrano: {{ productListNew.filter(p=>p.selected).length }}</span>
+                                    <span class="opacity-75" v-cloak><!-- {{ debugText }} --></span>
+                                </div>
                             </div>
                         </div>
                     </div>

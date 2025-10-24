@@ -31,6 +31,14 @@ class ProductionOrder extends Model
         'parent_nalog_id',
         'user_id',
         'partner_id',
+        'is_void',
+        'voided_at',
+        'void_reason',
+    ];
+
+    protected $casts = [
+        'is_void' => 'boolean',
+        'voided_at' => 'datetime',
     ];
 
     // Relacije
