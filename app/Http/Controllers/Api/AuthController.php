@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
     public function login(Request $request)
     {
+        Log::info('API login attempt', ['email' => $request->input('email')]);
         $data = $request->validate([
             'email' => 'required|email',
             'password' => 'required|string',
