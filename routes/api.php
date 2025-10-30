@@ -1,6 +1,10 @@
 <?php
 
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\Api\AuthController as ApiAuthController;
+use App\Http\Controllers\Api\OrdersApiController;
+use App\Http\Controllers\ApprovalController;
+use App\Http\Controllers\ProductionOrderController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\KontrolniPreglediController;
 use App\Http\Controllers\PreglediController;
@@ -61,6 +65,38 @@ Route::get('/radnici-po-redosljedu', [PreglediController::class, 'apiRadniciPoRe
 Route::put('/employees/{id}/active', [EmployeeController::class, 'updateActive']);
 // API ruta za ažuriranje invalidnosti zaposlenika
 Route::put('/employees/{id}/invalidnost', [EmployeeController::class, 'updateInvalidnost']);
+
+
+
+// v1 API for mobile app (auth + approvals + orders)
+Route::prefix('v1')->group(function () {
+    // Auth
+    Route::post('auth/login', [ApiAuthController::class, 'login'])->middleware('throttle:api');
+
+    Route::middleware(['auth:sanctum','throttle:api'])->group(function () {
+        Route::post('auth/logout', [ApiAuthController::class, 'logout']);
+        Route::get('auth/me', [ApiAuthController::class, 'me']);
+
+        // Approvals (reusing existing controller business logic)
+        Route::get('approvals/pending', [ApprovalController::class, 'pending']);
+        Route::post('approvals/{approval}/approve', [ApprovalController::class, 'approve']);
+        Route::post('approvals/{approval}/reject', [ApprovalController::class, 'reject']);
+        Route::post('approvals/bulk-approve', [ApprovalController::class, 'bulkApprove']);
+        Route::post('orders/{order}/approve-one-up', [ApprovalController::class, 'approveOneUp']);
+
+        // Orders list + detail
+        Route::get('orders', [OrdersApiController::class, 'index']);
+        Route::get('orders/{order}', [OrdersApiController::class, 'show']);
+        // Create new production order (allow e.g. Radnik and Šef Komercijale)
+        Route::post('orders', [ProductionOrderController::class, 'store']);
+
+        // Void (poništi) order
+        Route::post('orders/{order}/void', [ProductionOrderController::class, 'destroy']);
+
+        // Send selected orders for approval
+        Route::post('orders/send-for-approval', [ApprovalController::class, 'sendForApproval']);
+    });
+});
 
 
 

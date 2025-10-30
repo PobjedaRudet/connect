@@ -69,10 +69,10 @@ onMounted(() => {
                                 <NavLink href="/prodaja/dashboard" :active="$page.url && $page.url.startsWith('/prodaja/dashboard')">
                                     Dashboard
                                 </NavLink>
-                                <NavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.za-proizvodnju')" :active="route().current('nalozi.za-proizvodnju')">
+                                <NavLink v-if="userFunkcija==='Radnik' || userFunkcija==='Šef Komercijale'" :href="route('nalozi.za-proizvodnju')" :active="route().current('nalozi.za-proizvodnju')">
                                     Kreiraj nalog
                                 </NavLink>
-                                <NavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.kreirani')" :active="route().current('nalozi.kreirani')">
+                                <NavLink v-if="userFunkcija==='Radnik' || userFunkcija==='Šef Komercijale'" :href="route('nalozi.kreirani')" :active="route().current('nalozi.kreirani')">
                                     Kreirani nalozi
                                 </NavLink>
                                 <NavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.radnik.odobreni')" :active="route().current('nalozi.radnik.odobreni')">
@@ -277,10 +277,10 @@ onMounted(() => {
                         <ResponsiveNavLink href="/prodaja/dashboard" :active="$page.url && $page.url.startsWith('/prodaja/dashboard')">
                             Dashboard
                         </ResponsiveNavLink>
-                        <ResponsiveNavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.za-proizvodnju')" :active="route().current('nalozi.za-proizvodnju')">
+                        <ResponsiveNavLink v-if="userFunkcija==='Radnik' || userFunkcija==='Šef Komercijale'" :href="route('nalozi.za-proizvodnju')" :active="route().current('nalozi.za-proizvodnju')">
                             Kreiraj nalog
                         </ResponsiveNavLink>
-                        <ResponsiveNavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.kreirani')" :active="route().current('nalozi.kreirani')">
+                        <ResponsiveNavLink v-if="userFunkcija==='Radnik' || userFunkcija==='Šef Komercijale'" :href="route('nalozi.kreirani')" :active="route().current('nalozi.kreirani')">
                             Kreirani nalozi
                         </ResponsiveNavLink>
                         <ResponsiveNavLink v-if="userFunkcija==='Radnik'" :href="route('nalozi.radnik.odobreni')" :active="route().current('nalozi.radnik.odobreni')">

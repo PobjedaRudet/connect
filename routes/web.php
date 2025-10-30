@@ -211,12 +211,12 @@ Route::middleware(['auth','can.page'])->group(function () {
 
 
 
-// Radnik-only pages
+// Kreiranje i pregled kreiranih naloga: Radnik i Šef Komercijale (plus admin)
 Route::get('/nalozi/nalozi-za-proizvodnju', [ProductionOrderController::class, 'showForm'])
-    ->middleware(['auth','funkcije:Radnik','can.page'])->name('nalozi.za-proizvodnju');
+    ->middleware(['auth','adminOrFunkcije:Radnik,Šef Komercijale','can.page'])->name('nalozi.za-proizvodnju');
 Route::get('/nalozi/kreirani', function() {
     return Inertia::render('Nalozi/KreiraniNalozi');
-})->middleware(['auth','verified','funkcije:Radnik','can.page'])->name('nalozi.kreirani');
+})->middleware(['auth','verified','adminOrFunkcije:Radnik,Šef Komercijale','can.page'])->name('nalozi.kreirani');
 Route::get('/nalozi/radnik/odobreni', function() {
     return Inertia::render('Nalozi/OdobreniNaloziRadnik');
 })->middleware(['auth','verified','funkcije:Radnik','can.page'])->name('nalozi.radnik.odobreni');
