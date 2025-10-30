@@ -175,6 +175,128 @@ class ApprovalController extends Controller
         return response()->json(['data' => $orders]);
     }
 
+    // JSON API: pending approvals for the user's funkcija (or specific funkcija for admins)
+    // Route: GET /api/v1/approvals/pending
+    // Query params:
+    // - per_page (int, default 15, max 100)
+    // - page (int)
+    // - q (search in OrderNumber/Description/partner/creator)
+    // - summary=1 (only returns { count })
+    // - funkcija=... (admin-only override to view another funkcija)
+    public function pendingApi(Request $request)
+    {
+        $user = Auth::user();
+        $isAdmin = (bool) ($user?->isadmin ?? false);
+        $funkcija = $this->mapUserToFunkcija($user);
+        $requestedFunkcija = (string) $request->query('funkcija', '');
+        if ($isAdmin && $requestedFunkcija !== '') {
+            $funkcija = $requestedFunkcija;
+        }
+
+        if (!$funkcija) {
+            // No funkcija mapped; empty
+            if ((string) $request->query('summary', '0') === '1') {
+                return response()->json(['count' => 0]);
+            }
+            return response()->json([
+                'data' => [],
+                'meta' => [
+                    'current_page' => 1,
+                    'per_page' => (int) $request->query('per_page', 15),
+                    'total' => 0,
+                    'last_page' => 1,
+                ],
+            ]);
+        }
+
+        // Summary only
+        if ((string) $request->query('summary', '0') === '1') {
+            $count = Approval::query()
+                ->join('production_orders', 'production_orders.id', '=', 'approvals.order_id')
+                ->whereNull('approvals.Odobreno')
+                ->where('approvals.Funkcija', $funkcija)
+                ->where(function ($q) {
+                    $q->whereNull('production_orders.is_void')->orWhere('production_orders.is_void', false);
+                })
+                ->count();
+            return response()->json(['count' => $count]);
+        }
+
+        $perPage = min(max((int) $request->query('per_page', 15), 5), 100);
+        $q = trim((string) $request->query('q', ''));
+
+        $query = Approval::query()
+            ->select([
+                'approvals.id as approval_id',
+                'production_orders.id as order_id',
+                'production_orders.OrderNumber',
+                'production_orders.Description',
+                'production_orders.created_at',
+                'partners.name as partner_name',
+                'users.name as creator_name',
+            ])
+            ->join('production_orders', 'production_orders.id', '=', 'approvals.order_id')
+            ->leftJoin('partners', 'partners.id', '=', 'production_orders.partner_id')
+            ->leftJoin('users', 'users.id', '=', 'production_orders.user_id')
+            ->whereNull('approvals.Odobreno')
+            ->where('approvals.Funkcija', $funkcija)
+            ->where(function ($w) {
+                $w->whereNull('production_orders.is_void')->orWhere('production_orders.is_void', false);
+            });
+
+        if ($q !== '') {
+            $query->where(function ($w) use ($q) {
+                $w->where('production_orders.OrderNumber', 'like', "%{$q}%")
+                  ->orWhere('production_orders.Description', 'like', "%{$q}%")
+                  ->orWhere('partners.name', 'like', "%{$q}%")
+                  ->orWhere('users.name', 'like', "%{$q}%");
+            });
+        }
+
+        $page = $query->orderByDesc('approvals.id')->paginate($perPage);
+
+        // Compute total quantities per order in one extra query
+        $orderIds = collect($page->items())->pluck('order_id')->filter()->unique()->all();
+        $totals = empty($orderIds) ? collect() : ProductionOrder::query()
+            ->whereIn('id', $orderIds)
+            ->withSum('details as total_quantity', 'quantity')
+            ->pluck('total_quantity', 'id');
+
+        $hierarchy = $this->approvalHierarchy();
+        $uPos = array_search($funkcija, $hierarchy, true);
+        $immediateSuperior = ($uPos !== false && isset($hierarchy[$uPos + 1])) ? $hierarchy[$uPos + 1] : null;
+        $superiorAbsent = $immediateSuperior ? (bool) Funkcija::where('Funkcija', $immediateSuperior)->value('is_absent') : false;
+
+        $items = collect($page->items())->map(function ($row) use ($funkcija, $totals, $immediateSuperior, $superiorAbsent) {
+            $totalQty = 0.0;
+            if ($totals instanceof \Illuminate\Support\Collection) {
+                $totalQty = (float) ($totals[$row->order_id] ?? 0);
+            }
+            return [
+                'approval_id' => (int) $row->approval_id,
+                'order_id' => (int) $row->order_id,
+                'order_number' => $row->OrderNumber,
+                'description' => $row->Description,
+                'partner' => $row->partner_name,
+                'creator' => $row->creator_name,
+                'created_at' => optional($row->created_at)->format('Y-m-d H:i'),
+                'total_quantity' => $totalQty,
+                'current_funkcija' => $funkcija,
+                'can_proxy_up' => (bool) ($immediateSuperior && $superiorAbsent),
+            ];
+        });
+
+        return response()->json([
+            'data' => $items,
+            'meta' => [
+                'current_page' => $page->currentPage(),
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+                'last_page' => $page->lastPage(),
+            ],
+        ]);
+    }
+
     public function approve(Request $request, Approval $approval)
     {
         $user = Auth::user();
@@ -559,6 +681,21 @@ class ApprovalController extends Controller
                 ]);
                 return response()->json(['message' => 'Prethodni koraci nisu odobreni: ' . implode(', ', $missing) . '.'], 422);
             }
+
+        // Auto-approve the user's own pending step if it exists
+        $myApproval = Approval::where('order_id', $order->id)
+            ->where('Funkcija', $funkcija)
+            ->whereNull('Odobreno')
+            ->first();
+        if ($myApproval) {
+            $myApproval->fill([
+                'UserId' => $user->id,
+                'Odobreno' => true,
+                'DatumOdobravanja' => now(),
+                'Komentar' => $comment,
+                'signed_by_proxy' => false,
+            ])->save();
+        }
 
         // Perform approval as proxy (one-up)
         $approval->fill([

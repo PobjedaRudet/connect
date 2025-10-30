@@ -11,7 +11,7 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        Log::info('API login attempt', ['email' => $request->input('email')]);
+        Log::info('API login attempt', $request->all());
         $data = $request->validate([
             'email' => 'required|email',
             'password' => 'required|string',

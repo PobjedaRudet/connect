@@ -77,8 +77,8 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/logout', [ApiAuthController::class, 'logout']);
         Route::get('auth/me', [ApiAuthController::class, 'me']);
 
-        // Approvals (reusing existing controller business logic)
-        Route::get('approvals/pending', [ApprovalController::class, 'pending']);
+    // Approvals (reusing existing controller business logic)
+    Route::get('approvals/pending', [ApprovalController::class, 'pendingApi']);
         Route::post('approvals/{approval}/approve', [ApprovalController::class, 'approve']);
         Route::post('approvals/{approval}/reject', [ApprovalController::class, 'reject']);
         Route::post('approvals/bulk-approve', [ApprovalController::class, 'bulkApprove']);
