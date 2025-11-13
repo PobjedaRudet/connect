@@ -74,7 +74,7 @@
                                                 <label for="metraza" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Metraža</label>
                                                 <input type="number" v-model.number="form.Metraza" id="metraza"
                                                        class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200 disabled:opacity-60"
-                                                       :disabled="isBK6Selected || isBK8Selected || isBihnelSelected" step="0.01" required />
+                                                       :disabled="(isBK6Selected || isBK8Selected || (isBihnelSelected && !isBihnelMSSelected && !isBihnelLPSelected && !isBihnelSLSelected)) && !isPSEDCUSelected && !isPSEDALSelected && !isMSEDSelected" step="0.01" required />
                                             </div>
 
                                             <div>
@@ -83,7 +83,7 @@
                                         provodnika</label>
                                     <select v-model="form.VrstaProvodnika" id="vrstaProvodnika"
                                         class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200 disabled:opacity-60"
-                                        :disabled="isBK6Selected || isBK8Selected || isBihnelSelected"
+                                        :disabled="isBK6Selected || isBK8Selected || (isBihnelSelected && !isMSEDSelected)"
                                         required>
                                             <option value="-">-</option>
                                         <option value="Al">Al</option>
@@ -98,7 +98,7 @@
                                         class="block text-xs font-medium text-gray-600 dark:text-gray-300">Tip</label>
                                     <select v-model="form.Tip" id="tip"
                                         class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200 disabled:opacity-60"
-                                        :disabled="isBK6Selected || isBK8Selected || isBihnelSelected"
+                                        :disabled="isBK6Selected || isBK8Selected || (isBihnelSelected && !isMSEDSelected)"
                                         required>
                                             <option value="-">-</option>
                                         <option value="A">A</option>
@@ -205,6 +205,9 @@
                             <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
                                 <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Numere proizvoda</h3>
                                 <p class="text-xs text-gray-500 dark:text-gray-400">Označite i unesite količine.</p>
+                                <div v-if="productListNew.length > 0 && productListNew[0].Naziv" class="mt-2 text-xs text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                                    <strong>Puni naziv:</strong> {{ productListNew[0].Naziv }}
+                                </div>
                             </div>
                             <div class="p-4">
                                 <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
@@ -305,23 +308,40 @@ const submitLabel = computed(() => isEditMode.value ? 'Sačuvaj izmjene' : 'Preg
 
 // Da li je izabran BIHNEL (koristi se za disable polja Metraza/VrstaProvodnika/Tip)
 const isBihnelSelected = computed(() => /BIHNEL/i.test(form.value.Description || ''));
+// Da li je izabran BIHNEL MS specifično (Metraža ostaje aktivna)
+const isBihnelMSSelected = computed(() => /BIHNEL\s+MS/i.test(form.value.Description || ''));
+// Da li je izabran BIHNEL LP specifično (Metraža ostaje aktivna)
+const isBihnelLPSelected = computed(() => /BIHNEL\s+LP/i.test(form.value.Description || ''));
+// Da li je izabran BIHNEL SL specifično (Metraža ostaje aktivna)
+const isBihnelSLSelected = computed(() => /BIHNEL\s+SL/i.test(form.value.Description || ''));
+// Da li je izabran PSED-CU (Metraža ostaje aktivna)
+const isPSEDCUSelected = computed(() => /PSED[-\s]?CU/i.test(form.value.Description || ''));
+// Da li je izabran PSED-AL (Metraža ostaje aktivna)
+const isPSEDALSelected = computed(() => /PSED[-\s]?AL/i.test(form.value.Description || ''));
+// Da li je izabran MSED (Metraža, Vrsta provodnika i Tip ostaju aktivni)
+const isMSEDSelected = computed(() => /MSED/i.test(form.value.Description || ''));
 // Da li je izabran BK-6 (disable: Metraza, Status, Vrsta provodnika, Tip, Boja)
 const isBK6Selected = computed(() => /(^|\b)BK[-\s]?6(\b|$)/i.test(form.value.Description || ''));
 // Da li je izabran BK-8 (disable polja kao BK-6)
-const isBK8Selected = computed(() => /(^|\b)BK[-\s]?8(\s+(LP|MS))?(\b|$)/i.test(form.value.Description || ''));
+// Treat BK-8 and DK-8 families the same for UI rules
+const isBK8Selected = computed(() => /(^|\b)[BD]K[-\s]?8(\s+(LP|MS))?(\b|$)/i.test(form.value.Description || ''));
 
 const debugText = computed(() =>
     `Debug: desc=${form.value.Description} | metraza=${form.value.Metraza} | provodnik=${form.value.VrstaProvodnika} | tip=${form.value.Tip} | listLen=${productListNew.value.length}`
 );
 
 // Prikaz proizvoda za BIHNEL proizvode
-async function setupProductListBihnel() {
-    console.log('Setting up productlist Bihnel');
+async function setupProductListBihnel(metraza = null) {
+    console.log('Setting up productlist Bihnel', { metraza });
     const input = form.value.Description?.trim();
     productListNew.value = [];
     if (input && input.length > 0) {
         try {
-            const response = await axios.get(`/productslistBihnel?query=${input}`);
+            let url = `/productslistBihnel?query=${encodeURIComponent(input)}`;
+            if (metraza !== null && metraza !== '' && !isNaN(metraza)) {
+                url += `&metraza=${metraza}`;
+            }
+            const response = await axios.get(url);
             const data = response.data;
             console.log('Received /productslistBihnel items:', data);
             // Sortiraj po UoM_meter asc
@@ -346,6 +366,95 @@ async function setupProductListBihnel() {
             }
         } catch (error) {
             console.error("Error fetching data:c", error);
+        }
+    } else {
+        console.log("Nema product inputa ili je prazan");
+    }
+}
+
+// Prikaz proizvoda za PSED proizvode
+async function setupProductListPSED(metraza = null) {
+    console.log('Setting up productlist PSED', { metraza });
+    const input = form.value.Description?.trim();
+    productListNew.value = [];
+    if (input && input.length > 0) {
+        try {
+            let url = `/productslistPSED?query=${encodeURIComponent(input)}`;
+            if (metraza !== null && metraza !== '' && !isNaN(metraza)) {
+                url += `&metraza=${metraza}`;
+            }
+            // Dodaj Tip filter ako je izabran A ili B
+            if (form.value.Tip && form.value.Tip !== '-') {
+                url += `&tip=${encodeURIComponent(form.value.Tip)}`;
+            }
+            const response = await axios.get(url);
+            const data = response.data;
+            console.log('Received /productslistPSED items:', data);
+            // Sortiraj po UoM_meter asc
+            data.sort((a, b) => {
+                const am = Number(a.UoM_meter);
+                const bm = Number(b.UoM_meter);
+                if (Number.isNaN(am) || Number.isNaN(bm)) return 0;
+                return am - bm;
+            });
+            // Pripremi listu za prikaz
+            productListNew.value = data.map(product => ({
+                ...product,
+                selected: false,
+                kolicina: ''
+            }));
+        } catch (error) {
+            console.error("Error fetching PSED data:", error);
+        }
+    } else {
+        console.log("Nema product inputa ili je prazan");
+    }
+}
+
+// Prikaz proizvoda za MSED proizvode
+async function setupProductListMSED() {
+    console.log('Setting up productlist MSED');
+    const input = form.value.Description?.trim();
+    productListNew.value = [];
+    if (input && input.length > 0) {
+        try {
+            let url = `/productslistMSED?query=${encodeURIComponent(input)}`;
+
+            // Dodaj Metraza filter ako je unesena
+            if (form.value.Metraza !== null && form.value.Metraza !== '' && !isNaN(form.value.Metraza)) {
+                url += `&metraza=${form.value.Metraza}`;
+            }
+
+            // Dodaj Vrsta Provodnika filter ako je izabrana
+            if (form.value.VrstaProvodnika && form.value.VrstaProvodnika !== '-') {
+                url += `&vrstaProvodnika=${encodeURIComponent(form.value.VrstaProvodnika)}`;
+            }
+
+            // Dodaj Tip filter ako je izabran A ili B
+            if (form.value.Tip && form.value.Tip !== '-') {
+                url += `&tip=${encodeURIComponent(form.value.Tip)}`;
+            }
+
+            const response = await axios.get(url);
+            const data = response.data;
+            console.log('Received /productslistMSED items:', data);
+
+            // Sortiraj po UoM_meter asc
+            data.sort((a, b) => {
+                const am = Number(a.UoM_meter);
+                const bm = Number(b.UoM_meter);
+                if (Number.isNaN(am) || Number.isNaN(bm)) return 0;
+                return am - bm;
+            });
+
+            // Pripremi listu za prikaz
+            productListNew.value = data.map(product => ({
+                ...product,
+                selected: false,
+                kolicina: ''
+            }));
+        } catch (error) {
+            console.error("Error fetching MSED data:", error);
         }
     } else {
         console.log("Nema product inputa ili je prazan");
@@ -396,6 +505,45 @@ async function setupProductListBK6() {
     }
 }
 
+// Prikaz proizvoda za DK-6 proizvode (slično BK-6, ali bez posebnih LP/MS varijanti)
+async function setupProductListDK6() {
+    console.log('Setting up productlist DK-6');
+    const input = form.value.Description?.trim();
+    productListNew.value = [];
+    if (input && input.length > 0) {
+        try {
+            const response = await axios.get(`/productslistBK6?query=${encodeURIComponent(input)}`);
+            const data = response.data;
+            console.log('Received /productslistBK6 (DK-6) items:', data);
+            // Sortiraj po UoM_meter asc (bez oslanjanja na usporenje)
+            data.sort((a, b) => {
+                const am = Number(a.UoM_meter);
+                const bm = Number(b.UoM_meter);
+                if (Number.isNaN(am) || Number.isNaN(bm)) return 0;
+                return am - bm;
+            });
+            // Pripremi listu za prikaz
+            productListNew.value = data.map(product => ({
+                ...product,
+                selected: false,
+                kolicina: ''
+            }));
+            // Ako postoje CE podaci, pokušaj populirati iz prvog zapisa
+            if (data.length > 0) {
+                const first = data[0];
+                form.value.CeOznaka = first.CEMarkNumber ?? first.ce_oznaka ?? form.value.CeOznaka;
+                form.value.KlasaOpasnosti = first.HazardClass ?? first.klasa_opasnosti ?? form.value.KlasaOpasnosti;
+                const un = first.UNNumber ?? first.un_broj;
+                if (un != null) form.value.UNBroj = String(un);
+            }
+        } catch (error) {
+            console.error("Error fetching data (DK-6):", error);
+        }
+    } else {
+        console.log("Nema product inputa ili je prazan (DK-6)");
+    }
+}
+
 // Prikaz proizvoda za BK-8 proizvode
 async function setupProductListBK8(variant) {
     console.log('Setting up productlist BK-8');
@@ -403,22 +551,21 @@ async function setupProductListBK8(variant) {
     productListNew.value = [];
     if (input && input.length > 0) {
         try {
-            // Ako korisnik unese "BK-8 LP", očisti varijantni dio iz query-a, a varijantu pošalji posebno
-            if (variant) {
-                input = input.replace(/\b(LP|MS)\b/gi, '').trim();
-            }
             const url = variant
                 ? `/productslistBK8?query=${encodeURIComponent(input)}&variant=${encodeURIComponent(variant)}`
                 : `/productslistBK8?query=${encodeURIComponent(input)}`;
             const response = await axios.get(url);
             let data = response.data || [];
             console.log('Received /productslistBK8 items:', data);
-            // Sortiraj po UoM_meter asc
+            // Sortiraj kao za BK-6: po 'UsporenjeMs' asc; fallback na moguće stare ključeve ('Usporenje'/'usporenje'), pa na UoM_meter
             data.sort((a, b) => {
+                const au = Number(a.UsporenjeMs ?? a.Usporenje ?? a.usporenje);
+                const bu = Number(b.UsporenjeMs ?? b.Usporenje ?? b.usporenje);
+                if (!Number.isNaN(au) && !Number.isNaN(bu)) return au - bu;
                 const am = Number(a.UoM_meter);
                 const bm = Number(b.UoM_meter);
-                if (Number.isNaN(am) || Number.isNaN(bm)) return 0;
-                return am - bm;
+                if (!Number.isNaN(am) && !Number.isNaN(bm)) return am - bm;
+                return 0;
             });
             // Pripremi listu za prikaz
             productListNew.value = data.map(product => ({
@@ -461,40 +608,74 @@ watch(() => form.value.Description, async (newValue) => {
         return;
     }
     try {
-        // 1) BK-8: prvo ponudi LP/MS, a ako je izabrano učitaj
-        const isBK8 = /(^|\b)BK[-\s]?8(\b|$)/i.test(newValue);
+        // Auto-set VrstaProvodnika based on suffix in naziv (e.g., PSED-Cu -> Cu, PSED-Al -> Al)
+        // Works for variants like MSED-Cu, MMSED-Cu, CSED-Cu, etc.
+        const matchMetal = newValue.match(/-\s*(cu|al)\b/i);
+        if (matchMetal) {
+            const metal = matchMetal[1].toLowerCase();
+            const normalized = metal === 'cu' ? 'Cu' : (metal === 'al' ? 'Al' : form.value.VrstaProvodnika);
+            if (normalized && form.value.VrstaProvodnika !== normalized) {
+                form.value.VrstaProvodnika = normalized;
+            }
+        }
+
+        // 1) K-8 porodica: BK-8 ima LP/MS varijante, DK-8 bez varijanti (direktan prikaz liste)
+    const k8Match = newValue.match(/(^|\b)(BK|DK)[-\s]?8(\b|$)/i);
+    const isK8 = !!k8Match;
+    const k8Family = k8Match ? k8Match[2].toUpperCase() : null;
         const hasLP = /\bLP\b/i.test(newValue);
         const hasMS = /\bMS\b/i.test(newValue);
-        if (isBK8 && !(hasLP || hasMS)) {
-            productSuggestions.value = ['BK-8 LP', 'BK-8 MS'];
-            productListNew.value = [];
-            // Postavi defaulte kao za BK-6
-            form.value.Metraza = 0;
-            form.value.VrstaProvodnika = '-';
-            form.value.Tip = '-';
-            form.value.BojaDuzinaProvodnika = '-';
-            return;
-        }
-        if (isBK8 && (hasLP || hasMS)) {
-            const chosen = hasLP ? 'LP' : 'MS';
-            productSuggestions.value = [];
-            // Postavi defaulte kao za BK-6
-            form.value.Metraza = 0;
-            form.value.VrstaProvodnika = '-';
-            form.value.Tip = '-';
-            form.value.BojaDuzinaProvodnika = '-';
-            await setupProductListBK8(chosen);
-            return;
+        if (isK8) {
+            if (k8Family === 'BK') {
+                // Ako je samo BK-8 bez LP/MS, sada odmah učitaj kompletnu listu BK-8 proizvoda
+                const chosen = hasLP ? 'LP' : (hasMS ? 'MS' : undefined);
+                productSuggestions.value = [];
+                // Postavi defaulte kao za BK-6
+                form.value.Metraza = 0;
+                form.value.VrstaProvodnika = '-';
+                form.value.Tip = '-';
+                form.value.BojaDuzinaProvodnika = '-';
+                await setupProductListBK8(chosen);
+                return;
+            } else if (k8Family === 'DK') {
+                // DK-8: nema LP/MS varijanti – direktno učitaj listu
+                productSuggestions.value = [];
+                await setupProductListBK8(undefined);
+                return;
+            }
         }
 
         // 2) BIHNEL: odmah učitaj
         if (/BIHNEL/i.test(newValue)) {
             productSuggestions.value = [];
-            // Resetuj ova polja jer se zaključavaju i ne trebaju za BIHNEL
-            form.value.Metraza = '';
+            // Za BIHNEL MS, LP i SL ostavi Metraza omogućenu, ostalo zaključaj
+            const isBihnelMS = /BIHNEL\s+MS/i.test(newValue);
+            const isBihnelLP = /BIHNEL\s+LP/i.test(newValue);
+            const isBihnelSL = /BIHNEL\s+SL/i.test(newValue);
+            const hasMetraza = isBihnelMS || isBihnelLP || isBihnelSL;
+
+            if (!hasMetraza) {
+                form.value.Metraza = '';
+            }
             form.value.VrstaProvodnika = '';
             form.value.Tip = '';
-            await setupProductListBihnel();
+            await setupProductListBihnel(hasMetraza ? form.value.Metraza : null);
+            return;
+        }
+
+        // 2b) PSED-CU ili PSED-AL: odmah učitaj sa metražom
+        if (/PSED[-\s]?CU/i.test(newValue) || /PSED[-\s]?AL/i.test(newValue)) {
+            productSuggestions.value = [];
+            // Za PSED-CU i PSED-AL Metraža ostaje omogućena
+            await setupProductListPSED(form.value.Metraza || null);
+            return;
+        }
+
+        // 2c) MSED: odmah učitaj sa metražom, vrsta provodnika i tip
+        if (/MSED/i.test(newValue)) {
+            productSuggestions.value = [];
+            // Za MSED Metraža, Vrsta provodnika i Tip ostaju omogućeni
+            await setupProductListMSED();
             return;
         }
 
@@ -506,6 +687,13 @@ watch(() => form.value.Description, async (newValue) => {
             form.value.Tip = '-';
             form.value.BojaDuzinaProvodnika = '-';
             await setupProductListBK6();
+            return;
+        }
+
+        // 3b) DK-6: odmah učitaj listu (bez zaključavanja polja)
+        if (/(^|\b)DK[-\s]?6(\b|$)/i.test(newValue)) {
+            productSuggestions.value = [];
+            await setupProductListDK6();
             return;
         }
 
@@ -525,8 +713,10 @@ watch([() => form.value.Description, () => form.value.VrstaProvodnika], async ([
         if (/BIHNEL/i.test(desc)) return;
         // Za BK-6 već popunjavamo CE podatke kroz listu BK-6 – preskoči poziv
         if (/(^|\b)BK[-\s]?6(\b|$)/i.test(desc)) return;
+        // Za DK-6 isto – preskoči poziv
+        if (/(^|\b)DK[-\s]?6(\b|$)/i.test(desc)) return;
         // Za BK-8 takođe CE podatke popunjavamo iz liste – preskoči poziv
-        if (/(^|\b)BK[-\s]?8(\s+(LP|MS))?(\b|$)/i.test(desc)) return;
+        if (/(^|\b)[BD]K[-\s]?8(\s+(LP|MS))?(\b|$)/i.test(desc)) return;
         try {
             const { data } = await axios.get(`/getCeOznaka?naziv=${desc}&vrstaProvodnika=${provodnik}`);
             form.value.CeOznaka = data.CEMarkNumber;
@@ -541,8 +731,48 @@ watch([() => form.value.Description, () => form.value.VrstaProvodnika], async ([
 watch([() => form.value.Description, () => form.value.Metraza, () => form.value.VrstaProvodnika, () => form.value.Tip], async ([desc, metraza, provodnik, tip]) => {
     if (isHydrating.value) return;
     if (isEditMode.value && preferDetailsList.value) { preferDetailsList.value = false; return; }
-    // Izbjegni generički poziv kada su specijalni proizvodi (BK-6/BK-8/BIHNEL) aktivni
-    if (/(^|\b)BK[-\s]?6(\b|$)/i.test(desc) || /(^|\b)BK[-\s]?8(\s+(LP|MS))?(\b|$)/i.test(desc) || /BIHNEL/i.test(desc)) {
+
+    // Specijalan slučaj: BIHNEL MS, LP ili SL sa metražom
+    if ((/BIHNEL\s+MS/i.test(desc) || /BIHNEL\s+LP/i.test(desc) || /BIHNEL\s+SL/i.test(desc)) && metraza) {
+        try {
+            console.log('Fetching BIHNEL (MS/LP/SL) with metraza:', metraza);
+            await setupProductListBihnel(metraza);
+            return;
+        } catch (error) {
+            console.error("Error fetching BIHNEL with metraza:", error);
+        }
+    }
+
+    // Specijalan slučaj: PSED-CU ili PSED-AL sa metražom i/ili tipom
+    if (/PSED[-\s]?CU/i.test(desc) || /PSED[-\s]?AL/i.test(desc)) {
+        try {
+            console.log('Fetching PSED (CU/AL) with metraza and tip:', { metraza, tip });
+            await setupProductListPSED(metraza);
+            return;
+        } catch (error) {
+            console.error("Error fetching PSED with metraza:", error);
+        }
+    }
+
+    // Specijalan slučaj: MSED sa metražom, vrsta provodnika i/ili tipom
+    if (/MSED/i.test(desc)) {
+        try {
+            console.log('Fetching MSED with metraza, provodnik and tip:', { metraza, provodnik, tip });
+            await setupProductListMSED();
+            return;
+        } catch (error) {
+            console.error("Error fetching MSED:", error);
+        }
+    }
+
+    // Izbjegni generički poziv kada su specijalni proizvodi (BK-6/BK-8/BIHNEL/PSED/MSED) aktivni
+    if (/(^|\b)BK[-\s]?6(\b|$)/i.test(desc)
+        || /(^|\b)DK[-\s]?6(\b|$)/i.test(desc)
+        || /(^|\b)[BD]K[-\s]?8(\s+(LP|MS))?(\b|$)/i.test(desc)
+        || /BIHNEL/i.test(desc)
+        || /PSED[-\s]?CU/i.test(desc)
+        || /PSED[-\s]?AL/i.test(desc)
+        || /MSED/i.test(desc)) {
         return;
     }
     if (desc && metraza && provodnik && tip) {
@@ -683,7 +913,8 @@ async function refreshProductListForEdit(selectionById, selectionByKey) {
 
     // Decide which list to load, mirroring watcher logic
     const isBK6 = /(^|\b)BK[-\s]?6(\b|$)/i.test(desc);
-    const isBK8 = /(^|\b)BK[-\s]?8(\b|$)/i.test(desc);
+    const isDK6 = /(^|\b)DK[-\s]?6(\b|$)/i.test(desc);
+    const isBK8 = /(^|\b)[BD]K[-\s]?8(\b|$)/i.test(desc);
     const hasLP = /\bLP\b/i.test(desc);
     const hasMS = /\bMS\b/i.test(desc);
     const isBihnel = /BIHNEL/i.test(desc);
@@ -693,6 +924,8 @@ async function refreshProductListForEdit(selectionById, selectionByKey) {
             await setupProductListBihnel();
         } else if (isBK6) {
             await setupProductListBK6();
+        } else if (isDK6) {
+            await setupProductListDK6();
         } else if (isBK8) {
             const variant = hasLP ? 'LP' : (hasMS ? 'MS' : undefined);
             await setupProductListBK8(variant);

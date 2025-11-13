@@ -229,6 +229,10 @@ Route::get('/api/productionorders/{order}', [ProductionOrderController::class, '
 
 // Lista proizvoda za BIHNEL proizvode
 Route::get('/productslistBihnel', [ProductController::class, 'numeredlistBihnel'])->middleware(['auth']);
+// Lista proizvoda za PSED proizvode
+Route::get('/productslistPSED', [ProductController::class, 'numeredlistPSED'])->middleware(['auth']);
+// Lista proizvoda za MSED proizvode
+Route::get('/productslistMSED', [ProductController::class, 'numeredlistMSED'])->middleware(['auth']);
 // Lista proizvoda za BK-6 proizvode
 Route::get('/productslistBK6', [ProductController::class, 'numeredlistBK6'])->middleware(['auth']);
 // Lista proizvoda za BK-8 proizvode
