@@ -88,6 +88,7 @@
                       <button v-if="canEdit(o)" @click="goEdit(o)" class="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600">Uredi</button>
                       <button v-if="isPending(o) && !o.is_void" @click="voidOrder(o)" class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700">Poništi</button>
                       <button @click="duplicate(o)" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-800">Dupliciraj</button>
+                      <!-- Word export removed -->
                     </div>
                   </td>
                 </tr>

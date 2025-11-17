@@ -8,6 +8,7 @@ use App\Models\ProductionOrder;
 use App\Models\ProductionOrderDetail;
 use App\Models\Partner;
 use App\Models\Funkcija;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -16,6 +17,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+// Removed Word export dependencies
 
 class ProductionOrderController extends Controller
 {
@@ -573,4 +575,5 @@ class ProductionOrderController extends Controller
             return response()->json(['message' => 'Greška pri poništavanju naloga.'], 500);
         }
     }
+
 }
