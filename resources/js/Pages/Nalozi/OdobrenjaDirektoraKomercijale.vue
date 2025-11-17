@@ -47,7 +47,7 @@
                     <td class="px-3 py-2">{{ o.partner || '' }}</td>
                     <td class="px-3 py-2">
                       <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
-                        {{ formatQty(o.total_quantity) }}
+                        {{ formatQty(totalQuantity(o)) }}
                       </span>
                     </td>
                     <td class="px-3 py-2">
@@ -82,13 +82,37 @@ import ProductionAppLayout from '@/Layouts/ProductionAppLayout.vue';
 // Pending approvals
 const pending = ref([]);
 const selected = ref([]); // holds current_approval_id values
+const totalById = ref({}); // fallback totals by order id
 
 async function loadPending() {
   try {
     const { data } = await axios.get('/approvals/pending');
-  pending.value = (data?.data || []);
+    pending.value = (data?.data || []);
     const visibleIds = new Set(pending.value.map(o => o.current_approval_id));
     selected.value = selected.value.filter(id => visibleIds.has(id));
+
+    // Build fallback totals for rows missing or having zero totals
+    totalById.value = {};
+    const toFetch = [];
+    for (const o of pending.value) {
+      const t = Number(o?.total_quantity ?? 0);
+      if (t > 0) {
+        totalById.value[o.id] = t;
+      } else {
+        toFetch.push(o.id);
+      }
+    }
+    // Fetch details for rows where total was missing/zero and compute client-side sum
+    for (const orderId of toFetch) {
+      try {
+        const resp = await axios.get(`/api/productionorders/${orderId}`);
+        const details = resp?.data?.order?.details || [];
+        const sum = details.reduce((a, d) => a + Number(d?.quantity || 0), 0);
+        totalById.value[orderId] = sum;
+      } catch (err) {
+        // leave default 0 on error
+      }
+    }
   } catch (e) {
     console.error('Greška pri učitavanju odobrenja', e);
   }
@@ -139,6 +163,20 @@ function formatQty(v) {
   const n = Number(v ?? 0);
   if (!isFinite(n)) return '0';
   return n % 1 === 0 ? n.toString() : n.toFixed(2);
+}
+
+function totalQuantity(o) {
+  if (!o) return 0;
+  // First prefer cached/fallback totals
+  if (totalById.value && totalById.value[o.id] != null) return Number(totalById.value[o.id]);
+  // Then known server fields
+  if (o.total_quantity != null) return Number(o.total_quantity);
+  if (o.total_qty != null) return Number(o.total_qty);
+  if (o.TotalQuantity != null) return Number(o.TotalQuantity);
+  if (o.totalQty != null) return Number(o.totalQty);
+  // Lastly sum local details if present on object
+  const details = Array.isArray(o.details) ? o.details : Array.isArray(o.Items) ? o.Items : [];
+  return details.reduce((sum, d) => sum + Number(d?.quantity ?? d?.kolicina ?? 0), 0);
 }
 
 async function voidOrder(o) {

@@ -226,6 +226,10 @@ Route::get('/nalozi/radnik/odobreni', function() {
 Route::post('/productionorders', [ProductionOrderController::class, 'store'])->middleware(['auth'])->name('productionorders.store');
 Route::get('/productionorders/{order}', [ProductionOrderController::class, 'details'])->middleware(['auth'])->name('productionorders.show');
 Route::get('/api/productionorders/{order}', [ProductionOrderController::class, 'detailsJson'])->middleware(['auth'])->name('productionorders.show.json');
+// Export to Word (minimal) using storage template
+Route::get('/productionorders/{order}/export-word', [ProductionOrderController::class, 'exportWordSimple'])
+    ->middleware(['auth'])
+    ->name('productionorders.export-word');
 
 // Lista proizvoda za BIHNEL proizvode
 Route::get('/productslistBihnel', [ProductController::class, 'numeredlistBihnel'])->middleware(['auth']);

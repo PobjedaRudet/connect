@@ -17,7 +17,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
-// Removed Word export dependencies
+use PhpOffice\PhpWord\TemplateProcessor;
 
 class ProductionOrderController extends Controller
 {
@@ -574,6 +574,157 @@ class ProductionOrderController extends Controller
             Log::error('Greška pri poništavanju naloga', ['order_id' => $order->id, 'error' => $e->getMessage()]);
             return response()->json(['message' => 'Greška pri poništavanju naloga.'], 500);
         }
+
     }
 
+    public function exportWordSimple(ProductionOrder $order)
+        {
+            if (!Auth::check()) {
+                abort(403);
+            }
+
+            $templatePath = storage_path('app/nalog_template.docx');
+            if (!file_exists($templatePath)) {
+                abort(500, 'Nedostaje Word template u storage/app (nalog_template.docx).');
+            }
+
+            try {
+                $tpl = new TemplateProcessor($templatePath);
+            } catch (\Throwable $e) {
+                abort(500, 'Ne mogu otvoriti Word template: '.$e->getMessage());
+            }
+
+            $orderNumber = $order->OrderNumber ?? (string)$order->id;
+            foreach (['ORDER_NUMBER','OrderNumber','BROJ_NALOGA','broj_naloga'] as $key) {
+                try { $tpl->setValue($key, $orderNumber); } catch (\Throwable $e) { /* ignore missing */ }
+            }
+
+            $customerName = optional($order->partner)->name ?? '';
+            foreach (['KUPAC','kupac','CustomerName','CUSTOMER_NAME','PartnerName','PARTNER','partner'] as $key) {
+                try { $tpl->setValue($key, $customerName); } catch (\Throwable $e) { /* ignore missing */ }
+            }
+
+            // Dates: creation date and logical order date
+            $createdAt = optional($order->created_at)->format('d.m.Y');
+            $orderDate = optional($order->OrderDate)->format('d.m.Y');
+            foreach (['DATUM_KREIRANJA','DatumKreiranja','CREATED_AT'] as $key) {
+                try { $tpl->setValue($key, $createdAt ?? ''); } catch (\Throwable $e) { /* ignore */ }
+            }
+            foreach (['ORDER_DATE','OrderDate','DATUM_NALOGA','DatumNaloga'] as $key) {
+                try { $tpl->setValue($key, $orderDate ?? ''); } catch (\Throwable $e) { /* ignore */ }
+            }
+
+            // Total quantity across details
+            try {
+                $totalQty = (float) \App\Models\ProductionOrderDetail::where('production_order_id', $order->id)->sum('quantity');
+            } catch (\Throwable $e) {
+                $totalQty = 0.0;
+            }
+            $totalQtyStr = fmod($totalQty, 1.0) === 0.0 ? (string) (int) $totalQty : (string) $totalQty;
+            foreach (['UKUPNA_KOLICINA','UkupnaKolicina','TOTAL_QTY','TOTAL_QUANTITY','Ukupno'] as $key) {
+                try { $tpl->setValue($key, $totalQtyStr); } catch (\Throwable $e) { /* ignore */ }
+            }
+
+            // Conductor (VrstaProvodnika)
+            $provodnik = (string) ($order->VrstaProvodnika ?? '');
+            foreach (['PROVODNIK','VrstaProvodnika','VRSTA_PROVODNIKA'] as $key) {
+                try { $tpl->setValue($key, $provodnik); } catch (\Throwable $e) { /* ignore */ }
+            }
+
+            // Color (mapping BojaDuzinaProvodnika as provided)
+            $boja = (string) ($order->BojaDuzinaProvodnika ?? '');
+            foreach (['BOJA','Boja','BOJA_DUZINA','BojaDuzinaProvodnika'] as $key) {
+                try { $tpl->setValue($key, $boja); } catch (\Throwable $e) { /* ignore */ }
+            }
+
+            // Atest paketa
+            $atest = (string) ($order->AtestPaketa ?? '');
+            foreach (['ATEST_PAKETA','AtestPaketa','ATEST'] as $key) {
+                try { $tpl->setValue($key, $atest); } catch (\Throwable $e) { /* ignore */ }
+            }
+
+            // CE oznaka
+            $ce = (string) ($order->CeOznaka ?? '');
+            foreach (['CE_OZNAKA','CeOznaka','CE'] as $key) {
+                try { $tpl->setValue($key, $ce); } catch (\Throwable $e) { /* ignore */ }
+            }
+
+            // UN broj
+            $unBroj = (string) ($order->UNBroj ?? '');
+            foreach (['UN_BROJ','UNBroj','UN_NUMBER'] as $key) {
+                try { $tpl->setValue($key, $unBroj); } catch (\Throwable $e) { /* ignore */ }
+            }
+
+            // Datumi: Predaje i Prijema
+            $datumPredaje = optional($order->DatumPredaje)->format('d.m.Y');
+            $datumPrijema = optional($order->DatumPrijema)->format('d.m.Y');
+            foreach (['DATUM_PREDAJE','DatumPredaje'] as $key) {
+                try { $tpl->setValue($key, $datumPredaje ?? ''); } catch (\Throwable $e) { /* ignore */ }
+            }
+            foreach (['DATUM_PRIJEMA','DatumPrijema'] as $key) {
+                try { $tpl->setValue($key, $datumPrijema ?? ''); } catch (\Throwable $e) { /* ignore */ }
+            }
+
+            // Klasa opasnosti (Hazard Class)
+            $hazard = (string) ($order->KlasaOpasnosti ?? '');
+            foreach (['KLASA_OPASNOSTI','KlasaOpasnosti','HAZARD_CLASS'] as $key) {
+                try { $tpl->setValue($key, $hazard); } catch (\Throwable $e) { /* ignore */ }
+            }
+
+            // Details table: clone row for Numera i Količina
+            try {
+                $order->loadMissing(['details.product:id,SkraceniNaziv,Naziv,NumeraProizvoda,UsporenjeMs']);
+            } catch (\Throwable $e) { /* ignore load errors */ }
+
+            $detailRows = [];
+            foreach (($order->details ?? []) as $d) {
+                $short = (string) ($d->product->SkraceniNaziv ?? '');
+                $numera = (string) ($d->product->NumeraProizvoda ?? '');
+                $usp = isset($d->product) ? $d->product->UsporenjeMs ?? '' : '';
+                $uspStr = trim((string) $usp);
+                $parts = [];
+                if ($short !== '') { $parts[] = $short; }
+                if ($numera !== '') { $parts[] = 'No. ' . $numera; }
+                $suffix = '';
+                if ($uspStr !== '') {
+                    $suffix = is_numeric($uspStr) ? ' (' . $uspStr . ' ms)' : ' (' . $uspStr . ')';
+                }
+                $displayNumera = trim(implode(' / ', $parts) . $suffix);
+
+                $qty = (float) ($d->quantity ?? 0);
+                $qtyStr = fmod($qty, 1.0) === 0.0 ? (string) (int) $qty : (string) $qty;
+                $detailRows[] = [
+                    'DETAIL_NUMERA' => $displayNumera,
+                    'DETAIL_KOLICINA' => $qtyStr,
+                ];
+            }
+
+            if (count($detailRows) > 0) {
+                try { $tpl->cloneRowAndSetValues('DETAIL_NUMERA', $detailRows); } catch (\Throwable $e) { /* ignore */ }
+            } else {
+                try {
+                    $tpl->cloneRow('DETAIL_NUMERA', 1);
+                    $tpl->setValue('DETAIL_NUMERA#1', '');
+                    $tpl->setValue('DETAIL_KOLICINA#1', '');
+                } catch (\Throwable $e) { /* ignore */ }
+            }
+
+            $tmpPath = tempnam(sys_get_temp_dir(), 'nalog_export_');
+            if ($tmpPath === false) {
+                abort(500, 'Neuspješno kreiranje privremene datoteke.');
+            }
+            // PhpWord expects .docx extension for correct content type within
+            $outPath = $tmpPath . '.docx';
+            try {
+                $tpl->saveAs($outPath);
+            } catch (\Throwable $e) {
+                @unlink($tmpPath);
+                abort(500, 'Greška pri snimanju Word dokumenta: '.$e->getMessage());
+            }
+            @unlink($tmpPath);
+
+            $safeName = trim(str_replace(['/', '\\'], '-', $orderNumber)) ?: (string)$order->id;
+            $fileName = sprintf('Nalog_%s.docx', $safeName);
+            return response()->download($outPath, $fileName)->deleteFileAfterSend(true);
+        }
 }

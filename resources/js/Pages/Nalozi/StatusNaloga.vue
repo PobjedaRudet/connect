@@ -60,7 +60,7 @@
                   <th :class="['px-3 py-2 select-none cursor-pointer', thAlign]" @click="setSort('created_at')">
                     Kreirano <span class="text-[10px] opacity-70" v-if="sortKey==='created_at'">{{ sortIndicator }}</span>
                   </th>
-                  <th :class="['px-3 py-2', thAlign]">Akcija</th>
+                  <th :class="['px-3 py-2', thAlign]" style="min-width:180px;">Akcija</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -77,20 +77,45 @@
                   </td>
                   <td :class="['px-3 py-2 align-top', tdAlign]">{{ o.creator?.name ?? '' }}</td>
                   <td :class="['px-3 py-2 align-top', tdAlign]">
-                    <span :class="statusClass(o.Status)" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px]">{{ o.Status || 'Na čekanju' }}</span>
+                    <div v-if="o.is_void">
+                      <span class="text-red-600 font-bold text-xs align-middle">Poništen</span>
+                      <div class="text-gray-500 text-[11px] mt-0.5">{{ o.Status || 'Na čekanju' }}</div>
+                    </div>
+                    <span v-else :class="statusClass(o.Status)" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tracking-wide">
+                      {{ o.Status || 'Na čekanju' }}
+                    </span>
                   </td>
                   <td :class="['px-3 py-2 align-top', tdAlign]">
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">{{ formatQty(totalQuantity(o)) }}</span>
                   </td>
                   <td :class="['px-3 py-2 align-top whitespace-nowrap', tdAlign]">{{ formatDateHuman(o.created_at) }}</td>
-                  <td :class="['px-3 py-2 align-top', tdAlign]">
-                    <div class="flex flex-wrap items-center gap-2" :class="{ 'justify-center': isChiefOperations }">
+                  <td :class="['px-3 py-2 align-top whitespace-nowrap', tdAlign]" style="min-width:180px;">
+                    <div class="flex flex-nowrap items-center gap-1" :class="{ 'justify-center': isChiefOperations }">
+                      <a :href="`/productionorders/${o.id}/export-word`"
+                         class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1"
+                         title="Preuzmi Word dokument"
+                         target="_blank" rel="noopener">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                        <span class="hidden sm:inline">Word</span>
+                      </a>
                       <div v-if="((o.Status || '').toLowerCase().startsWith('na odobrenju')) && (o.one_up_pending_count > 0) && (o.my_step_approved_count > 0)">
-                        <button @click="approveOneUp(o)" :title="tooltipText" class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">Odobri (1 nivo iznad)</button>
+                        <button @click="approveOneUp(o)" :title="tooltipText" class="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 flex items-center gap-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                          <span class="hidden sm:inline">Odobri</span>
+                        </button>
                       </div>
-                      <button v-if="canEdit(o) && isOwner(o)" @click="goEdit(o)" class="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600">Uredi</button>
-                      <button v-if="isPending(o) && isOwner(o)" @click="removeOrder(o)" class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">Obriši</button>
-                      <button v-if="isOwner(o)" @click="duplicate(o)" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-800">Dupliciraj</button>
+                      <button v-if="canEdit(o) && isOwner(o)" @click="goEdit(o)" class="px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13h3l8-8a2.828 2.828 0 00-4-4l-8 8v3z" /></svg>
+                        <span class="hidden sm:inline">Uredi</span>
+                      </button>
+                      <button v-if="isPending(o) && isOwner(o)" @click="removeOrder(o)" class="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        <span class="hidden sm:inline">Obriši</span>
+                      </button>
+                      <button v-if="isOwner(o)" @click="duplicate(o)" class="px-2 py-1 bg-gray-700 text-white rounded hover:bg-gray-800 flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16h8M8 12h8m-7 8h6a2 2 0 002-2V6a2 2 0 00-2-2H9a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        <span class="hidden sm:inline">Dupliciraj</span>
+                      </button>
                     </div>
                   </td>
                 </tr>
