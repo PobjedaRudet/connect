@@ -39,11 +39,13 @@ class ApprovalController extends Controller
     $hierarchy = $this->approvalHierarchy();
 
         $user = Auth::user();
+        Log::info('Slanje naloga na odobrenje', ['user_id' => $user->id, 'order_ids' => $data['order_ids']]);
         $notifyMap = [];
         DB::transaction(function () use ($data, $hierarchy, $user, &$notifyMap) {
             foreach ($data['order_ids'] as $orderId) {
                 $order = ProductionOrder::with(['partner', 'creator', 'details.product'])->findOrFail($orderId);
                 // Only creator can send
+                Log::info('Provjera ovlaštenja za slanje naloga', ['user_id' => $user->id, 'order_id' => $orderId, 'order_creator_id' => $order->user_id]);
                 if ($order->user_id !== $user->id) {
                     abort(403, 'Nemate ovlaštenje za slanje ovog naloga.');
                 }
