@@ -39,6 +39,8 @@ class ProductionOrder extends Model
     protected $casts = [
         'is_void' => 'boolean',
         'voided_at' => 'datetime',
+        'user_id' => 'integer',
+        'partner_id' => 'integer',
     ];
 
     // Relacije
