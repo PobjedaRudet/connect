@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
+use App\Mail\OrderFinalApprovedMail;
 
 class ApprovalController extends Controller
 {
@@ -391,20 +392,14 @@ class ApprovalController extends Controller
                 $update['DatumPrijema'] = $approval->DatumOdobravanja ?? now();
             }
             ProductionOrder::where('id', $approval->order_id)->update($update);
-            // If Šef Operative approved (final step), notify all participants (creator + actual approvers) with enriched details
+            // If Šef Operative approved (final step), notify all participants (creator + actual approvers) with HTML email
             if ($approval->Funkcija === 'Šef Operative') {
                 $order = ProductionOrder::with(['partner','creator','details.product','approvals'])->find($approval->order_id);
                 if ($order) {
-                    $line = $this->buildOrderEmailLine($order);
+                    $summary = $this->summarizeOrderForEmail($order);
                     $recipients = $this->getOrderParticipantsEmails($order);
-                    if (!empty($recipients)) {
-                        $subject = 'Nalog odobren';
-                        $body = "Poštovani,\n\nSljedeći nalozi su odobreni (finalno):\n" . $line . "\n\nHvala.";
-                        foreach ($recipients as $email) {
-                            Mail::raw($body, function ($message) use ($email, $subject) {
-                                $message->to($email)->subject($subject);
-                            });
-                        }
+                    foreach ($recipients as $email) {
+                        Mail::to($email)->queue(new OrderFinalApprovedMail([$summary]));
                     }
                 }
             }
@@ -502,7 +497,7 @@ class ApprovalController extends Controller
 
     $hierarchy = $this->approvalHierarchy();
         $notifyMap = []; // nextFunkcija => [enriched order info]
-        $finalNotify = []; // recipientEmail => [lines] for final approval by Šef Operative
+        $finalNotify = []; // recipientEmail => [order summaries] for final approval by Šef Operative
         $ok = 0; $fail = 0;
 
         DB::transaction(function () use ($data, $user, $funkcija, $hierarchy, &$notifyMap, &$ok, &$fail, &$finalNotify) {
@@ -546,11 +541,11 @@ class ApprovalController extends Controller
                     $order->update($update);
                     // If final step performed by Šef Operative, prepare consolidated participant notifications
                     if ($approval->Funkcija === 'Šef Operative') {
-                        $line = $this->buildOrderEmailLine($order);
+                        $summary = $this->summarizeOrderForEmail($order);
                         $recipients = $this->getOrderParticipantsEmails($order);
                         foreach ($recipients as $email) {
                             $finalNotify[$email] = $finalNotify[$email] ?? [];
-                            $finalNotify[$email][] = $line;
+                            $finalNotify[$email][] = $summary;
                         }
                     }
                 } else {
@@ -594,13 +589,9 @@ class ApprovalController extends Controller
         }
 
         // Send consolidated final-approval emails to participants (Šef Operative case)
-        foreach ($finalNotify as $email => $lines) {
-            if (empty($lines)) continue;
-            $subject = 'Nalozi odobreni';
-            $body = "Poštovani,\n\nSljedeći nalozi su odobreni (finalno):\n" . implode("\n", $lines) . "\n\nHvala.";
-            Mail::raw($body, function ($message) use ($email, $subject) {
-                $message->to($email)->subject($subject);
-            });
+        foreach ($finalNotify as $email => $summaries) {
+            if (empty($summaries)) continue;
+            Mail::to($email)->queue(new OrderFinalApprovedMail($summaries));
         }
 
         return response()->json(['message' => "Odobreno: {$ok}, Neuspješno: {$fail}."]);
@@ -617,6 +608,22 @@ class ApprovalController extends Controller
         $creatorName = $order->creator?->name ?? '';
         $desc = $order->Description ?? '';
         return "- Nalog: {$order->OrderNumber} | {$desc} | Kupac: {$partnerName} | Tip: {$type} | Metraža: {$metraza} | Provodnik: {$provodnik} | Količina: {$totalQty} | Kreirano: {$createdAt} | Kreirao: {$creatorName}";
+    }
+
+    private function summarizeOrderForEmail(ProductionOrder $order): array
+    {
+        $partnerName = $order->partner?->name ?? '';
+        $totalQty = (float) ($order->details->sum('quantity'));
+        $createdAt = optional($order->created_at)->format('Y-m-d H:i');
+        $creatorName = $order->creator?->name ?? '';
+        return [
+            'OrderNumber' => $order->OrderNumber,
+            'Description' => $order->Description,
+            'partner' => $partnerName,
+            'total_qty' => $totalQty,
+            'created_at' => $createdAt,
+            'creator' => $creatorName,
+        ];
     }
 
     private function getOrderParticipantsEmails(ProductionOrder $order): array
@@ -721,16 +728,10 @@ class ApprovalController extends Controller
             if ($approval->Funkcija === 'Šef Operative') {
                 $orderR = ProductionOrder::with(['partner','creator','details.product','approvals'])->find($order->id);
                 if ($orderR) {
-                    $line = $this->buildOrderEmailLine($orderR);
+                    $summary = $this->summarizeOrderForEmail($orderR);
                     $recipients = $this->getOrderParticipantsEmails($orderR);
-                    if (!empty($recipients)) {
-                        $subject = 'Nalog odobren';
-                        $body = "Poštovani,\n\nSljedeći nalozi su odobreni (finalno):\n" . $line . "\n\nHvala.";
-                        foreach ($recipients as $email) {
-                            Mail::raw($body, function ($message) use ($email, $subject) {
-                                $message->to($email)->subject($subject);
-                            });
-                        }
+                    foreach ($recipients as $email) {
+                        Mail::to($email)->queue(new OrderFinalApprovedMail([$summary]));
                     }
                 }
             }
