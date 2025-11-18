@@ -47,6 +47,7 @@ class ApprovalController extends Controller
                 // Only creator can send
                 Log::info('Provjera ovlaštenja za slanje naloga', ['user_id' => $user->id, 'order_id' => $orderId, 'order_creator_id' => $order->user_id]);
                 if ($order->user_id !== $user->id) {
+                    Log::warning('Neovlašten pokušaj slanja naloga na odobrenje', ['user_id' => $user->id, 'order_id' => $orderId, 'order_creator_id' => $order->user_id]);
                     abort(403, 'Nemate ovlaštenje za slanje ovog naloga.');
                 }
                 foreach ($hierarchy as $funkcija) {
