@@ -9,14 +9,22 @@
             </div>
         </template>
         <div class="py-8">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="max-w-[1600px] mx-auto sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
                     <!-- Left: Main form -->
-                    <div class="lg:col-span-2">
+                    <div class="lg:col-span-3">
                         <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
-                            <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
-                                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Osnovni podaci</h3>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">Partner, broj naloga i datum.</p>
+                            <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                                <div>
+                                    <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Osnovni podaci</h3>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">Partner, broj naloga i datum.</p>
+                                </div>
+                                <button @click="resetForm" type="button" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-md transition-colors duration-200 flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    Resetuj formu
+                                </button>
                             </div>
                             <div class="p-5 text-gray-900 dark:text-gray-100">
                                 <!-- Partner dropdown -->
@@ -72,9 +80,9 @@
                                         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                             <div>
                                                 <label for="metraza" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Metraža</label>
-                                                <input type="number" v-model.number="form.Metraza" id="metraza"
+                                                      <input type="text" v-model="metrazaInput" id="metraza" inputmode="decimal" pattern="[0-9]+(,[0-9]+)?" @input="onMetrazaInput"
                                                        class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200 disabled:opacity-60"
-                                                       :disabled="(isBK6Selected || isBK8Selected || (isBihnelSelected && !isBihnelMSSelected && !isBihnelLPSelected && !isBihnelSLSelected)) && !isPSEDCUSelected && !isPSEDALSelected && !isMSEDSelected" step="0.01" required />
+                                                       :disabled="(isBK6Selected || isBK8Selected || (isBihnelSelected && !isBihnelMSSelected && !isBihnelLPSelected && !isBihnelSLSelected)) && !isPSEDCUSelected && !isPSEDALSelected && !isMSEDSelected" required />
                                             </div>
 
                                             <div>
@@ -200,7 +208,7 @@
                         </div>
                     </div>
                     <!-- Right: Products panel -->
-                    <div class="lg:col-span-1">
+                    <div class="lg:col-span-2">
                         <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm sticky top-20">
                             <div class="px-5 py-3 border-b border-gray-200 dark:border-gray-700">
                                 <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Numere proizvoda</h3>
@@ -292,6 +300,10 @@ const form = ref({
     Napomena: '-',
 });
 
+// UI model for Metraza that accepts comma or dot; normalized into form.Metraza (number)
+const metrazaInput = ref('');
+const internalMetrazaSync = ref(false);
+
 const workingOrders = ref(props.workingOrders || []);
 const partners = ref(props.partners || []);
 const dodatnoManuallyEdited = ref(false);
@@ -302,6 +314,9 @@ const isEditMode = ref(false);
 // In edit mode, preserve details-based product list until user changes inputs
 const preferDetailsList = ref(false);
 const editId = ref(null);
+
+// Debounce timer za pretragu proizvoda
+let descriptionDebounceTimer = null;
 
 const formTitle = computed(() => isEditMode.value ? 'Uredi nalog' : 'Kreiraj nalog');
 const submitLabel = computed(() => isEditMode.value ? 'Sačuvaj izmjene' : 'Pregled');
@@ -330,6 +345,25 @@ const debugText = computed(() =>
     `Debug: desc=${form.value.Description} | metraza=${form.value.Metraza} | provodnik=${form.value.VrstaProvodnika} | tip=${form.value.Tip} | listLen=${productListNew.value.length}`
 );
 
+// Sanitize Metraza input to allow only digits and a single comma
+function onMetrazaInput(e) {
+    if (!e || !e.target) return;
+    let v = String(e.target.value || '');
+    // Convert dots to commas for UX, then strip invalid characters
+    v = v.replace(/\./g, ',');
+    v = v.replace(/[^0-9,]/g, '');
+    // Ensure only one comma: keep first, remove the rest
+    const firstComma = v.indexOf(',');
+    if (firstComma !== -1) {
+        const head = v.slice(0, firstComma + 1);
+        const tail = v.slice(firstComma + 1).replace(/,/g, '');
+        v = head + tail;
+    }
+    // Reflect sanitized value
+    if (e.target.value !== v) e.target.value = v;
+    metrazaInput.value = v;
+}
+
 // Prikaz proizvoda za BIHNEL proizvode
 async function setupProductListBihnel(metraza = null) {
     console.log('Setting up productlist Bihnel', { metraza });
@@ -338,8 +372,12 @@ async function setupProductListBihnel(metraza = null) {
     if (input && input.length > 0) {
         try {
             let url = `/productslistBihnel?query=${encodeURIComponent(input)}`;
-            if (metraza !== null && metraza !== '' && !isNaN(metraza)) {
-                url += `&metraza=${metraza}`;
+            // Konvertuj metrazu u broj ako je potrebno, a zatim u string za API
+            if (metraza !== null && metraza !== '') {
+                const metrazaNum = typeof metraza === 'string' ? Number(metraza.replace(',', '.')) : Number(metraza);
+                if (!isNaN(metrazaNum)) {
+                    url += `&metraza=${metrazaNum}`;
+                }
             }
             const response = await axios.get(url);
             const data = response.data;
@@ -374,22 +412,28 @@ async function setupProductListBihnel(metraza = null) {
 
 // Prikaz proizvoda za PSED proizvode
 async function setupProductListPSED(metraza = null) {
-    console.log('Setting up productlist PSED', { metraza });
     const input = form.value.Description?.trim();
     productListNew.value = [];
     if (input && input.length > 0) {
         try {
             let url = `/productslistPSED?query=${encodeURIComponent(input)}`;
-            if (metraza !== null && metraza !== '' && !isNaN(metraza)) {
-                url += `&metraza=${metraza}`;
+            // Konvertuj metrazu u broj ako je potrebno, a zatim u string za API
+            if (metraza !== null && metraza !== '') {
+                const metrazaNum = typeof metraza === 'string' ? Number(metraza.replace(',', '.')) : Number(metraza);
+                console.log('PSED setupProductListPSED - metraza:', metraza, 'converted:', metrazaNum, 'isNaN:', isNaN(metrazaNum));
+                if (!isNaN(metrazaNum)) {
+                    url += `&metraza=${metrazaNum}`;
+                }
             }
             // Dodaj Tip filter ako je izabran A ili B
             if (form.value.Tip && form.value.Tip !== '-') {
                 url += `&tip=${encodeURIComponent(form.value.Tip)}`;
             }
+            console.log('PSED API URL:', url);
             const response = await axios.get(url);
             const data = response.data;
-            console.log('Received /productslistPSED items:', data);
+            console.log('PSED API response:', data.length, 'items');
+            console.log('PSED API response data:', data);
             // Sortiraj po UoM_meter asc
             data.sort((a, b) => {
                 const am = Number(a.UoM_meter);
@@ -403,6 +447,7 @@ async function setupProductListPSED(metraza = null) {
                 selected: false,
                 kolicina: ''
             }));
+            console.log('PSED productListNew.value after mapping:', productListNew.value.length, 'items');
         } catch (error) {
             console.error("Error fetching PSED data:", error);
         }
@@ -421,8 +466,11 @@ async function setupProductListMSED() {
             let url = `/productslistMSED?query=${encodeURIComponent(input)}`;
 
             // Dodaj Metraza filter ako je unesena
-            if (form.value.Metraza !== null && form.value.Metraza !== '' && !isNaN(form.value.Metraza)) {
-                url += `&metraza=${form.value.Metraza}`;
+            if (form.value.Metraza !== null && form.value.Metraza !== '') {
+                const metrazaNum = typeof form.value.Metraza === 'string' ? Number(form.value.Metraza.replace(',', '.')) : Number(form.value.Metraza);
+                if (!isNaN(metrazaNum)) {
+                    url += `&metraza=${metrazaNum}`;
+                }
             }
 
             // Dodaj Vrsta Provodnika filter ako je izabrana
@@ -458,6 +506,56 @@ async function setupProductListMSED() {
         }
     } else {
         console.log("Nema product inputa ili je prazan");
+    }
+}
+
+// Prikaz proizvoda za TED-CU / TED-AL proizvode (fleksibilno: ne zahtijeva sve filtere)
+async function setupProductListTED(metraza = null) {
+    console.log('Setting up productlist TED', { metraza });
+    const input = form.value.Description?.trim();
+    productListNew.value = [];
+    if (input && input.length > 0) {
+        try {
+            let url = `/productslist?query=${encodeURIComponent(input)}`;
+            // Metraza (ako postoji) – koristi uom_meter parametar kao kod generičkog upita
+            if (metraza !== null && metraza !== '') {
+                const metrazaNum = typeof metraza === 'string' ? Number(metraza.replace(',', '.')) : Number(metraza);
+                if (!isNaN(metrazaNum)) {
+                    url += `&uom_meter=${metrazaNum}`;
+                }
+            }
+            // Vrsta provodnika ako je definisana (i nije '-')
+            if (form.value.VrstaProvodnika && form.value.VrstaProvodnika !== '-') {
+                url += `&provodnik=${encodeURIComponent(form.value.VrstaProvodnika)}`;
+            }
+            // Tip ako je definisan (i nije '-')
+            if (form.value.Tip && form.value.Tip !== '-') {
+                url += `&tip=${encodeURIComponent(form.value.Tip)}`;
+            }
+            const response = await axios.get(url);
+            const data = response.data;
+            console.log('Received /productslist (TED) items:', data);
+            if (Array.isArray(data)) {
+                // Sortiraj po NumeraProizvoda ako postoji, fallback bez sortiranja
+                data.sort((a, b) => {
+                    const an = Number(a?.NumeraProizvoda);
+                    const bn = Number(b?.NumeraProizvoda);
+                    if (Number.isNaN(an) || Number.isNaN(bn)) return 0;
+                    return an - bn;
+                });
+                productListNew.value = data.map(product => ({
+                    ...product,
+                    selected: false,
+                    kolicina: ''
+                }));
+            } else {
+                productListNew.value = [];
+            }
+        } catch (error) {
+            console.error('Error fetching TED product list:', error);
+        }
+    } else {
+        console.log('Nema product inputa ili je prazan (TED)');
     }
 }
 
@@ -601,13 +699,26 @@ async function getOrderNumber() {
 }
 
 watch(() => form.value.Description, async (newValue) => {
+    // Cancel previous debounce timer
+    if (descriptionDebounceTimer) {
+        clearTimeout(descriptionDebounceTimer);
+        descriptionDebounceTimer = null;
+    }
+
     if (isHydrating.value) return;
     if (isEditMode.value && preferDetailsList.value) { preferDetailsList.value = false; return; }
+
+    // Odmah resetuj listu proizvoda prije nego što se pokrene pretraga
+    productListNew.value = [];
+
     if (!newValue || newValue.length === 0) {
         productSuggestions.value = [];
         return;
     }
-    try {
+
+    // Debounce: pričekaj da korisnik prestane kucati prije nego što učitaš listu
+    descriptionDebounceTimer = setTimeout(async () => {
+        try {
         // Auto-set VrstaProvodnika based on suffix in naziv (e.g., PSED-Cu -> Cu, PSED-Al -> Al)
         // Works for variants like MSED-Cu, MMSED-Cu, CSED-Cu, etc.
         const matchMetal = newValue.match(/-\s*(cu|al)\b/i);
@@ -679,6 +790,13 @@ watch(() => form.value.Description, async (newValue) => {
             return;
         }
 
+        // 2d) TED-CU ili TED-AL: odmah učitaj fleksibilnu listu
+        if (/TED[-\s]?(CU|AL)/i.test(newValue)) {
+            productSuggestions.value = [];
+            await setupProductListTED(form.value.Metraza || null);
+            return;
+        }
+
         // 3) BK-6: odmah učitaj + postavi default vrijednosti za zaključana polja
         if (/(^|\b)BK[-\s]?6(\b|$)/i.test(newValue)) {
             productSuggestions.value = [];
@@ -700,9 +818,48 @@ watch(() => form.value.Description, async (newValue) => {
         // 4) Ostalo: dohvati generalne sugestije
         const { data } = await axios.get(`/products?query=${encodeURIComponent(newValue)}`);
         productSuggestions.value = [...new Set(data.map(p => p.SkraceniNaziv))];
-    } catch (error) {
-        console.error("Error fetching products:", error);
-    }
+
+        // 5) Ako korisnik unese puni naziv (npr. "INICIRAJUĆA CJEVČICA" ili "ŽICA") koji se ne poklapa
+        //    sa skraćenim nazivima, pozovi generički endpoint za prikaz liste proizvoda
+        const matchesShortName = data.some(p =>
+            p.SkraceniNaziv && p.SkraceniNaziv.toLowerCase() === newValue.toLowerCase()
+        );
+
+        // Ako nije pronađen tačan match sa skraćenim nazivom, traži po punom nazivu
+        if (!matchesShortName) {
+            try {
+                const { data: productList } = await axios.get(`/productslist?query=${encodeURIComponent(newValue)}`);
+                if (Array.isArray(productList) && productList.length > 0) {
+                    // Sortiraj po NumeraProizvoda
+                    productList.sort((a, b) => {
+                        const an = Number(a?.NumeraProizvoda);
+                        const bn = Number(b?.NumeraProizvoda);
+                        if (Number.isNaN(an) || Number.isNaN(bn)) return 0;
+                        return an - bn;
+                    });
+                    // Pripremi listu za prikaz
+                    productListNew.value = productList.map(product => ({
+                        ...product,
+                        selected: false,
+                        kolicina: ''
+                    }));
+                    console.log(`Loaded ${productList.length} products for generic name: ${newValue}`);
+                } else {
+                    // Ako nema rezultata, ostavi listu praznu
+                    productListNew.value = [];
+                }
+            } catch (error) {
+                console.error("Error fetching generic product list:", error);
+                productListNew.value = [];
+            }
+        } else {
+            // Ako postoji match sa skraćenim nazivom, ne prikazuj generičku listu
+            // Lista će biti popunjena kroz specifične setup funkcije ili ostati prazna
+        }
+        } catch (error) {
+            console.error("Error fetching products:", error);
+        }
+    }, 400); // Pričekaj 400ms nakon što korisnik prestane kucati
 });
 
 watch([() => form.value.Description, () => form.value.VrstaProvodnika], async ([desc, provodnik]) => {
@@ -746,7 +903,6 @@ watch([() => form.value.Description, () => form.value.Metraza, () => form.value.
     // Specijalan slučaj: PSED-CU ili PSED-AL sa metražom i/ili tipom
     if (/PSED[-\s]?CU/i.test(desc) || /PSED[-\s]?AL/i.test(desc)) {
         try {
-            console.log('Fetching PSED (CU/AL) with metraza and tip:', { metraza, tip });
             await setupProductListPSED(metraza);
             return;
         } catch (error) {
@@ -765,6 +921,17 @@ watch([() => form.value.Description, () => form.value.Metraza, () => form.value.
         }
     }
 
+    // Specijalan slučaj: TED-CU ili TED-AL – osvježi listu bez stroge potrebe za svim filterima
+    if (/TED[-\s]?(CU|AL)/i.test(desc)) {
+        try {
+            console.log('Fetching TED with optional filters:', { metraza, provodnik, tip });
+            await setupProductListTED(metraza);
+            return;
+        } catch (error) {
+            console.error('Error fetching TED:', error);
+        }
+    }
+
     // Izbjegni generički poziv kada su specijalni proizvodi (BK-6/BK-8/BIHNEL/PSED/MSED) aktivni
     if (/(^|\b)BK[-\s]?6(\b|$)/i.test(desc)
         || /(^|\b)DK[-\s]?6(\b|$)/i.test(desc)
@@ -775,10 +942,20 @@ watch([() => form.value.Description, () => form.value.Metraza, () => form.value.
         || /MSED/i.test(desc)) {
         return;
     }
+    // Izbjegni generički poziv i za TED
+    if (/TED[-\s]?(CU|AL)/i.test(desc)) {
+        return;
+    }
     if (desc && metraza && provodnik && tip) {
         try {
-            console.log('Fetching /productslist with', { desc, metraza, provodnik, tip });
-            const { data } = await axios.get(`/productslist?query=${encodeURIComponent(desc)}&uom_meter=${metraza}&provodnik=${encodeURIComponent(provodnik)}&tip=${encodeURIComponent(tip)}`);
+            // Konvertuj metrazu u broj ako je potrebno
+            const metrazaNum = typeof metraza === 'string' ? Number(metraza.replace(',', '.')) : Number(metraza);
+            if (isNaN(metrazaNum)) {
+                console.warn('Invalid metraza value:', metraza);
+                return;
+            }
+            console.log('Fetching /productslist with', { desc, metraza: metrazaNum, provodnik, tip });
+            const { data } = await axios.get(`/productslist?query=${encodeURIComponent(desc)}&uom_meter=${metrazaNum}&provodnik=${encodeURIComponent(provodnik)}&tip=${encodeURIComponent(tip)}`);
             if (!Array.isArray(data)) {
                 console.warn('Unexpected /productslist response shape:', data);
                 productListNew.value = [];
@@ -799,6 +976,13 @@ watch([() => form.value.Description, () => form.value.Metraza, () => form.value.
 
 const partnerError = ref(false);
 const datumPredajeManuallyEdited = ref(false);
+
+// Funkcija za resetovanje forme
+function resetForm() {
+    if (confirm('Da li ste sigurni da želite da resetujete formu? Svi uneseni podaci će biti izgubljeni.')) {
+        window.location.reload();
+    }
+}
 
 // Auto-fill DatumPredaje with OrderDate unless user edits DatumPredaje manually
 watch(() => form.value.OrderDate, (newVal) => {
@@ -986,8 +1170,56 @@ onMounted(async () => {
     } else {
         await getOrderNumber();
     }
+    // Initialize metraza UI string from current numeric value
+    metrazaInput.value = (form.value.Metraza === '' || form.value.Metraza == null)
+        ? ''
+        : String(form.value.Metraza).replace('.', ',');
     console.log('OrderNumbers:', workingOrders.value.map(o => o.OrderNumber));
     // Dobavi workingOrders i ostale podatke po potrebi
+});
+
+// Normalize comma to dot and keep numeric in form.Metraza
+watch(metrazaInput, (val) => {
+    if (isHydrating.value) return;
+    internalMetrazaSync.value = true;
+    const raw = (val ?? '').toString();
+    const normalized = raw.replace(',', '.');
+    console.log('metrazaInput watch - raw:', raw, 'normalized:', normalized);
+    if (normalized.trim() === '') {
+        form.value.Metraza = '';
+    } else {
+        const num = Number(normalized);
+        console.log('Converting to number:', num, 'isNaN:', Number.isNaN(num));
+        form.value.Metraza = Number.isNaN(num) ? '' : num;
+    }
+    console.log('form.value.Metraza set to:', form.value.Metraza);
+    internalMetrazaSync.value = false;
+
+    // Odmah osvježi listu proizvoda ako je PSED/BIHNEL/MSED/TED aktivan
+    const desc = form.value.Description || '';
+    console.log('Checking for product type, desc:', desc, 'metraza:', form.value.Metraza);
+    if (form.value.Metraza !== '' && form.value.Metraza !== null) {
+        if (/PSED[-\s]?(CU|AL)/i.test(desc)) {
+            console.log('PSED detected, calling setupProductListPSED with:', form.value.Metraza);
+            setupProductListPSED(form.value.Metraza);
+        } else if (/BIHNEL\s+(MS|LP|SL)/i.test(desc)) {
+            setupProductListBihnel(form.value.Metraza);
+        } else if (/MSED/i.test(desc)) {
+            setupProductListMSED();
+        } else if (/TED[-\s]?(CU|AL)/i.test(desc)) {
+            setupProductListTED(form.value.Metraza);
+        }
+    }
+});
+
+// Reflect programmatic changes (e.g., setting 0 for BK-6) back into the UI string
+watch(() => form.value.Metraza, (val) => {
+    if (internalMetrazaSync.value) return;
+    if (val === '' || val == null) {
+        metrazaInput.value = '';
+    } else {
+        metrazaInput.value = String(val).replace('.', ',');
+    }
 });
 </script>
 

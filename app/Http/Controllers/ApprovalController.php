@@ -157,15 +157,17 @@ class ApprovalController extends Controller
         }
 
         $orders = $base
-            ->with(['approvals:id,order_id,Funkcija,Odobreno', 'partner:id,name'])
+            ->with(['approvals:id,order_id,Funkcija,Odobreno', 'partner:id,name', 'creator:id,name'])
             ->withSum('details as total_quantity', 'quantity')
-            ->select(['id','OrderNumber','Description','partner_id'])
+            ->select(['id','OrderNumber','Description','partner_id','user_id','created_at','OrderDate'])
             ->latest('id')
             ->get()
             ->map(function ($order) use ($funkcija) {
                 $current = $order->approvals->first(function ($a) use ($funkcija) {
                     return $a->Funkcija === $funkcija && $a->Odobreno === null;
                 });
+                $createdAt = optional($order->created_at)->format('Y-m-d H:i');
+                $creatorName = $order->creator?->name ?? null;
                 return [
                     'id' => $order->id,
                     'OrderNumber' => $order->OrderNumber,
@@ -173,6 +175,10 @@ class ApprovalController extends Controller
                     'partner' => $order->partner?->name,
                     'total_quantity' => (float) ($order->total_quantity ?? 0),
                     'current_approval_id' => $current?->id,
+                    'created_at' => $createdAt,
+                    'OrderDate' => $order->OrderDate,
+                    'creator_name' => $creatorName,
+                    'user_name' => $creatorName,
                 ];
             });
 

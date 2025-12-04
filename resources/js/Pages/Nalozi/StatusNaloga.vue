@@ -42,9 +42,9 @@
                   <th :class="['px-3 py-2 select-none cursor-pointer', thAlign]" @click="setSort('OrderNumber')">
                     Broj <span class="text-[10px] opacity-70" v-if="sortKey==='OrderNumber'">{{ sortIndicator }}</span>
                   </th>
-                  <th :class="['px-3 py-2 select-none cursor-pointer', thAlign]" @click="setSort('OrderDate')">
+                 <!--  <th :class="['px-3 py-2 select-none cursor-pointer', thAlign]" @click="setSort('OrderDate')">
                     Datum <span class="text-[10px] opacity-70" v-if="sortKey==='OrderDate'">{{ sortIndicator }}</span>
-                  </th>
+                  </th> -->
                   <th :class="['px-3 py-2 select-none cursor-pointer', thAlign]" @click="setSort('partner')">
                     Partner <span class="text-[10px] opacity-70" v-if="sortKey==='partner'">{{ sortIndicator }}</span>
                   </th>
@@ -71,7 +71,7 @@
                     </div>
                     <div v-if="o.Description" class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">{{ o.Description }}</div>
                   </td>
-                  <td :class="['px-3 py-2 align-top', tdAlign]">{{ formatDateOnly(o.OrderDate) }}</td>
+              <!--     <td :class="['px-3 py-2 align-top', tdAlign]">{{ formatDateOnly(o.OrderDate) }}</td> -->
                   <td :class="['px-3 py-2 align-top', tdAlign]">
                     <span v-if="o.partner?.name" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200">{{ o.partner.name }}</span>
                   </td>

@@ -64,6 +64,7 @@
                   </td>
                   <td class="px-3 py-2 align-top">
                     <a :href="`/productionorders/${o.id}`" class="font-medium text-blue-600 hover:underline">{{ o.OrderNumber }}</a>
+                    <div class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Kreirano: {{ formatDate(o) }} • {{ creatorName(o) }}</div>
                   </td>
                   <td class="px-3 py-2 align-top">
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
@@ -121,6 +122,8 @@ const q = ref('');
 const sortKey = ref('');
 const sortDir = ref('asc'); // 'asc' | 'desc'
 const totalById = ref({}); // fallback totals
+const createdAtById = ref({});
+const creatorById = ref({});
 
 async function load() {
   try {
@@ -133,6 +136,8 @@ async function load() {
     // Infer funkcija from status if needed; left empty since API doesn't return it
     // Build totals cache
     totalById.value = {};
+    createdAtById.value = {};
+    creatorById.value = {};
     const toFetch = [];
     for (const o of rows.value) {
       const t = Number(o?.total_quantity ?? 0);
@@ -141,6 +146,12 @@ async function load() {
       } else {
         toFetch.push(o.id);
       }
+      if (o.created_at) createdAtById.value[o.id] = o.created_at;
+      if (o.CreatedAt) createdAtById.value[o.id] = o.CreatedAt;
+      if (o.user_name) creatorById.value[o.id] = o.user_name;
+      if (o.creator_name) creatorById.value[o.id] = o.creator_name;
+      if (o.user?.name) creatorById.value[o.id] = o.user.name;
+      if (!createdAtById.value[o.id] && o.OrderDate) createdAtById.value[o.id] = o.OrderDate;
     }
     for (const orderId of toFetch) {
       try {
@@ -148,6 +159,22 @@ async function load() {
         const details = resp?.data?.order?.details || [];
         const sum = details.reduce((a, d) => a + Number(d?.quantity || 0), 0);
         totalById.value[orderId] = sum;
+        const ord = resp?.data?.order;
+        if (ord?.created_at && !createdAtById.value[orderId]) createdAtById.value[orderId] = ord.created_at;
+        if (ord?.user?.name && !creatorById.value[orderId]) creatorById.value[orderId] = ord.user.name;
+      } catch {}
+    }
+    // Fetch creation meta for rows that already had totals
+    const creationFetch = rows.value
+      .filter(o => !createdAtById.value[o.id] || !creatorById.value[o.id])
+      .map(o => o.id)
+      .filter(id => !toFetch.includes(id));
+    for (const orderId of creationFetch) {
+      try {
+        const resp = await axios.get(`/api/productionorders/${orderId}`);
+        const ord = resp?.data?.order;
+        if (ord?.created_at && !createdAtById.value[orderId]) createdAtById.value[orderId] = ord.created_at;
+        if (ord?.user?.name && !creatorById.value[orderId]) creatorById.value[orderId] = ord.user.name;
       } catch {}
     }
   } catch (e) {
@@ -245,6 +272,27 @@ function totalQuantity(o) {
   if (o.totalQty != null) return Number(o.totalQty);
   const details = Array.isArray(o.details) ? o.details : Array.isArray(o.Items) ? o.Items : [];
   return details.reduce((sum, d) => sum + Number(d?.quantity ?? d?.kolicina ?? 0), 0);
+}
+
+function formatDate(o) {
+  const raw = o?.created_at || o?.CreatedAt || createdAtById.value[o?.id];
+  const fallback = o?.OrderDate;
+  if (!raw) return '—';
+  try {
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) {
+      if (fallback) {
+        const fd = new Date(fallback);
+        if (!isNaN(fd.getTime())) return fd.toLocaleDateString('sr-Latn', { year: 'numeric', month: '2-digit', day: '2-digit' });
+      }
+      return raw;
+    }
+    return d.toLocaleDateString('sr-Latn', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  } catch { return raw; }
+}
+
+function creatorName(o) {
+  return o?.user_name || o?.creator_name || (o?.user && o.user.name) || creatorById.value[o?.id] || 'Nepoznato';
 }
 </script>
 

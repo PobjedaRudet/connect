@@ -25,7 +25,7 @@
                   <th class="px-3 py-2 text-center w-8">
                     <input type="checkbox" v-model="selectAll" @change="toggleAll"/>
                   </th>
-                  <th class="px-3 py-2 text-center select-none cursor-pointer" @click="setSort('OrderNumber')">
+                  <th class="px-3 py-2 text-left select-none cursor-pointer" @click="setSort('OrderNumber')">
                     Broj <span class="text-[10px] opacity-70" v-if="sortKey==='OrderNumber'">{{ sortIndicator }}</span>
                   </th>
                   <th class="px-3 py-2 text-center select-none cursor-pointer" @click="setSort('OrderDate')">
@@ -51,11 +51,11 @@
               </thead>
               <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                 <tr v-for="o in displayRows" :key="o.id" class="hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                  <td class="px-3 py-2 text-center">
+                  <td class="px-3 py-2 text-left">
                     <input type="checkbox" v-model="o._sel" :disabled="o.is_void || (o.Status||'').startsWith('na odobrenju') || o.Status==='odobreno'"/>
                   </td>
-                  <td class="px-3 py-2 text-center">
-                    <div class="font-medium flex flex-wrap items-center justify-center gap-2">
+                  <td class="px-3 py-2 text-left">
+                    <div class="font-medium flex flex-wrap items-center justify-left gap-2">
                       <a :href="route('productionorders.show', { order: o.id })" class="text-blue-600 hover:underline">{{ o.OrderNumber }}</a>
                       <span class="text-gray-700 dark:text-gray-200">—</span>
                       <span class="text-gray-800 dark:text-gray-100">

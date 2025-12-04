@@ -1,5 +1,7 @@
 <?php
+
 namespace App\Http\Controllers;
+
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -46,8 +48,19 @@ class ProductController extends Controller
 
         // Ako je metraža proslijeđena, dodaj je u filter
         if ($metraza !== null && $metraza !== '') {
-            $productsQuery->where('UoM_meter', '=', $metraza);
-            Log::info('Added UoM_meter filter', ['metraza' => $metraza]);
+            $normalizedMetraza = str_replace(',', '.', (string) $metraza);
+            $numericMetraza = is_numeric($normalizedMetraza) ? $normalizedMetraza : $metraza;
+            $productsQuery->where(function ($q) use ($metraza, $normalizedMetraza, $numericMetraza) {
+                $q->where('UoM_meter', '=', $metraza)
+                    ->orWhere('UoM_meter', '=', $normalizedMetraza)
+                    ->orWhereRaw('REPLACE(UoM_meter, \',\', \'.\') = ?', [$normalizedMetraza])
+                    ->orWhereRaw('CAST(REPLACE(UoM_meter, \',\', \'.\') AS DECIMAL(18,6)) = ?', [floatval($numericMetraza)]);
+            });
+            Log::info('Added UoM_meter flexible filter', [
+                'original' => $metraza,
+                'normalized' => $normalizedMetraza,
+                'numeric' => $numericMetraza
+            ]);
         }
 
         $products = $productsQuery->get();
@@ -79,8 +92,23 @@ class ProductController extends Controller
 
         // Ako je metraža proslijeđena, dodaj je u filter
         if ($metraza !== null && $metraza !== '') {
-            $productsQuery->where('UoM_meter', '=', $metraza);
-            Log::info('Added UoM_meter filter', ['metraza' => $metraza]);
+            $normalizedMetraza = str_replace(',', '.', (string) $metraza);
+            $numericMetraza = is_numeric($normalizedMetraza) ? $normalizedMetraza : $metraza;
+            $productsQuery->where(function ($q) use ($metraza, $normalizedMetraza, $numericMetraza) {
+                // Direktno poređenje sa originalnom vrednošću (za slučaj da je u bazi sa zarezom)
+                $q->where('UoM_meter', '=', $metraza)
+                    // Poređenje sa normalizovanom vrednošću (za slučaj da je u bazi sa tačkom)
+                    ->orWhere('UoM_meter', '=', $normalizedMetraza)
+                    // Konvertuj vrednosti iz baze (zameni zarez sa tačkom) i uporedi
+                    ->orWhereRaw('REPLACE(UoM_meter, \',\', \'.\') = ?', [$normalizedMetraza])
+                    // CAST na DECIMAL za numeričko poređenje
+                    ->orWhereRaw('CAST(REPLACE(UoM_meter, \',\', \'.\') AS DECIMAL(18,6)) = ?', [floatval($numericMetraza)]);
+            });
+            Log::info('Added UoM_meter flexible filter', [
+                'original' => $metraza,
+                'normalized' => $normalizedMetraza,
+                'numeric' => $numericMetraza
+            ]);
         }
 
         // Ako je Tip proslijeđen, filtriraj po Naziv koloni (npr. "/A" ili "/B" na kraju naziva)
@@ -121,7 +149,7 @@ class ProductController extends Controller
         $allProducts = Product::whereRaw('UPPER(SkraceniNaziv) LIKE ?', ["%{$normalizedQuery}%"])->get();
 
         // Filtriramo da isključimo one gdje prije MSED dolazi slovo (npr. MMSED)
-        $filteredProducts = $allProducts->filter(function($product) use ($normalizedQuery) {
+        $filteredProducts = $allProducts->filter(function ($product) use ($normalizedQuery) {
             $skraceniNaziv = strtoupper($product->SkraceniNaziv);
             $pos = strpos($skraceniNaziv, $normalizedQuery);
 
@@ -140,8 +168,16 @@ class ProductController extends Controller
 
         // Primjeni dodatne filtere na filtriranoj kolekciji
         if ($metraza !== null && $metraza !== '') {
-            $filteredProducts = $filteredProducts->where('UoM_meter', '=', $metraza);
-            Log::info('Added UoM_meter filter', ['metraza' => $metraza]);
+            $normalizedMetraza = str_replace(',', '.', (string) $metraza);
+            $filteredProducts = $filteredProducts->filter(function ($product) use ($metraza, $normalizedMetraza) {
+                $val = (string) $product->UoM_meter;
+                $valNorm = str_replace(',', '.', $val);
+                return $val === (string) $metraza || $val === $normalizedMetraza || $valNorm === $normalizedMetraza;
+            });
+            Log::info('Added UoM_meter flexible filter', [
+                'original' => $metraza,
+                'normalized' => $normalizedMetraza
+            ]);
         }
 
         if ($vrstaProvodnika !== null && $vrstaProvodnika !== '' && $vrstaProvodnika !== '-') {
@@ -150,7 +186,7 @@ class ProductController extends Controller
         }
 
         if ($tip !== null && $tip !== '' && $tip !== '-') {
-            $filteredProducts = $filteredProducts->filter(function($product) use ($tip) {
+            $filteredProducts = $filteredProducts->filter(function ($product) use ($tip) {
                 return stripos($product->Naziv, "/{$tip}") !== false;
             });
             Log::info('Added Tip filter', ['tip' => $tip]);
@@ -183,13 +219,13 @@ class ProductController extends Controller
         $patterns = ($family === 'DK')
             ? ['%DK-6%', '%DK 6%', '%DK6%']
             : ['%BK-6%', '%BK 6%', '%BK6%'];
-        $products = Product::where(function($q) use ($patterns, $normalized) {
-                foreach ($patterns as $p) {
-                    $q->orWhere('SkraceniNaziv', 'like', $p);
-                }
-                // Također pokušaj i tačno poklapanje kao fallback
-                $q->orWhere('SkraceniNaziv', '=', $normalized);
-            })
+        $products = Product::where(function ($q) use ($patterns, $normalized) {
+            foreach ($patterns as $p) {
+                $q->orWhere('SkraceniNaziv', 'like', $p);
+            }
+            // Također pokušaj i tačno poklapanje kao fallback
+            $q->orWhere('SkraceniNaziv', '=', $normalized);
+        })
             ->get();
         Log::info($products);
         return response()->json($products);
@@ -226,18 +262,18 @@ class ProductController extends Controller
         if ($family === 'BK') {
             $builder->where(function ($q) {
                 $q->whereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%BK-8%'])
-                  ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%BK 8%'])
-                  ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%BK8%']);
+                    ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%BK 8%'])
+                    ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%BK8%']);
             });
         } elseif ($family === 'DK') {
             $builder->where(function ($q) {
                 $q->whereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%DK-8%'])
-                  ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%DK 8%'])
-                  ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%DK8%']);
+                    ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%DK 8%'])
+                    ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%DK8%']);
             });
         }
         // Variant detection: prioritize explicit param, else parse from query text
-        $variantToken = in_array($variant, ['LP','MS'], true)
+        $variantToken = in_array($variant, ['LP', 'MS'], true)
             ? $variant
             : (preg_match('/\b(LP|MS)\b/i', $normalized, $mv) ? strtoupper($mv[1]) : null);
         // For BK family, if LP/MS variant was provided or detected, require it in either SkraceniNaziv or NumeraProizvoda
@@ -245,9 +281,9 @@ class ProductController extends Controller
             $builder->where(function ($q) use ($variantToken) {
                 $like = "%{$variantToken}%";
                 $q->whereRaw('UPPER(SkraceniNaziv) LIKE ?', [strtoupper($like)])
-                  ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', [strtoupper(" %{$variantToken}%")])
-                  ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', [strtoupper("%-{$variantToken}%")])
-                  ->orWhereRaw('CAST(NumeraProizvoda AS CHAR) LIKE ?', [$like]);
+                    ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', [strtoupper(" %{$variantToken}%")])
+                    ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', [strtoupper("%-{$variantToken}%")])
+                    ->orWhereRaw('CAST(NumeraProizvoda AS CHAR) LIKE ?', [$like]);
             });
         }
         $products = $builder->get();
@@ -257,14 +293,14 @@ class ProductController extends Controller
             if ($family === 'BK') {
                 $relaxed->where(function ($q) {
                     $q->whereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%BK-8%'])
-                      ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%BK 8%'])
-                      ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%BK8%']);
+                        ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%BK 8%'])
+                        ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%BK8%']);
                 });
             } else {
                 $relaxed->where(function ($q) {
                     $q->whereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%DK-8%'])
-                      ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%DK 8%'])
-                      ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%DK8%']);
+                        ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%DK 8%'])
+                        ->orWhereRaw('UPPER(SkraceniNaziv) LIKE ?', ['%DK8%']);
                 });
             }
             $products = $relaxed->get();
@@ -283,19 +319,74 @@ class ProductController extends Controller
 
     public function numeredlist(Request $request)
     {
-
-        $query = $request->input('query');
-        $numera = $request->input('uom_meter');
+        $query = (string) $request->input('query', '');
+        $uom = $request->input('uom_meter'); // može imati 2,5 ili 2.5
         $provodnik = $request->input('provodnik');
         $tip = $request->input('tip');
-        $products = [];
-        if (class_exists('App\\Models\\Product')) {
-            $products = \App\Models\Product::where('SkraceniNaziv', $query)
-                ->where('uom_meter', $numera)
-                ->where('VrstaProvodnika', $provodnik)
-                ->where('Tip', $tip)
-                ->get();
+
+        $normalizedQuery = strtoupper(trim($query));
+        $builder = Product::query()
+            ->whereRaw('UPPER(SkraceniNaziv) LIKE ?', ["%{$normalizedQuery}%"]);
+
+        // Fleksibilan filter za UoM_meter (podržava 2,5 i 2.5 i numeričko poređenje)
+        if ($uom !== null && $uom !== '') {
+            $original = (string) $uom;
+            $dotForm = str_replace(',', '.', $original);
+            $commaForm = str_replace('.', ',', $original); // ako je poslan 2.5, dodaj i 2,5
+            $numeric = is_numeric($dotForm) ? (float) $dotForm : null;
+            $builder->where(function ($q) use ($original, $dotForm, $commaForm, $numeric) {
+                $q->where('UoM_meter', '=', $original)
+                    ->orWhere('UoM_meter', '=', $dotForm)
+                    ->orWhere('UoM_meter', '=', $commaForm)
+                    ->orWhereRaw('REPLACE(UoM_meter, ",", ".") = ?', [$dotForm]);
+                if ($numeric !== null) {
+                    // Ako je kolona numerička ili se može kastovati
+                    $q->orWhereRaw('CAST(REPLACE(UoM_meter, ",", ".") AS DECIMAL(18,6)) = ?', [$numeric]);
+                }
+            });
+            Log::info('numeredlist UoM_meter flexible filter', [
+                'original' => $original,
+                'dotForm' => $dotForm,
+                'commaForm' => $commaForm,
+                'numeric' => $numeric,
+            ]);
         }
-        return response()->json($products);
+
+        // Vrsta provodnika (tačno poklapanje) ako je proslijeđena i nije '-'
+        if ($provodnik !== null && $provodnik !== '' && $provodnik !== '-') {
+            $builder->where('VrstaProvodnika', '=', $provodnik);
+            Log::info('numeredlist provodnik filter', ['provodnik' => $provodnik]);
+        }
+
+        // Tip: tražimo unutar Naziv pattern "/A" ili "/B" itd.
+        if ($tip !== null && $tip !== '' && $tip !== '-') {
+            $tipUpper = strtoupper($tip);
+            $builder->whereRaw('UPPER(Naziv) LIKE ?', ["%/{$tipUpper}%"]);
+            Log::info('numeredlist tip filter', ['tip' => $tipUpper]);
+        }
+
+        $products = $builder->get();
+
+        // Sort stabilizacija: prvo numerički UoM_meter ako se može parsirati, zatim NumeraProizvoda
+        $sorted = $products->sort(function ($a, $b) {
+            $am = (float) str_replace(',', '.', (string) $a->UoM_meter);
+            $bm = (float) str_replace(',', '.', (string) $b->UoM_meter);
+            if ($am == $bm) {
+                $an = (int) ($a->NumeraProizvoda ?? 0);
+                $bn = (int) ($b->NumeraProizvoda ?? 0);
+                return $an <=> $bn;
+            }
+            return $am <=> $bm;
+        })->values();
+
+        Log::info('numeredlist results', [
+            'count' => $sorted->count(),
+            'query' => $query,
+            'uom_raw' => $uom,
+            'provodnik' => $provodnik,
+            'tip' => $tip,
+        ]);
+
+        return response()->json($sorted);
     }
 }
