@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\OrdersApiController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\ProductionOrderController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeAttendanceController;
 use App\Http\Controllers\KontrolniPreglediController;
 use App\Http\Controllers\PreglediController;
 use App\Models\KontrolniPregledi;
@@ -96,6 +97,12 @@ Route::prefix('v1')->group(function () {
         // Send selected orders for approval
         Route::post('orders/send-for-approval', [ApprovalController::class, 'sendForApproval']);
     });
+});
+
+// Employee attendance API endpoints for terminal (scan in/out)
+Route::middleware('throttle:api')->group(function () {
+    Route::post('/scan', [EmployeeAttendanceController::class, 'scan']);
+    Route::post('/offline-scan', [EmployeeAttendanceController::class, 'offlineScan']);
 });
 
 
