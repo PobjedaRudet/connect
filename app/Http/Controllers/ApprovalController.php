@@ -881,6 +881,39 @@ class ApprovalController extends Controller
                     foreach ($pending as $pf) { if ($pf !== 'Radnik') { $nextF = $pf; break; } }
                     if ($nextF) {
                         ProductionOrder::where('id', $approval->order_id)->update(['Status' => 'na odobrenju kod ' . $nextF]);
+
+                        // Notify next approver(s) by email (same as other approve flows)
+                        $orderForMail = ProductionOrder::with(['partner','creator','details.product'])
+                            ->find($approval->order_id);
+                        if ($orderForMail) {
+                            $ordersForMail = [[
+                                'OrderNumber' => $orderForMail->OrderNumber,
+                                'Description' => $orderForMail->Description,
+                                'partner' => optional($orderForMail->partner)->name,
+                                'total_qty' => (float) ($orderForMail->details->sum('quantity')),
+                                'approval_ids' => Approval::where('order_id', $orderForMail->id)
+                                    ->where('Funkcija', $nextF)
+                                    ->whereNull('Odobreno')
+                                    ->pluck('id')
+                                    ->values()
+                                    ->all(),
+                            ]];
+
+                            $recipients = User::where('funkcija', $nextF)->get(['id','email']);
+                            foreach ($recipients as $userRec) {
+                                if (!$userRec->email) continue;
+                                try {
+                                    Mail::to($userRec->email)->queue(new OrderApprovalMail($ordersForMail, $nextF, $userRec->id));
+                                } catch (\Throwable $e) {
+                                    Log::error('EmailDirectApprove: failed to queue next approver mail', [
+                                        'order_id' => $orderForMail->id,
+                                        'nextF' => $nextF,
+                                        'user_id' => $userRec->id,
+                                        'error' => $e->getMessage(),
+                                    ]);
+                                }
+                            }
+                        }
                     }
                 }
 
