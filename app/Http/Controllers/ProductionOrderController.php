@@ -421,11 +421,13 @@ class ProductionOrderController extends Controller
 
             // Optional: additional lookup by token if needed (skipped)
 
-            // Send an email notification
-            if (!empty('h.ahmet@pobjeda.com')) {
-                Mail::to('h.ahmet@pobjeda.com')->send(new OrderStatusUpdated($order));
+            // Send an email notification to order creator; fallback to default if missing
+            $order->load(['creator:id,email']);
+            $creatorEmail = optional($order->creator)->email;
+            if ($creatorEmail) {
+                Mail::to($creatorEmail)->send(new OrderStatusUpdated($order));
             } else {
-                Log::warning("Order does not have a customer email, using default email h.ahmet@pobjeda.com:", ['order' => $order]);
+                Log::warning('Order creator email missing; sending to default notification address.', ['order_id' => $order->id]);
                 Mail::to('h.ahmet@pobjeda.com')->send(new OrderStatusUpdated($order));
             }
 

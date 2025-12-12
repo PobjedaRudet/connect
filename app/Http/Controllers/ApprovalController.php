@@ -637,10 +637,24 @@ class ApprovalController extends Controller
         // Creator + all actual approvers for this order
         $creatorEmail = optional($order->creator)->email;
         $approvals = $order->relationLoaded('approvals') ? $order->approvals : Approval::where('order_id', $order->id)->get();
+
+        // 1) Emails stvarnih potpisnika (UserId koji su odobrili)
         $userIds = $approvals->whereNotNull('UserId')->where('Odobreno', true)->pluck('UserId')->unique()->values()->all();
         $approverEmails = empty($userIds) ? collect() : User::whereIn('id', $userIds)->pluck('email');
+
+        // 2) Ako je potpisano kao proxy, obavijesti i osobe na ciljnoj funkciji (za koje je neko potpisao)
+        $proxyTargets = $approvals
+            ->where('Odobreno', true)
+            ->where('signed_by_proxy', true)
+            ->pluck('Funkcija')
+            ->unique()
+            ->values()
+            ->all();
+        $proxyTargetEmails = empty($proxyTargets) ? collect() : User::whereIn('funkcija', $proxyTargets)->pluck('email');
+
         return collect([$creatorEmail])
             ->merge($approverEmails)
+            ->merge($proxyTargetEmails)
             ->filter()
             ->unique()
             ->values()

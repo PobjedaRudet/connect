@@ -6,9 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Novi nalozi na odobrenje</title>
     <style>
+        /* Keep minimal styles; Outlook ignores most head CSS */
         body { font-family: Arial, Helvetica, sans-serif; color:#111827; }
-        .btn { display:inline-block; padding:10px 16px; border-radius:6px; text-decoration:none; color:#fff; }
-        .btn-success { background:#16a34a; }
         .muted { color:#6b7280; font-size:12px; }
         .table { width:100%; border-collapse: collapse; margin-top:8px; margin-bottom:16px; }
         .table th, .table td { border:1px solid #e5e7eb; padding:8px; text-align:left; font-size:14px; }
@@ -45,7 +44,19 @@
     </table>
 
     <p>
-        <a class="btn btn-success" href="{{ $directUrl }}">Odobri navedene naloge</a>
+        <!--[if mso]>
+        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{ $directUrl }}" style="height:40px;v-text-anchor:middle;width:260px;" arcsize="12%" strokecolor="#16a34a" fillcolor="#16a34a">
+            <w:anchorlock/>
+            <center style="color:#ffffff;font-family:Arial, Helvetica, sans-serif;font-size:14px;">
+                Odobri navedene naloge
+            </center>
+        </v:roundrect>
+        <![endif]-->
+        <!--[if !mso]><!-- -->
+        <a href="{{ $directUrl }}" style="background-color:#16a34a;border:1px solid #16a34a;border-radius:6px;color:#ffffff;display:inline-block;font-family:Arial, Helvetica, sans-serif;font-size:14px;line-height:40px;text-align:center;text-decoration:none;width:260px;-webkit-text-size-adjust:none;mso-hide:all;">
+            Odobri navedene naloge
+        </a>
+        <!--<![endif]-->
     </p>
 
     <p class="muted">Napomena: Link je vremenski ograničen i važi samo dok su nalozi u statusu čekanja odobrenja kod vas.</p>
