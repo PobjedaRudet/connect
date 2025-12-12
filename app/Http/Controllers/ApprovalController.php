@@ -873,6 +873,26 @@ class ApprovalController extends Controller
                         $update['DatumPrijema'] = $approval->DatumOdobravanja ?? now();
                     }
                     ProductionOrder::where('id', $approval->order_id)->update($update);
+
+                    // If Šef Operative finalized via email link, notify all participants
+                    if ($approval->Funkcija === 'Šef Operative') {
+                        $order = ProductionOrder::with(['partner','creator','details.product','approvals'])->find($approval->order_id);
+                        if ($order) {
+                            $summary = $this->summarizeOrderForEmail($order);
+                            $recipients = $this->getOrderParticipantsEmails($order);
+                            foreach ($recipients as $email) {
+                                try {
+                                    Mail::to($email)->queue(new OrderFinalApprovedMail([$summary]));
+                                } catch (\Throwable $e) {
+                                    Log::error('EmailDirectApprove: failed to queue final approved mail', [
+                                        'order_id' => $order->id,
+                                        'email' => $email,
+                                        'error' => $e->getMessage(),
+                                    ]);
+                                }
+                            }
+                        }
+                    }
                 } else {
                     $pending = Approval::where('order_id', $approval->order_id)->whereNull('Odobreno')
                         ->orderByRaw("FIELD(Funkcija, '" . implode("','", $hierarchy) . "')")
