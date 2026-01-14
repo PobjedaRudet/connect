@@ -2,10 +2,14 @@
 
 namespace App\Services;
 
+use App\Mail\PassCreatedMail;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
+use App\Models\Pass;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class AttendanceService
 {
@@ -38,23 +42,35 @@ class AttendanceService
         if ($openRecord) {
             // If a pass prefix while working: toggle pass (issue or close)
             if ($passType) {
+                $openPassAnyType = Pass::where('employee_id', $employee->id)
+                    ->where('status', 'open')
+                    ->whereNull('end_time')
+                    ->latest('start_time')
+                    ->first();
+
+                if ($openPassAnyType) {
+                    $closedPass = $this->closePassWithDuration($openPassAnyType, Carbon::now());
+                    return [
+                        'status' => 'pass-closed',
+                        'message' => $openPassAnyType->type === 'privatni' ? 'Izlaznica zatvorena' : 'Službena izlaznica zatvorena',
+                        'pass' => $closedPass,
+                    ];
+                }
+
                 return $this->togglePass($employee, $openRecord, $passType);
             }
             // No prefix: if there's an active (open) pass, close it automatically instead of checkout
-            $activePass = \App\Models\Pass::where('employee_id', $employee->id)
+            $activePass = Pass::where('employee_id', $employee->id)
                 ->where('status', 'open')
                 ->whereNull('end_time')
                 ->latest('start_time')
                 ->first();
             if ($activePass) {
-                $activePass->update([
-                    'end_time' => Carbon::now(),
-                    'status' => 'closed',
-                ]);
+                $closedPass = $this->closePassWithDuration($activePass, Carbon::now());
                 return [
                     'status' => 'pass-closed',
-                    'message' => $activePass->type === 'privatni' ? 'Privatna izlaznica zatvorena' : 'Službena izlaznica zatvorena',
-                    'pass' => $activePass,
+                    'message' => $activePass->type === 'privatni' ? 'Izlaznica zatvorena' : 'Službena izlaznica zatvorena',
+                    'pass' => $closedPass,
                 ];
             }
             // No active pass: proceed with checkout
@@ -105,6 +121,21 @@ class AttendanceService
         if ($openRecord) {
             if ($passType) {
                 // Toggle pass with provided timestamp
+                $openPassAnyType = \App\Models\Pass::where('employee_id', $employee->id)
+                    ->where('status', 'open')
+                    ->whereNull('end_time')
+                    ->latest('start_time')
+                    ->first();
+
+                if ($openPassAnyType) {
+                    $closedPass = $this->closePassWithDuration($openPassAnyType, $moment);
+                    return [
+                        'status' => 'pass-closed',
+                        'message' => $openPassAnyType->type === 'privatni' ? 'Izlaznica zatvorena (offline)' : 'Službena izlaznica zatvorena (offline)',
+                        'pass' => $closedPass,
+                    ];
+                }
+
                 return $this->togglePassAtTime($employee, $openRecord, $passType, $moment);
             }
             // Auto-close pass if one is active
@@ -114,14 +145,11 @@ class AttendanceService
                 ->latest('start_time')
                 ->first();
             if ($activePass) {
-                $activePass->update([
-                    'end_time' => $moment,
-                    'status' => 'closed',
-                ]);
+                $closedPass = $this->closePassWithDuration($activePass, $moment);
                 return [
                     'status' => 'pass-closed',
-                    'message' => $activePass->type === 'privatni' ? 'Privatna izlaznica zatvorena (offline)' : 'Službena izlaznica zatvorena (offline)',
-                    'pass' => $activePass,
+                    'message' => $activePass->type === 'privatni' ? 'Izlaznica zatvorena (offline)' : 'Službena izlaznica zatvorena (offline)',
+                    'pass' => $closedPass,
                 ];
             }
             // Checkout with provided timestamp
@@ -143,12 +171,12 @@ class AttendanceService
         }
 
         // Check-in using provided timestamp
-        $shift = $this->findClosestShift($employee, $moment);
+        $closest = $this->findClosestShift($employee, $moment);
+        $shift = $closest['shift'] ?? null;
         $effectiveStart = null;
         $lateFlag = 'none';
-        if ($shift) {
-            $shiftStart = $this->buildShiftStartForDate($shift->start_time, $moment);
-            [$effectiveStart, $lateFlag] = $this->adjustStartTime($shiftStart, $moment);
+        if ($shift && !empty($closest['start'])) {
+            [$effectiveStart, $lateFlag] = $this->adjustStartTime($closest['start'], $moment);
         }
         $record = AttendanceRecord::create([
             'employee_id' => $employee->id,
@@ -174,13 +202,14 @@ class AttendanceService
     {
         $entryTime = Carbon::now();
 
-        $shift = $this->findClosestShift($employee, $entryTime);
+        $closest = $this->findClosestShift($employee, $entryTime);
+        $shift = $closest['shift'] ?? null;
+        Log::debug('Closest shift for employee '.$employee->id.': '.($shift ? $shift->id : 'none'));
 
         $effectiveStart = null;
         $lateFlag = 'none';
-        if ($shift) {
-            $shiftStart = Carbon::today()->setTimeFromTimeString($shift->start_time);
-            [$effectiveStart, $lateFlag] = $this->adjustStartTime($shiftStart, $entryTime);
+        if ($shift && !empty($closest['start'])) {
+            [$effectiveStart, $lateFlag] = $this->adjustStartTime($closest['start'], $entryTime);
         }
 
         $record = AttendanceRecord::create([
@@ -223,61 +252,68 @@ class AttendanceService
     /**
      * Pronalazi najbližu smjenu radniku.
      */
-    private function findClosestShift(Employee $employee, Carbon $entryTime)
+    private function findClosestShift(Employee $employee, Carbon $entryTime): ?array
     {
-        // Biraj smjene isključivo iz employee departmenta
-        $department = $employee->department;
-        if (!$department) {
+        // Smjene su vezane za radnika preko pivot tabele employee_shift.
+        if (!method_exists($employee, 'shifts')) {
+            Log::warning("Employee model nema relaciju shifts(); findClosestShift ne može dohvatiti smjene za employee_id={$employee->id}");
             return null;
         }
-        $shifts = $department->shifts;
 
-        $closestShift = null;
-        $minFutureDiff = null; // prefer upcoming shift on same day
-        $minPastDiff = null;   // fallback: closest past shift on same day
+        $shifts = $employee->shifts()->get();
+        if ($shifts->isEmpty()) {
+            return null;
+        }
+
+        $bestShift = null;
+        $bestShiftStart = null;
+        $bestAbsDiff = null;
+        $bestSignedDiff = null;
 
         foreach ($shifts as $shift) {
-            $shiftStart = Carbon::today()->setTimeFromTimeString($shift->start_time);
-            $minutesToShift = $entryTime->diffInMinutes($shiftStart, false); // negative if past
+            $baseStart = $this->buildShiftStartForDate($shift->start_time, $entryTime);
 
-            // If entry falls within this shift window (start..end), choose it directly
-            if (!empty($shift->end_time)) {
-                $shiftEnd = Carbon::today()->setTimeFromTimeString($shift->end_time);
-                if ($entryTime->betweenIncluded($shiftStart, $shiftEnd)) {
-                    $closestShift = $shift;
-                    break;
-                }
-            } else {
-                // No end_time defined: if entry is after start but before next shift start (handled below), favor this as past
-                if ($minutesToShift < 0 && $minFutureDiff === null) {
-                    $absPast = abs($minutesToShift);
-                    if ($minPastDiff === null || $absPast < $minPastDiff) {
-                        $minPastDiff = $absPast;
-                        $closestShift = $shift;
-                    }
+            // Consider same-day, previous-day and next-day starts (important around midnight).
+            $candidates = [
+                $baseStart->copy()->subDay(),
+                $baseStart,
+                $baseStart->copy()->addDay(),
+            ];
+
+            foreach ($candidates as $candidateStart) {
+                $signedDiff = $entryTime->diffInMinutes($candidateStart, false); // negative => candidate in past
+                $absDiff = abs($signedDiff);
+
+                if ($bestAbsDiff === null || $absDiff < $bestAbsDiff) {
+                    $bestAbsDiff = $absDiff;
+                    $bestSignedDiff = $signedDiff;
+                    $bestShift = $shift;
+                    $bestShiftStart = $candidateStart;
                     continue;
                 }
-            }
 
-            if ($minutesToShift >= 0) {
-                // future or now: prefer smallest non-negative
-                if ($minFutureDiff === null || $minutesToShift < $minFutureDiff) {
-                    $minFutureDiff = $minutesToShift;
-                    $closestShift = $shift;
-                }
-            } else {
-                // past: consider as fallback only if no future available
-                $absPast = abs($minutesToShift);
-                if ($minFutureDiff === null) {
-                    if ($minPastDiff === null || $absPast < $minPastDiff) {
-                        $minPastDiff = $absPast;
-                        $closestShift = $shift;
+                // Tie-break: if equally close, prefer future (signedDiff >= 0)
+                if ($absDiff === $bestAbsDiff) {
+                    $bestIsFuture = $bestSignedDiff !== null && $bestSignedDiff >= 0;
+                    $candidateIsFuture = $signedDiff >= 0;
+                    if ($candidateIsFuture && !$bestIsFuture) {
+                        $bestSignedDiff = $signedDiff;
+                        $bestShift = $shift;
+                        $bestShiftStart = $candidateStart;
                     }
                 }
             }
         }
 
-        return $closestShift;
+        if (!$bestShift || !$bestShiftStart) {
+            return null;
+        }
+
+        return [
+            'shift' => $bestShift,
+            'start' => $bestShiftStart,
+            'diff_minutes' => $bestSignedDiff,
+        ];
     }
 
     /**
@@ -299,92 +335,291 @@ class AttendanceService
             return [$shiftStart->copy()->addMinutes(30), 'minor30'];
         }
         else {
-            // ako želiš: automatski označi "znatno kašnjenje"
-            return [$shiftStart->copy()->addHour()->minute(0), 'major'];
+            // znatno kašnjenje: effective_start = stvarno vrijeme ulaska
+            return [$entryTime, 'major'];
         }
     }
 
     /**
-     * Izdavanje izlaznice (private | business) samo dok je radnik prijavljen.
+     * ONLINE - Izdavanje izlaznice (private | business) samo dok je radnik prijavljen.
      */
     private function togglePass(Employee $employee, AttendanceRecord $openRecord, string $type): array
     {
         $now = Carbon::now();
-        $openPass = \App\Models\Pass::where('employee_id', $employee->id)
+        // Prefer matching type; if none, close any open pass for the employee before issuing new one
+        $openPass = Pass::where('employee_id', $employee->id)
             ->where('type', $type)
             ->where('status', 'open')
             ->whereNull('end_time')
             ->latest('start_time')
             ->first();
 
+        if (!$openPass) {
+            $openPass = Pass::where('employee_id', $employee->id)
+                ->where('status', 'open')
+                ->whereNull('end_time')
+                ->latest('start_time')
+                ->first();
+        }
+
         if ($openPass) {
-            // Close existing pass
-            $openPass->update([
-                'end_time' => $now,
-                'status' => 'closed',
-            ]);
+            // Close existing pass (regardless of originally requested type) and compute duration
+            $closedPass = $this->closePassWithDuration($openPass, $now);
+            $closedType = $openPass->type === 'privatni' ? 'privatni' : 'službeni';
             return [
                 'status' => 'pass-closed',
-                'message' => $type === 'privatni' ? 'Privatna izlaznica zatvorena' : 'Službena izlaznica zatvorena',
-                'pass' => $openPass,
+                'message' => $closedType === 'privatni' ? 'Izlaznica zatvorena' : 'Službena izlaznica zatvorena',
+                'pass' => $closedPass,
             ];
         }
 
         // Issue new pass
-        $pass = \App\Models\Pass::create([
+        $passStart = $now;
+        if ($openRecord->effective_start && $passStart->lt($openRecord->effective_start)) {
+            $passStart = $openRecord->effective_start;
+        }
+        $pass = Pass::create([
             'employee_id' => $employee->id,
             'type' => $type,
             'reason' => '',
-            'start_time' => $now,
+            'start_time' => $passStart,
             'end_time' => null,
             'approved_by' => null,
             'status' => 'open',
         ]);
+
+        $this->sendPassCreatedEmailToSupervisors($employee, $pass);
+
         return [
             'status' => 'pass-open',
-            'message' => $type === 'privatni' ? 'Privatna izlaznica izdana' : 'Službena izlaznica izdana',
+            'message' => $type === 'privatni' ? 'Izlaznica izdana' : 'Službena izlaznica izdana',
             'pass' => $pass,
         ];
     }
 
     /**
-     * Toggle pass at a given moment (offline scenario).
+     * OFFLINE - Toggle pass at a given moment (OFFLINE scenario).
      */
     private function togglePassAtTime(Employee $employee, AttendanceRecord $openRecord, string $type, Carbon $moment): array
     {
-        $openPass = \App\Models\Pass::where('employee_id', $employee->id)
+        // Prefer matching type; if none, close any open pass for the employee before issuing new one
+        $openPass = Pass::where('employee_id', $employee->id)
             ->where('type', $type)
             ->where('status', 'open')
             ->whereNull('end_time')
             ->latest('start_time')
             ->first();
 
+        if (!$openPass) {
+            $openPass = Pass::where('employee_id', $employee->id)
+                ->where('status', 'open')
+                ->whereNull('end_time')
+                ->latest('start_time')
+                ->first();
+        }
+
         if ($openPass) {
-            $openPass->update([
-                'end_time' => $moment,
-                'status' => 'closed',
-            ]);
+            $closedPass = $this->closePassWithDuration($openPass, $moment);
+            $msgType = $openPass->type === 'privatni' ? 'privatni' : 'službeni';
             return [
                 'status' => 'pass-closed',
-                'message' => $type === 'privatni' ? 'Privatna izlaznica zatvorena (offline)' : 'Službena izlaznica zatvorena (offline)',
-                'pass' => $openPass,
+                'message' => $msgType === 'privatni' ? 'Izlaznica zatvorena (offline)' : 'Službena izlaznica zatvorena (offline)',
+                'pass' => $closedPass,
             ];
         }
 
-        $pass = \App\Models\Pass::create([
+        $passStart = $moment;
+        if ($openRecord->effective_start && $passStart->lt($openRecord->effective_start)) {
+            $passStart = $openRecord->effective_start;
+        }
+        $pass = Pass::create([
             'employee_id' => $employee->id,
             'type' => $type,
             'reason' => '',
-            'start_time' => $moment,
+            'start_time' => $passStart,
             'end_time' => null,
             'approved_by' => null,
             'status' => 'open',
         ]);
+
+        $this->sendPassCreatedEmailToSupervisors($employee, $pass);
+
         return [
             'status' => 'pass-open',
-            'message' => $type === 'privatni' ? 'Privatna izlaznica izdana (offline)' : 'Službena izlaznica izdana (offline)',
+            'message' => $type === 'privatni' ? 'Izlaznica izdana (offline)' : 'Službena izlaznica izdana (offline)',
             'pass' => $pass,
         ];
+    }
+
+    private function sendPassCreatedEmailToSupervisors(Employee $employee, Pass $pass): void
+    {
+        try {
+            Log::info('Pass created: preparing notification email', [
+                'employee_id' => $employee->id ?? null,
+                'pass_id' => $pass->id ?? null,
+                'pass_type' => $pass->type ?? null,
+                'mail_default' => config('mail.default'),
+                'from' => config('mail.from.address'),
+                'nadlezne_osobe' => $employee->nadlezne_osobe ?? null,
+            ]);
+
+            $emails = $this->resolveSupervisorEmails($employee);
+            if (empty($emails)) {
+                Log::warning('Pass created email skipped: no supervisor emails resolved', [
+                    'employee_id' => $employee->id ?? null,
+                    'pass_id' => $pass->id ?? null,
+                    'nadlezne_osobe' => $employee->nadlezne_osobe ?? null,
+                ]);
+                return;
+            }
+
+            Log::info('Sending pass created email', [
+                'employee_id' => $employee->id ?? null,
+                'pass_id' => $pass->id ?? null,
+                'recipients' => $emails,
+            ]);
+
+            Mail::to($emails)->send(new PassCreatedMail($pass, $employee));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to send pass created email', [
+                'employee_id' => $employee->id ?? null,
+                'pass_id' => $pass->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Reads employees.nadlezne_osobe (JSON/scalar) as list of USER ids (users.id) and resolves their emails.
+     * Accepts either array, JSON string, numeric string, or integer.
+     *
+     * @return string[]
+     */
+    private function resolveSupervisorEmails(Employee $employee): array
+    {
+        $raw = $employee->nadlezne_osobe ?? null;
+
+        // Some records may store a single supervisor id as a scalar (e.g. 260) instead of JSON array.
+        if (is_int($raw)) {
+            $raw = [$raw];
+        }
+        if (is_string($raw)) {
+            // numeric string => treat as a single id
+            if (ctype_digit($raw)) {
+                $raw = [(int) $raw];
+            }
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : null;
+        }
+
+        if (!is_array($raw) || empty($raw)) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($raw as $value) {
+            if (is_int($value) || is_string($value)) {
+                $value = (int) $value;
+                if ($value > 0) {
+                    $ids[] = $value;
+                }
+            }
+        }
+        $ids = array_values(array_unique($ids));
+        if (empty($ids)) {
+            return [];
+        }
+
+        $supervisors = User::query()
+            ->whereIn('id', $ids)
+            ->get(['id', 'email']);
+
+        $foundIds = $supervisors->pluck('id')->map(fn ($v) => (int) $v)->all();
+        $missingIds = array_values(array_diff($ids, $foundIds));
+        if (!empty($missingIds)) {
+            Log::warning('Pass email: supervisor ids not found in users table', [
+                'employee_id' => $employee->id ?? null,
+                'missing_supervisor_ids' => $missingIds,
+            ]);
+        }
+
+        $missingEmailIds = $supervisors
+            ->filter(fn ($s) => empty($s->email) || trim((string) $s->email) === '')
+            ->pluck('id')
+            ->map(fn ($v) => (int) $v)
+            ->values()
+            ->all();
+
+        if (!empty($missingEmailIds)) {
+            Log::warning('Pass email: supervisor users have no email set', [
+                'employee_id' => $employee->id ?? null,
+                'supervisor_ids_missing_email' => $missingEmailIds,
+            ]);
+        }
+
+        return $supervisors
+            ->pluck('email')
+            ->filter(fn ($email) => is_string($email) && trim($email) !== '')
+            ->map(fn ($email) => trim((string) $email))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Close a pass and persist its duration in minutes.
+     */
+    private function closePassWithDuration(Pass $pass, ?Carbon $endTime): Pass
+    {
+        if (!$endTime) {
+            $pass->update([
+                'end_time' => null,
+                'status' => 'closed',
+                'duration_minutes' => null,
+            ]);
+
+            return $pass;
+        }
+
+        $start = $pass->start_time ?: $endTime;
+
+        // If the employee returns before the pass actually starts (e.g. pass start_time was
+        // shifted to effective_start), duration must be 0.
+        if ($start && $endTime->lessThanOrEqualTo($start)) {
+            $pass->update([
+                'end_time' => $endTime,
+                'status' => 'closed',
+                'duration_minutes' => 0,
+            ]);
+
+            return $pass;
+        }
+
+        // If privatni, count until end of workday; if službeni, count until actual return time.
+        $endReference = $pass->type === 'privatni'
+            ? $this->resolveWorkdayEnd($start)
+            : $endTime;
+
+        $durationMinutes = $start ? max($start->diffInMinutes($endReference, false), 0) : null;
+
+        $pass->update([
+            'end_time' => $endTime,
+            'status' => 'closed',
+            'duration_minutes' => $durationMinutes,
+        ]);
+
+        return $pass;
+    }
+
+    private function resolveWorkdayEnd(Carbon $start): Carbon
+    {
+        $endTimeString = config('app.workday_end_time', '15:00');
+
+        try {
+            return Carbon::parse($start->toDateString() . ' ' . $endTimeString);
+        } catch (\Throwable $e) {
+            return $start->copy()->setTime(15, 0);
+        }
     }
 
     /**

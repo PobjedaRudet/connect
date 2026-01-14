@@ -15,6 +15,10 @@ class FunkcijeSeeder extends Seeder
             ['Funkcija' => 'Direktor Komercijale', 'Opis' => 'Direktor Komercijale', 'Redosljed' => 3],
             ['Funkcija' => 'Direktor Proizvodnje', 'Opis' => 'Direktor Proizvodnje', 'Redosljed' => 4],
             ['Funkcija' => 'Šef Operative', 'Opis' => 'Šef Operative', 'Redosljed' => 5],
+
+            // Production substitutes (not part of the main approval chain; used when Director of Production is absent)
+            ['Funkcija' => 'Zamjenik1', 'Opis' => 'Zamjenik1', 'Redosljed' => 90],
+            ['Funkcija' => 'Zamjenik2', 'Opis' => 'Zamjenik2', 'Redosljed' => 91],
         ];
 
         foreach ($rows as $row) {

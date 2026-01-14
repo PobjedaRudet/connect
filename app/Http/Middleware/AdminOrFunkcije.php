@@ -19,7 +19,7 @@ class AdminOrFunkcije
             return redirect()->route('login');
         }
 
-        if ($user->isadmin) {
+        if (!empty($user->isadmin)) {
             return $next($request);
         }
 

@@ -28,7 +28,7 @@ const logout = () => {
 
 const page = usePage();
 const userFunkcija = computed(() => (page?.props?.auth?.user?.funkcija ?? null));
-const isAdmin = computed(() => !!(page?.props?.auth?.user?.isadmin));
+const isAdmin = computed(() => !!(page?.props?.auth?.user?.isadmin || page?.props?.auth?.user?.is_admin));
 </script>
 
 <template>
@@ -165,10 +165,6 @@ const isAdmin = computed(() => !!(page?.props?.auth?.user?.isadmin));
                                             Navigacija
                                         </div>
 
-                                        <DropdownLink v-if="$page.props.auth?.user?.isadmin" :href="route('admin.page-access')">
-                                            Admin
-                                        </DropdownLink>
-
                                         <!-- Account Management -->
                                         <div class="block px-4 py-2 text-xs text-gray-400">
                                             Manage Account
@@ -266,9 +262,6 @@ const isAdmin = computed(() => !!(page?.props?.auth?.user?.isadmin));
                         </div>
 
                         <div class="mt-3 space-y-1">
-                            <ResponsiveNavLink v-if="$page.props.auth?.user?.isadmin" :href="route('admin.page-access')" :active="route().current('admin.page-access')">
-                                Admin: Pristup stranicama
-                            </ResponsiveNavLink>
                             <ResponsiveNavLink :href="route('profile.show')" :active="route().current('profile.show')">
                                 Profile
                             </ResponsiveNavLink>

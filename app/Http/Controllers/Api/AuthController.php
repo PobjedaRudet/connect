@@ -61,7 +61,7 @@ class AuthController extends Controller
     {
         $base = ['orders:view', 'approvals:view'];
         $approver = ['approvals:approve', 'approvals:reject', 'approvals:approve-one-up'];
-        $isApprover = in_array($funkcija, ['Šef Komercijale','Direktor Komercijale','Direktor Proizvodnje','Šef Operative'], true);
+        $isApprover = in_array($funkcija, ['Šef Komercijale','Direktor Komercijale','Direktor Proizvodnje','Zamjenik1','Zamjenik2','Šef Operative'], true);
         return $isApprover ? array_merge($base, $approver) : $base;
     }
 }

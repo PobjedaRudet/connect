@@ -104,6 +104,11 @@ Route::middleware('throttle:api')->group(function () {
     Route::post('/scan', [EmployeeAttendanceController::class, 'scan']);
     Route::post('/offline-scan', [EmployeeAttendanceController::class, 'offlineScan']);
 });
+// dodaj api get za provjeri da li api server radi
+Route::get('/status', function() {
+    return response()->json(['status' => 'API server is running']);
+});
+
 
 
 

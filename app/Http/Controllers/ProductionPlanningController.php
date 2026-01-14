@@ -17,7 +17,8 @@ class ProductionPlanningController extends Controller
     protected function ensureDirectorProizvodnje()
     {
         $user = Auth::user();
-        if (!$user || ($user->funkcija ?? null) !== 'Direktor Proizvodnje') {
+        $allowed = ['Direktor Proizvodnje', 'Zamjenik1', 'Zamjenik2'];
+        if (!$user || !in_array(($user->funkcija ?? null), $allowed, true)) {
             abort(403, 'Nedozvoljen pristup');
         }
     }

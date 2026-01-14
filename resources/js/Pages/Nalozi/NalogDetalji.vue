@@ -67,7 +67,7 @@
                         <div v-if="a.Komentar" class="text-xs text-gray-600 dark:text-gray-300">Komentar: {{ a.Komentar }}</div>
                       </div>
                     </div>
-                    <div v-if="(order?.approvals || []).length === 0" class="text-sm text-gray-500 dark:text-gray-400">Nema zapisa o odobrenjima.</div>
+                    <div v-if="sortedApprovals.length === 0" class="text-sm text-gray-500 dark:text-gray-400">Nema zapisa o odobrenjima.</div>
                   </div>
                 </SectionCard>
               </div>
@@ -164,7 +164,8 @@ function timeValue(dt) {
   return isNaN(t) ? Number.POSITIVE_INFINITY : t;
 }
 const sortedApprovals = computed(() => {
-  const arr = [...(order.value?.approvals || [])];
+  const HIDE_IN_TIMELINE = ['zamjenik1', 'zamjenik2'];
+  const arr = [...(order.value?.approvals || [])].filter(a => !HIDE_IN_TIMELINE.includes(normalizeFunkcija(a?.Funkcija)));
   arr.sort((a,b) => {
     const ra = rankForFunkcija(a.Funkcija);
     const rb = rankForFunkcija(b.Funkcija);

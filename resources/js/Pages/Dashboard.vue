@@ -1,6 +1,11 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
-import { ref, onMounted } from 'vue';
+import { Head, Link, usePage } from '@inertiajs/vue3';
+import { computed, ref, onMounted } from 'vue';
+
+const page = usePage();
+const userName = computed(() => page.props?.auth?.user?.name || '');
+const userEmail = computed(() => page.props?.auth?.user?.email || '');
+const showMenu = ref(false);
 
 const redirect = ref('');
 
@@ -10,7 +15,7 @@ onMounted(() => {
 });
 
 // SVG ikone za sektore
-const sectors = [
+const baseSectors = [
     {
         name: 'Pravna služba',
         description: 'Pravna služba upravlja odnosima s zaposlenicima.',
@@ -49,23 +54,41 @@ const sectors = [
         link: '/sector/production'
     },
 ];
+
+const adminSector = {
+    name: 'Admin panel',
+    description: 'Pristup administraciji i sistemskim postavkama.',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm7.5 3a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z" /></svg>`,
+    link: '/admin'
+};
+
+const sectors = computed(() => [...baseSectors, adminSector]);
 </script>
 
 <template>
 
     <Head title="Welcome" />
     <div class="min-h-screen flex flex-col bg-gray-50 text-black/50 dark:bg-black dark:text-white/50">
-        <!-- Header with logo -->
+        <!-- Header with logo + quick user/admin controls -->
         <header class="w-full flex items-center justify-between px-6 py-4 bg-white dark:bg-gray-900 shadow">
             <div class="flex items-center">
                 <img src="https://pobjeda.com/images/logo-blog.png" alt="Logo" class="h-16 w-auto" />
             </div>
-            <div class="flex-1 flex justify-center">
+            <div class="flex-1 flex flex-col items-center justify-center">
                 <span class="text-xl font-bold text-black dark:text-white">Pobjeda-Rudet Connect</span>
+                <span v-if="userName" class="text-xs text-gray-500 dark:text-gray-400">{{ userName }} ({{ userEmail }})</span>
             </div>
-            <div class="flex">
-                <!--  <Link href="/login" class="px-4 py-2 mr-2 rounded bg-[#FF2D20] text-white font-semibold hover:bg-[#e52b1e] transition">Log in</Link>
-                <Link href="/register" class="px-4 py-2 rounded border border-[#FF2D20] text-[#FF2D20] font-semibold hover:bg-[#FF2D20] hover:text-white transition">Register</Link> -->
+            <div class="relative">
+                <button v-if="page.props?.auth?.user" @click="showMenu = !showMenu" class="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-sm hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+                    <span class="font-medium">{{ userName || 'Korisnik' }}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clip-rule="evenodd"/></svg>
+                </button>
+                <div v-if="showMenu" class="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow-md py-2 z-50">
+                    <div class="px-4 pb-2 text-xs text-gray-500 dark:text-gray-400">{{ userEmail }}</div>
+                    <Link :href="route('profile.edit')" class="block px-4 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800">Profil</Link>
+                    <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                    <Link :href="route('logout')" method="post" as="button" class="block w-full text-left px-4 py-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800">Odjava</Link>
+                </div>
             </div>
         </header>
         <!-- Centered grid with sectors -->

@@ -23,6 +23,11 @@ Schedule::command('app:send-exams-next-month-mail')
         ->monthlyOn(30, '12:57')
         ->description('Komanda za slanje maila za idući mjesec je pokrenuta.');
 
+// Provjera otvorenih izlaznica svake minute
+Schedule::command('app:close-stale-passes')
+    ->everyMinute()
+    ->description('Automatski zatvara otvorene izlaznice na kraj smjene.');
+
 
 Artisan::command('app:doctor {--queue-ping} {--mail=}', function () {
     $out = [];

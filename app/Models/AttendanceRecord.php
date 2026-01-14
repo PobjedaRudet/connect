@@ -17,6 +17,7 @@ class AttendanceRecord extends Model
         'entry_time',
         'effective_start',
         'exit_time',
+        'duration_minutes',
         'status', // working | left
         'late_flag', // minor | major | null
         'terminal_id',
@@ -26,7 +27,29 @@ class AttendanceRecord extends Model
         'entry_time' => 'datetime',
         'effective_start' => 'datetime',
         'exit_time' => 'datetime',
+        'duration_minutes' => 'integer',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $record): void {
+            // Recalculate when times change.
+            if (!$record->isDirty('exit_time') && !$record->isDirty('entry_time') && !$record->isDirty('effective_start')) {
+                return;
+            }
+
+            $start = $record->effective_start ?: $record->entry_time;
+            $end = $record->exit_time;
+
+            if (!$start || !$end) {
+                $record->duration_minutes = null;
+                return;
+            }
+
+            $minutes = $start->diffInMinutes($end, false);
+            $record->duration_minutes = max($minutes, 0);
+        });
+    }
 
     /**
      * Serialize dates in local app timezone instead of UTC ISO-8601.

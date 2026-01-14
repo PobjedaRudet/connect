@@ -29,6 +29,7 @@ const logout = () => {
 
 const page = usePage();
 const userFunkcija = computed(() => (page?.props?.auth?.user?.funkcija ?? null));
+const isProductionDirectorOrSub = computed(() => ['Direktor Proizvodnje', 'Zamjenik1', 'Zamjenik2'].includes(userFunkcija.value ?? ''));
 
 const pendingApprovalsCount = ref(0);
 async function refreshPending() {
@@ -79,7 +80,7 @@ onMounted(() => {
                                     Status naloga
                                 </NavLink>
                                 <NavLink v-if="userFunkcija && userFunkcija!=='Radnik'"
-                                         :href="userFunkcija==='Direktor Komercijale' ? route('approvals.director.sales') : (userFunkcija==='Direktor Proizvodnje' ? route('approvals.director.production') : (userFunkcija==='Šef Operative' ? route('approvals.chief.operations') : route('approvals.mine')))"
+                                         :href="userFunkcija==='Direktor Komercijale' ? route('approvals.director.sales') : (isProductionDirectorOrSub ? route('approvals.director.production') : (userFunkcija==='Šef Operative' ? route('approvals.chief.operations') : route('approvals.mine')))"
                                          :active="route().current('approvals.mine') || route().current('approvals.director.sales') || route().current('approvals.director.production') || route().current('approvals.chief.operations')">
                                     <span>Odobrenja</span>
                                     <span v-if="pendingApprovalsCount>0" class="ml-2 inline-flex items-center justify-center text-xs font-semibold rounded-full bg-red-600 text-white px-2 py-0.5">
@@ -90,13 +91,13 @@ onMounted(() => {
                                     Status naloga
                                 </NavLink>
 
-                                <NavLink v-if="userFunkcija==='Direktor Proizvodnje'" :href="route('planning.index')" :active="route().current('planning.index')">
+                                <NavLink v-if="isProductionDirectorOrSub" :href="route('planning.index')" :active="route().current('planning.index')">
                                     Planiranje
                                 </NavLink>
-                                <NavLink v-if="userFunkcija==='Direktor Proizvodnje'" :href="route('planning.gantt')" :active="route().current('planning.gantt')">
+                                <NavLink v-if="isProductionDirectorOrSub" :href="route('planning.gantt')" :active="route().current('planning.gantt')">
                                     Gantt
                                 </NavLink>
-                                <NavLink v-if="userFunkcija==='Direktor Proizvodnje'" :href="route('planning.holidays.index')" :active="route().current('planning.holidays.index')">
+                                <NavLink v-if="isProductionDirectorOrSub" :href="route('planning.holidays.index')" :active="route().current('planning.holidays.index')">
                                     Praznici
                                 </NavLink>
 
@@ -213,10 +214,6 @@ onMounted(() => {
                                             Manage Account
                                         </div>
 
-                                        <DropdownLink v-if="$page.props.auth?.user?.isadmin" :href="route('admin.page-access')">
-                                            Admin: Pristup stranicama
-                                        </DropdownLink>
-
                                         <DropdownLink :href="route('profile.show')">
                                             Profile
                                         </DropdownLink>
@@ -287,7 +284,7 @@ onMounted(() => {
                             Status naloga
                         </ResponsiveNavLink>
                         <ResponsiveNavLink v-if="userFunkcija && userFunkcija!=='Radnik'"
-                                           :href="userFunkcija==='Direktor Komercijale' ? route('approvals.director.sales') : (userFunkcija==='Direktor Proizvodnje' ? route('approvals.director.production') : (userFunkcija==='Šef Operative' ? route('approvals.chief.operations') : route('approvals.mine')))"
+                                           :href="userFunkcija==='Direktor Komercijale' ? route('approvals.director.sales') : (isProductionDirectorOrSub ? route('approvals.director.production') : (userFunkcija==='Šef Operative' ? route('approvals.chief.operations') : route('approvals.mine')))"
                                            :active="route().current('approvals.mine') || route().current('approvals.director.sales') || route().current('approvals.director.production') || route().current('approvals.chief.operations')">
                             <span>Odobrenja</span>
                             <span v-if="pendingApprovalsCount>0" class="ml-2 inline-flex items-center justify-center text-xs font-semibold rounded-full bg-red-600 text-white px-2 py-0.5">
@@ -297,10 +294,10 @@ onMounted(() => {
                         <ResponsiveNavLink v-if="userFunkcija && userFunkcija!=='Radnik'" :href="route('orders.status')" :active="route().current('orders.status')">
                             Status naloga
                         </ResponsiveNavLink>
-                        <ResponsiveNavLink v-if="userFunkcija==='Direktor Proizvodnje'" :href="route('planning.gantt')" :active="route().current('planning.gantt')">
+                        <ResponsiveNavLink v-if="isProductionDirectorOrSub" :href="route('planning.gantt')" :active="route().current('planning.gantt')">
                             Gantt
                         </ResponsiveNavLink>
-                        <ResponsiveNavLink v-if="userFunkcija==='Direktor Proizvodnje'" :href="route('planning.holidays.index')" :active="route().current('planning.holidays.index')">
+                        <ResponsiveNavLink v-if="isProductionDirectorOrSub" :href="route('planning.holidays.index')" :active="route().current('planning.holidays.index')">
                             Praznici
                         </ResponsiveNavLink>
 
@@ -325,9 +322,6 @@ onMounted(() => {
                         </div>
 
                         <div class="mt-3 space-y-1">
-                            <ResponsiveNavLink v-if="$page.props.auth?.user?.isadmin" :href="route('admin.page-access')">
-                                Admin: Pristup stranicama
-                            </ResponsiveNavLink>
                             <ResponsiveNavLink :href="route('profile.show')" :active="route().current('profile.show')">
                                 Profile
                             </ResponsiveNavLink>

@@ -18,11 +18,15 @@ class Pass extends Model
         'end_time',
         'approved_by', // employee_id of approver
         'status', // open | closed
+        'duration_minutes', // total minutes outside when closed
+        'approved',
     ];
 
     protected $casts = [
         'start_time' => 'datetime',
         'end_time' => 'datetime',
+        'duration_minutes' => 'integer',
+        'approved' => 'boolean',
     ];
 
     public function employee(): BelongsTo

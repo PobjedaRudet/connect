@@ -32,6 +32,7 @@ class User extends Authenticatable
         'email',
         'funkcija',
         'isadmin',
+        'is_admin',
         'password',
     ];
 
@@ -54,6 +55,7 @@ class User extends Authenticatable
      */
     protected $appends = [
         'profile_photo_url',
+        'isadmin',
     ];
 
     /**
@@ -67,11 +69,21 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'isadmin' => 'boolean',
+            'is_admin' => 'boolean',
         ];
+    }
+
+    public function getIsadminAttribute($value): bool
+    {
+        $isadmin = (bool) ($value ?? false);
+        $legacyIsAdmin = (bool) ($this->attributes['is_admin'] ?? false);
+
+        return $isadmin || $legacyIsAdmin;
     }
 
     public function funkcijaRef()
     {
         return $this->belongsTo(\App\Models\Funkcija::class, 'funkcija', 'Funkcija');
     }
+
 }

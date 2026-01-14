@@ -2,8 +2,9 @@
 
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\CheckFunkcija;
-use App\Http\Middleware\CanAccessPage;
 use App\Http\Middleware\AdminOrFunkcije;
+use App\Http\Middleware\BossOrAdmin;
+use App\Http\Middleware\AdminOnly;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -24,9 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Route middleware aliases
         $middleware->alias([
-            'funkcije' => CheckFunkcija::class,
-            'can.page' => CanAccessPage::class,
             'adminOrFunkcije' => AdminOrFunkcije::class,
+            'bossOrAdmin' => BossOrAdmin::class,
+            'adminOnly' => AdminOnly::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

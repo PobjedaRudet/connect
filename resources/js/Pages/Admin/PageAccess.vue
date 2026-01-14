@@ -12,12 +12,22 @@ const form = ref({ name: '', route_name: '', description: '' })
 const saving = ref(false)
 const assigning = ref({}) // pageId => saving bool
 const selectedRouteName = ref('')
+const routeFilter = ref('')
 
 const existingRouteNames = computed(() => new Set((props.pages || []).map(p => p.route_name)))
 const routeOptions = computed(() => {
+  const term = routeFilter.value.trim().toLowerCase()
   return (props.availableRoutes || [])
     .filter(r => r && r.name)
-    .map(r => ({ value: r.name, label: r.name, uri: r.uri }))
+    .map(r => ({
+      value: r.name,
+      label: r.name,
+      uri: r.uri,
+      exists: existingRouteNames.value.has(r.name),
+      haystack: `${r.name} ${r.uri || ''}`.toLowerCase(),
+    }))
+    .filter(opt => !term || opt.haystack.includes(term))
+    .sort((a, b) => a.label.localeCompare(b.label))
 })
 
 watch(selectedRouteName, (val) => {
@@ -67,13 +77,15 @@ async function saveAssign(page) {
       <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
         <div class="md:col-span-5">
           <label class="text-sm text-gray-600 block mb-1">Odaberi rutu</label>
+          <input v-model="routeFilter" type="text" placeholder="Pretraži po nazivu ili putanji" class="border rounded px-3 py-2 w-full mb-2" />
           <select v-model="selectedRouteName" class="border rounded px-3 py-2 w-full">
             <option value="">-- Odaberi route name --</option>
             <option v-for="opt in routeOptions" :key="opt.value" :value="opt.value">
-              {{ opt.label }}
+              {{ opt.label }} {{ opt.exists ? '(već dodana)' : '' }}
             </option>
           </select>
           <p v-if="selectedRouteName" class="text-xs text-gray-500 mt-1">URI: {{ routeOptions.find(o=>o.value===selectedRouteName)?.uri || '-' }}</p>
+          <p v-if="selectedRouteName && routeOptions.find(o=>o.value===selectedRouteName)?.exists" class="text-xs text-amber-600 mt-1">Napomena: ova ruta je već dodana; promijeni naziv/opis samo ako treba.</p>
         </div>
         <div class="md:col-span-3">
           <label class="text-sm text-gray-600 block mb-1">Naziv</label>

@@ -21,8 +21,9 @@ use Inertia\Inertia;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\PartnerController;
 use App\Http\Controllers\ProductionPlanningController;
-use App\Http\Controllers\Admin\PageAccessController;
 use App\Http\Controllers\HolidayController;
+use App\Http\Controllers\HR\SihtericaController;
+use App\Http\Controllers\UpcomingExamsController;
 
 // API za CE oznaku
 Route::get('/getCeOznaka', [App\Http\Controllers\ProductController::class, 'getCeOznaka'])->middleware(['auth']);
@@ -39,13 +40,12 @@ Route::get('/productionorders/createorder', [ProductionOrderController::class, '
 Route::get('/productslist', [App\Http\Controllers\ProductController::class, 'numeredlist']);
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+    return Inertia::render('Dashboard');
 })->middleware(['auth']);
+
+Route::get('/admin', function () {
+    return Inertia::render('Admin/Dashboard');
+})->middleware(['auth', 'adminOnly'])->name('admin.dashboard');
 
 // PPZ / ZNR routes grouped for centralized protection
 Route::middleware(['auth','adminOrFunkcije:PPZ'])->group(function () {
@@ -67,7 +67,7 @@ Route::middleware(['auth','adminOrFunkcije:PPZ'])->group(function () {
 });
 
 // Planiranje proizvodnje (Direktor Proizvodnje)
-Route::middleware(['auth','can.page'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/planiranje/proizvodnja', [ProductionPlanningController::class, 'index'])->name('planning.index');
     Route::post('/planiranje/proizvodnja', [ProductionPlanningController::class, 'store'])->name('planning.store');
     Route::get('/planiranje/gantt', [ProductionPlanningController::class, 'gantt'])->name('planning.gantt');
@@ -82,49 +82,17 @@ Route::middleware(['auth','can.page'])->group(function () {
 
 Route::get('/prodaja/dashboard', function () {
     return Inertia::render('Nalozi/ProdajaDashboard');
-})->middleware(['auth','can.page'])->name('prodaja.dashboard');
+})->middleware(['auth'])->name('prodaja.dashboard');
 
 Route::get('/private', function () {
     return Inertia::render('PrivacyPolicy');
 })->middleware(['auth'])->name('private');
 
-Route::get('/send-pregledi-email', function () {
-    $today = Carbon::today();
-    $nextWeek = $today->copy()->addDays(7);
-
-    $employees = Employee::whereHas('pregledi')
-        ->with(['pregledi' => fn ($q) => $q->orderByDesc('datum_pregleda')->limit(10)])
-        ->get();
-
-    $upcoming = [];
-    $expired = [];
-
-    foreach ($employees as $employee) {
-        $lastExam = $employee->pregledi->first();
-        if (!$lastExam || !$employee->period) continue;
-
-        $nextDue = Carbon::parse($lastExam->datum_pregleda)->addMonths((int)$employee->period);
-
-        if ($nextDue->between($today, $nextWeek)) {
-            $upcoming[] = ['employee' => $employee, 'next_due' => $nextDue];
-        } elseif ($nextDue->lessThan($today)) {
-            $expired[] = ['employee' => $employee, 'next_due' => $nextDue];
-        }
-    }
-
-    $recipients = [
-        'z.neira@pobjeda.com',
-        'a.salkovic@pobjeda.com',
-        'k.asim@pobjeda.com',
-    ];
-
-    Mail::to($recipients)->send(new UpcomingExamsMail($upcoming, $expired));
-
-    return 'Mail poslan.';
-})->middleware(['auth','adminOrFunkcije:PPZ']);
+Route::get('/send-pregledi-email', [UpcomingExamsController::class, 'send'])
+    ->middleware(['auth','adminOrFunkcije:PPZ']);
 
 Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
+    return redirect('/');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 // Moved PPZ pregledi routes into the group above
@@ -135,36 +103,45 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::resource('employees', EmployeeController::class);
     Route::resource('attendances', AttendanceController::class);
+    Route::get('/passes/active', [PassController::class, 'active'])
+        ->middleware('bossOrAdmin')
+        ->name('passes.active');
+    Route::patch('/passes/{pass}/type', [PassController::class, 'updateType'])->name('passes.updateType');
+    Route::post('/passes/{pass}/confirm', [PassController::class, 'confirm'])->name('passes.confirm');
     Route::resource('passes', PassController::class);
     Route::resource('leaves', LeaveController::class);
+
+    // HR
+    Route::get('/hr/sihterica', [SihtericaController::class, 'index'])
+        ->name('hr.sihterica');
     // Approvals
     Route::post('/approvals/send', [ApprovalController::class, 'sendForApproval'])->name('approvals.send');
-    Route::get('/approvals/pending', [ApprovalController::class, 'pending'])->middleware('can.page')->name('approvals.pending');
+    Route::get('/approvals/pending', [ApprovalController::class, 'pending'])->name('approvals.pending');
     Route::post('/approvals/{approval}/approve', [ApprovalController::class, 'approve'])->name('approvals.approve');
     Route::post('/approvals/bulk-approve', [ApprovalController::class, 'bulkApprove'])->name('approvals.bulkApprove');
     Route::post('/approvals/{approval}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
     Route::post('/approvals/order/{order}/approve-one-up', [ApprovalController::class, 'approveOneUp'])->name('approvals.approveOneUp');
     // Approver-only pages (not Radnik)
     Route::get('/odobrenja/moja', function () { return Inertia::render('Nalozi/OdobrenjaZaSefaKomercijale'); })
-        ->middleware(['funkcije:Šef Komercijale,Direktor Komercijale,Direktor Proizvodnje,Šef Operative','can.page'])
+        ->middleware(['adminOrFunkcije:Šef Komercijale,Direktor Komercijale,Direktor Proizvodnje,Zamjenik1,Zamjenik2,Šef Operative'])
         ->name('approvals.mine');
     Route::get('/nalozi/status', function () { return Inertia::render('Nalozi/StatusNaloga'); })
-        ->middleware(['funkcije:Šef Komercijale,Direktor Komercijale,Direktor Proizvodnje,Šef Operative','can.page'])
+        ->middleware(['adminOrFunkcije:Šef Komercijale,Direktor Komercijale,Direktor Proizvodnje,Zamjenik1,Zamjenik2,Šef Operative'])
         ->name('orders.status');
 
     // Direktor Komercijale dedicated approvals page
     Route::get('/odobrenja/direktor-komercijale', function () { return Inertia::render('Nalozi/OdobrenjaDirektoraKomercijale'); })
-        ->middleware(['funkcije:Direktor Komercijale','can.page'])
+        ->middleware(['adminOrFunkcije:Direktor Komercijale'])
         ->name('approvals.director.sales');
 
     // Direktor Proizvodnje dedicated approvals page
     Route::get('/odobrenja/direktor-proizvodnje', function () { return Inertia::render('Nalozi/OdobrenjaDirektoraProizvodnje'); })
-        ->middleware(['funkcije:Direktor Proizvodnje','can.page'])
+        ->middleware(['adminOrFunkcije:Direktor Proizvodnje,Zamjenik1,Zamjenik2'])
         ->name('approvals.director.production');
 
     // Šef Operative dedicated approvals page
     Route::get('/odobrenja/sef-operative', function () { return Inertia::render('Nalozi/OdobrenjaSefaOperative'); })
-        ->middleware(['funkcije:Šef Operative','can.page'])
+        ->middleware(['adminOrFunkcije:Šef Operative'])
         ->name('approvals.chief.operations');
     // Orders list for sending
     Route::get('/productionorders/mine/for-sending', [ProductionOrderController::class, 'myForSending'])->name('productionorders.mine.forSending');
@@ -179,7 +156,7 @@ Route::middleware('auth')->group(function () {
 Route::resource('products', ProductController::class)->middleware(['auth']);
 
 // UI pages for Products management (avoid conflict with existing products resource API)
-Route::middleware(['auth','can.page'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/proizvodi', [ProductsController::class, 'index'])->name('products.ui.index');
     Route::get('/proizvodi/novi', [ProductsController::class, 'create'])->name('products.ui.create');
     Route::post('/proizvodi', [ProductsController::class, 'store'])->name('products.ui.store');
@@ -190,7 +167,7 @@ Route::middleware(['auth','can.page'])->group(function () {
 // Moved ppz.izvjestajPregledi into the group above
 
 // Izvještaji za Direktora Komercijale
-Route::middleware(['auth','can.page'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('/izvjestaji/kupci', [ReportsController::class, 'byCustomers'])->name('reports.customers');
     Route::get('/izvjestaji/proizvodi', [ReportsController::class, 'byProducts'])->name('reports.products');
     Route::get('/izvjestaji/mjesecni', [ReportsController::class, 'monthly'])->name('reports.monthly');
@@ -213,13 +190,13 @@ Route::middleware(['auth','can.page'])->group(function () {
 
 // Kreiranje i pregled kreiranih naloga: Radnik i Šef Komercijale (plus admin)
 Route::get('/nalozi/nalozi-za-proizvodnju', [ProductionOrderController::class, 'showForm'])
-    ->middleware(['auth','adminOrFunkcije:Radnik,Šef Komercijale','can.page'])->name('nalozi.za-proizvodnju');
+    ->middleware(['auth','adminOrFunkcije:Radnik,Šef Komercijale'])->name('nalozi.za-proizvodnju');
 Route::get('/nalozi/kreirani', function() {
     return Inertia::render('Nalozi/KreiraniNalozi');
-})->middleware(['auth','verified','adminOrFunkcije:Radnik,Šef Komercijale','can.page'])->name('nalozi.kreirani');
+})->middleware(['auth','verified','adminOrFunkcije:Radnik,Šef Komercijale'])->name('nalozi.kreirani');
 Route::get('/nalozi/radnik/odobreni', function() {
     return Inertia::render('Nalozi/OdobreniNaloziRadnik');
-})->middleware(['auth','verified','funkcije:Radnik','can.page'])->name('nalozi.radnik.odobreni');
+})->middleware(['auth','verified','adminOrFunkcije:Radnik'])->name('nalozi.radnik.odobreni');
     Route::get('/productionorders/mine/created', [ProductionOrderController::class, 'myCreated'])->middleware(['auth'])->name('productionorders.mine.created');
     Route::get('/productionorders/created', [ProductionOrderController::class, 'created'])->middleware(['auth'])->name('productionorders.created');
 
@@ -242,13 +219,6 @@ Route::get('/productslistBK6', [ProductController::class, 'numeredlistBK6'])->mi
 // Lista proizvoda za BK-8 proizvode
 Route::get('/productslistBK8', [ProductController::class, 'numeredlistBK8'])->middleware(['auth']);
 require __DIR__ . '/auth.php';
-
-// Admin: Page Access management (isadmin OR specific funkcije)
-Route::middleware(['auth','adminOrFunkcije:Direktor Komercijale,Direktor Proizvodnje'])->group(function () {
-    Route::get('/admin/page-access', [PageAccessController::class, 'index'])->name('admin.page-access');
-    Route::post('/admin/page-access/pages', [PageAccessController::class, 'storePage'])->name('admin.page-access.pages.store');
-    Route::post('/admin/page-access/assign', [PageAccessController::class, 'assign'])->name('admin.page-access.assign');
-});
 
 // Signed email approval links (no auth middleware; controller will enforce user login matches uid)
 Route::get('/approvals/email/direct', [ApprovalController::class, 'emailDirectApprove'])

@@ -72,12 +72,6 @@ const showingNavigationDropdown = ref(false);
 
                                     <template #content>
                                         <DropdownLink
-                                            v-if="$page.props.auth?.user?.isadmin"
-                                            :href="route('admin.page-access')"
-                                        >
-                                            Admin: Pristup stranicama
-                                        </DropdownLink>
-                                        <DropdownLink
                                             :href="route('profile.edit')"
                                         >
                                             Profile
@@ -170,9 +164,6 @@ const showingNavigationDropdown = ref(false);
                         </div>
 
                         <div class="mt-3 space-y-1">
-                            <ResponsiveNavLink v-if="$page.props.auth?.user?.isadmin" :href="route('admin.page-access')">
-                                Admin: Pristup stranicama
-                            </ResponsiveNavLink>
                             <ResponsiveNavLink :href="route('profile.edit')">
                                 Profile
                             </ResponsiveNavLink>
