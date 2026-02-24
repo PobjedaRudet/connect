@@ -11,7 +11,6 @@ use App\Http\Controllers\ProductionOrderController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\ProfileController;
 use App\Mail\UpcomingExamsMail;
-use App\Models\Employee;
 use Carbon\Carbon;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Log;
@@ -23,6 +22,7 @@ use App\Http\Controllers\PartnerController;
 use App\Http\Controllers\ProductionPlanningController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\HR\SihtericaController;
+use App\Http\Controllers\HR\EmployeePagesController;
 use App\Http\Controllers\UpcomingExamsController;
 
 // API za CE oznaku
@@ -95,6 +95,11 @@ Route::get('/dashboard', function () {
     return redirect('/');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+// Sector landing pages
+Route::get('/sector/hr', function () {
+    return Inertia::render('Sector/Hr');
+})->middleware(['auth'])->name('sector.hr');
+
 // Moved PPZ pregledi routes into the group above
 
 Route::middleware('auth')->group(function () {
@@ -106,6 +111,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/passes/active', [PassController::class, 'active'])
         ->middleware('bossOrAdmin')
         ->name('passes.active');
+    Route::get('/passes/approved', [PassController::class, 'approved'])
+        ->middleware('bossOrAdmin')
+        ->name('passes.approved');
     Route::patch('/passes/{pass}/type', [PassController::class, 'updateType'])->name('passes.updateType');
     Route::post('/passes/{pass}/confirm', [PassController::class, 'confirm'])->name('passes.confirm');
     Route::resource('passes', PassController::class);
@@ -114,6 +122,18 @@ Route::middleware('auth')->group(function () {
     // HR
     Route::get('/hr/sihterica', [SihtericaController::class, 'index'])
         ->name('hr.sihterica');
+
+    Route::get('/hr/uposlenici-forma/{employee?}', [EmployeePagesController::class, 'form'])
+        ->name('hr.uposlenici.forma');
+
+    Route::post('/hr/uposlenici-forma', [EmployeePagesController::class, 'store'])
+        ->name('hr.uposlenici.store');
+
+    Route::put('/hr/uposlenici-forma/{employee}', [EmployeePagesController::class, 'update'])
+        ->name('hr.uposlenici.update');
+
+    Route::get('/hr/uposlenici', [EmployeePagesController::class, 'index'])
+        ->name('hr.uposlenici.pregled');
     // Approvals
     Route::post('/approvals/send', [ApprovalController::class, 'sendForApproval'])->name('approvals.send');
     Route::get('/approvals/pending', [ApprovalController::class, 'pending'])->name('approvals.pending');

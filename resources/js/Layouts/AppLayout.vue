@@ -47,6 +47,9 @@ const isAdmin = computed(() => !!(page?.props?.auth?.user?.isadmin || page?.prop
 
                             <!-- Navigation Links -->
                             <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                                <NavLink href="/" :active="$page.url === '/'">
+                                    Početna
+                                </NavLink>
                                 <NavLink v-if="isAdmin || userFunkcija==='PPZ'" :href="route('ppz.dashboard')" :active="route().current('ppz.dashboard')">
                                     ZNR I PPZ Dashboard
                                 </NavLink>
@@ -221,6 +224,9 @@ const isAdmin = computed(() => !!(page?.props?.auth?.user?.isadmin || page?.prop
                 <!-- Responsive Navigation Menu -->
                 <div :class="{'block': showingNavigationDropdown, 'hidden': ! showingNavigationDropdown}" class="sm:hidden">
                     <div class="pt-2 pb-3 space-y-1">
+                        <ResponsiveNavLink href="/" :active="$page.url === '/'">
+                            Početna
+                        </ResponsiveNavLink>
                         <ResponsiveNavLink v-if="isAdmin || userFunkcija==='PPZ'" :href="route('ppz.dashboard')" :active="route().current('ppz.dashboard')">
                             Dashboard
                         </ResponsiveNavLink>

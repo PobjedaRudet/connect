@@ -1,6 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { Head, router } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
@@ -53,6 +53,14 @@ const cellClasses = (dayMeta, entry) => {
 
   return base.join(' ')
 }
+
+const formatHours = (minutes) => {
+  if (minutes === null || minutes === undefined) return '—'
+  const hours = minutes / 60
+  const rounded = Math.round(hours * 10) / 10
+  if (Number.isInteger(rounded)) return String(rounded)
+  return rounded.toFixed(1)
+}
 </script>
 
 <template>
@@ -60,6 +68,15 @@ const cellClasses = (dayMeta, entry) => {
     <Head title="Šihterica" />
 
     <div class="max-w-[95rem] mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <div class="mb-4">
+        <Link
+          :href="route('sector.hr')"
+          class="inline-flex items-center px-3 py-2 bg-white text-gray-700 border border-gray-200 rounded-md text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+        >
+          Nazad na HR
+        </Link>
+      </div>
+
       <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
         <div>
           <h1 class="text-2xl font-semibold text-gray-800">Šihterica (dolazak po mjesecu)</h1>
@@ -129,8 +146,7 @@ const cellClasses = (dayMeta, entry) => {
                 >
                   <template v-if="cell(e.id, d.date)">
                     <div class="leading-4">
-                      <div>{{ cell(e.id, d.date).entry_time || '—' }}</div>
-                      <div v-if="cell(e.id, d.date).exit_time" class="text-[10px] text-gray-500">{{ cell(e.id, d.date).exit_time }}</div>
+                      <div>{{ formatHours(cell(e.id, d.date).duration_minutes) }}</div>
                     </div>
                   </template>
                   <template v-else>
@@ -149,7 +165,7 @@ const cellClasses = (dayMeta, entry) => {
         </div>
 
         <div class="px-4 py-3 text-xs text-gray-500 border-t border-gray-200 bg-gray-50">
-          Legenda: <span class="font-semibold text-amber-700">minor</span> / <span class="font-semibold text-red-700">major</span> kašnjenje (late_flag).
+          Legenda: <span class="font-semibold text-yellow-600">minor</span> / <span class="font-semibold text-red-700">major</span> kašnjenje (late_flag).
         </div>
       </div>
     </div>

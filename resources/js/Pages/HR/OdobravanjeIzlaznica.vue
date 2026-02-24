@@ -1,6 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { Head, router } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 
 const props = defineProps({
   passes: { type: Array, default: () => [] },
@@ -15,6 +15,16 @@ const formatDateTime = (value) => {
     timeStyle: 'short',
     hour12: false,
   }).format(date)
+}
+
+const formatDuration = (minutes) => {
+  if (minutes === null || minutes === undefined) return '—'
+  const total = Number(minutes)
+  if (Number.isNaN(total)) return '—'
+  const hrs = Math.floor(total / 60)
+  const mins = Math.max(0, total - hrs * 60)
+  const paddedMins = mins.toString().padStart(2, '0')
+  return `${hrs}:${paddedMins} h`
 }
 
 const updateType = (passId, type) => {
@@ -37,11 +47,26 @@ const confirmPass = (passId, type) => {
     <Head title="Odobravanje izlaznica" />
 
     <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <div class="mb-4">
+        <Link
+          :href="route('sector.hr')"
+          class="inline-flex items-center px-3 py-2 bg-white text-gray-700 border border-gray-200 rounded-md text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+        >
+          Nazad na HR
+        </Link>
+      </div>
+
       <div class="flex items-center justify-between mb-6">
         <div>
           <h1 class="text-2xl font-semibold text-gray-800">Odobravanje izlaznica</h1>
-          <p class="text-sm text-gray-500">Privatne izlaznice računaju trajanje do kraja radnog vremena ({{ workdayEndTime }}).</p>
+          <p class="text-sm text-gray-500">Privatne izlaznice računaju trajanje do povratka (maks. do kraja radnog vremena {{ workdayEndTime }}).</p>
         </div>
+        <Link
+          :href="route('passes.approved')"
+          class="inline-flex items-center px-3 py-2 bg-sky-50 text-sky-700 border border-sky-200 rounded-md text-sm font-medium hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1"
+        >
+          Pregled odobrenih izlaznica
+        </Link>
       </div>
 
       <div class="bg-white shadow rounded-lg overflow-hidden border border-gray-200">
@@ -50,8 +75,9 @@ const confirmPass = (passId, type) => {
             <tr class="text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
               <th class="px-4 py-3">Radnik</th>
               <th class="px-4 py-3">Razlog</th>
-              <th class="px-4 py-3">Početak</th>
+              <th class="px-4 py-3">Izlazak</th>
               <th class="px-4 py-3">Povratak</th>
+              <th class="px-4 py-3">Trajanje</th>
               <th class="px-4 py-3">Odobrena</th>
               <th class="px-4 py-3">Tip</th>
               <th class="px-4 py-3 text-right">Akcije</th>
@@ -63,6 +89,7 @@ const confirmPass = (passId, type) => {
               <td class="px-4 py-3 text-sm text-gray-700">{{ passItem.reason || '—' }}</td>
               <td class="px-4 py-3 text-sm text-gray-700">{{ formatDateTime(passItem.start_time) }}</td>
               <td class="px-4 py-3 text-sm text-gray-700">{{ formatDateTime(passItem.end_time) }}</td>
+              <td class="px-4 py-3 text-sm text-gray-700">{{ formatDuration(passItem.duration_minutes) }}</td>
               <td class="px-4 py-3 text-sm text-gray-700">
                 <span :class="passItem.approved ? 'text-emerald-700' : 'text-amber-700'">
                   {{ passItem.approved ? 'Da' : 'Ne' }}
@@ -89,7 +116,7 @@ const confirmPass = (passId, type) => {
               </td>
             </tr>
             <tr v-if="passes.length === 0">
-              <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">Trenutno nema aktivnih izlaznica.</td>
+              <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500">Trenutno nema izlaznica za odobravanje.</td>
             </tr>
           </tbody>
         </table>

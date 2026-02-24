@@ -595,10 +595,15 @@ class AttendanceService
             return $pass;
         }
 
-        // If privatni, count until end of workday; if službeni, count until actual return time.
-        $endReference = $pass->type === 'privatni'
-            ? $this->resolveWorkdayEnd($start)
-            : $endTime;
+        // If privatni, count until actual return time (but cap to end of workday if the
+        // return is after workday end). If službeni, always count until actual return time.
+        $endReference = $endTime;
+        if ($pass->type === 'privatni') {
+            $workdayEnd = $this->resolveWorkdayEnd($start);
+            if ($workdayEnd->greaterThan($start) && $endTime->greaterThan($workdayEnd)) {
+                $endReference = $workdayEnd;
+            }
+        }
 
         $durationMinutes = $start ? max($start->diffInMinutes($endReference, false), 0) : null;
 

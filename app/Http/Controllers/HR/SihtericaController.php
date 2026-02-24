@@ -44,8 +44,17 @@ class SihtericaController extends Controller
             ];
         }
 
+        $userId = $request->user()?->id;
+
         $employees = Employee::query()
             ->where('Active', true)
+            ->when($userId, function ($query) use ($userId) {
+                $query->where(function ($q) use ($userId) {
+                    // Cover both integer and string JSON storage
+                    $q->whereJsonContains('nadlezne_osobe', (int) $userId)
+                      ->orWhereJsonContains('nadlezne_osobe', (string) $userId);
+                });
+            })
             ->orderBy('lastName')
             ->orderBy('firstName')
             ->get(['id', 'empID', 'firstName', 'lastName']);
@@ -57,7 +66,16 @@ class SihtericaController extends Controller
             ])
             ->orderBy('employee_id')
             ->orderBy('entry_time')
-            ->get(['id', 'employee_id', 'entry_time', 'effective_start', 'exit_time', 'late_flag', 'status']);
+            ->get([
+                'id',
+                'employee_id',
+                'entry_time',
+                'effective_start',
+                'exit_time',
+                'duration_minutes',
+                'late_flag',
+                'status',
+            ]);
 
         $attendance = [];
         foreach ($records as $record) {
@@ -81,6 +99,7 @@ class SihtericaController extends Controller
                 'record_id' => (int) $record->id,
                 'entry_time' => $record->entry_time?->timezone(config('app.timezone'))->format('H:i'),
                 'exit_time' => $record->exit_time?->timezone(config('app.timezone'))->format('H:i'),
+                'duration_minutes' => $record->duration_minutes,
                 'late_flag' => $record->late_flag,
                 'status' => $record->status,
                 'entry_time_raw' => $record->entry_time?->getTimestamp(),
