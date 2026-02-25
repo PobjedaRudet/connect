@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Employee extends Model
 {
@@ -66,5 +67,25 @@ class Employee extends Model
     public function shifts(): BelongsToMany
     {
         return $this->belongsToMany(Shift::class, 'employee_shift');
+    }
+
+    public function annualLeaveDecisions(): HasMany
+    {
+        return $this->hasMany(AnnualLeaveDecision::class);
+    }
+
+    public function annualLeaveUsages(): HasMany
+    {
+        return $this->hasMany(AnnualLeaveUsage::class);
+    }
+
+    public function servicePeriods(): HasMany
+    {
+        return $this->hasMany(EmployeeServicePeriod::class);
+    }
+
+    public function sickLeaves(): HasMany
+    {
+        return $this->hasMany(SickLeave::class);
     }
 }

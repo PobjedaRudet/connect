@@ -2,12 +2,69 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Employee;
 use App\Services\AttendanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class EmployeeAttendanceController extends Controller
 {
+    private function appendFullNameToRecord(array $result): array
+    {
+        $employeeId = null;
+
+        if (isset($result['employee_id'])) {
+            $employeeId = (int) $result['employee_id'];
+        }
+
+        if (!$employeeId && isset($result['record'])) {
+            $record = $result['record'];
+            if (is_array($record) && isset($record['employee_id'])) {
+                $employeeId = (int) $record['employee_id'];
+            } elseif (is_object($record) && isset($record->employee_id)) {
+                $employeeId = (int) $record->employee_id;
+            }
+        }
+
+        if (!$employeeId && isset($result['pass'])) {
+            $pass = $result['pass'];
+            if (is_array($pass) && isset($pass['employee_id'])) {
+                $employeeId = (int) $pass['employee_id'];
+            } elseif (is_object($pass) && isset($pass->employee_id)) {
+                $employeeId = (int) $pass->employee_id;
+            }
+        }
+
+        if (!$employeeId) {
+            return $result;
+        }
+
+        $employee = Employee::query()->select(['id', 'firstName', 'lastName'])->find($employeeId);
+        if (!$employee) {
+            return $result;
+        }
+
+        $fullName = trim((string) $employee->firstName . ' ' . (string) $employee->lastName);
+
+        if (isset($result['record'])) {
+            if (is_array($result['record'])) {
+                $result['record']['full_name'] = $fullName;
+            } elseif (is_object($result['record'])) {
+                $result['record']->full_name = $fullName;
+            }
+        }
+
+        if (isset($result['pass'])) {
+            if (is_array($result['pass'])) {
+                $result['pass']['full_name'] = $fullName;
+            } elseif (is_object($result['pass'])) {
+                $result['pass']->full_name = $fullName;
+            }
+        }
+
+        return $result;
+    }
+
     /**
      * Scan endpoint - za prijavu/odjavu radnika preko RFID terminala
      * Prima rfid_code i automatski detektuje da li je prijava ili odjava
@@ -20,6 +77,7 @@ class EmployeeAttendanceController extends Controller
         ]);
 
         $result = $service->processScan($data['rfid_code'], $data['terminal_id'] ?? null);
+        $result = $this->appendFullNameToRecord($result);
 
         // Add localized (app timezone) representations of timestamps for client clarity
         $tz = config('app.timezone');
@@ -66,6 +124,7 @@ class EmployeeAttendanceController extends Controller
         ]);
 
         $result = $service->processOfflineScan($data['rfid_code'], $data['terminal_id'], $data['timestamp']);
+        $result = $this->appendFullNameToRecord($result);
 
         Log::info('Offline Scan Result', $result);
 

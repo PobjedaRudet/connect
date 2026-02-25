@@ -160,7 +160,7 @@ class AttendanceService
             ]);
             return [
                 'status' => 'checkout',
-                'message' => 'Radnik odjavljen (offline)',
+                'message' => 'Odjava (offline)',
                 'record' => $openRecord,
             ];
         }
@@ -189,7 +189,7 @@ class AttendanceService
         ]);
         return [
             'status' => 'checkin',
-            'message' => 'Radnik prijavljen (offline)',
+            'message' => 'Prijava (offline)',
             'record' => $record,
             'late_flag' => $lateFlag,
         ];
@@ -224,7 +224,7 @@ class AttendanceService
 
         return [
             'status' => 'checkin',
-            'message' => 'Radnik prijavljen',
+            'message' => 'Prijava',
             'record' => $record,
             'late_flag' => $lateFlag,
         ];
@@ -244,7 +244,7 @@ class AttendanceService
 
         return [
             'status' => 'checkout',
-            'message' => 'Radnik odjavljen',
+            'message' => 'Odjava',
             'record' => $record,
         ];
     }

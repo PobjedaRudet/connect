@@ -16,6 +16,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\PartnerController;
@@ -23,7 +24,12 @@ use App\Http\Controllers\ProductionPlanningController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\HR\SihtericaController;
 use App\Http\Controllers\HR\EmployeePagesController;
+use App\Http\Controllers\HR\AnnualLeaveDecisionPagesController;
+use App\Http\Controllers\HR\SickLeavePagesController;
+use App\Http\Controllers\HR\AnnualLeaveUsagePagesController;
 use App\Http\Controllers\UpcomingExamsController;
+use App\Services\AnnualLeaveService;
+use Illuminate\Http\Request;
 
 // API za CE oznaku
 Route::get('/getCeOznaka', [App\Http\Controllers\ProductController::class, 'getCeOznaka'])->middleware(['auth']);
@@ -118,6 +124,336 @@ Route::middleware('auth')->group(function () {
     Route::post('/passes/{pass}/confirm', [PassController::class, 'confirm'])->name('passes.confirm');
     Route::resource('passes', PassController::class);
     Route::resource('leaves', LeaveController::class);
+
+    // HR: annual leave balance screen
+    Route::get('/hr/godisnji-saldo', function () {
+        return Inertia::render('HR/GodisnjiSaldo');
+    })->name('hr.godisnji.saldo');
+
+    // HR: annual leave decisions (rješenja) - entry form
+    Route::get('/hr/godisnji-rjesenja', [AnnualLeaveDecisionPagesController::class, 'index'])
+        ->name('hr.godisnji.rjesenja');
+
+    Route::post('/hr/godisnji-rjesenja', [AnnualLeaveDecisionPagesController::class, 'store'])
+        ->name('hr.godisnji.rjesenja.store');
+
+    // HR: annual leave usage (iskorištenje)
+    Route::get('/hr/godisnji-iskoristenje', [AnnualLeaveUsagePagesController::class, 'index'])
+        ->name('hr.godisnji.iskoristenje');
+
+    Route::post('/hr/godisnji-iskoristenje', [AnnualLeaveUsagePagesController::class, 'store'])
+        ->name('hr.godisnji.iskoristenje.store');
+
+    // HR: sick leaves (bolovanja)
+    Route::get('/hr/bolovanja', [SickLeavePagesController::class, 'index'])
+        ->name('hr.bolovanja');
+
+    Route::post('/hr/bolovanja', [SickLeavePagesController::class, 'store'])
+        ->name('hr.bolovanja.store');
+
+    // Annual leave helpers (JSON)
+    Route::get('/api/godisnji/balance', function (Request $request, AnnualLeaveService $service) {
+        $validated = $request->validate([
+            'employee_id' => ['required', 'integer'],
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+        ]);
+
+        $employeeId = (int) $validated['employee_id'];
+        $year = (int) ($validated['year'] ?? now()->year);
+
+        return response()->json($service->getEmployeeYearBalance($employeeId, $year));
+    })->name('api.godisnji.balance');
+
+    Route::get('/api/godisnji/working-days', function (Request $request, AnnualLeaveService $service) {
+        $validated = $request->validate([
+            'from' => ['required', 'date'],
+            'to' => ['required', 'date'],
+        ]);
+
+        $days = $service->calculateWorkingDays($validated['from'], $validated['to']);
+
+        return response()->json([
+            'from' => $validated['from'],
+            'to' => $validated['to'],
+            'working_days' => $days,
+        ]);
+    })->name('api.godisnji.workingDays');
+
+    Route::get('/api/godisnji/decisions', function (Request $request, AnnualLeaveService $service) {
+        $validated = $request->validate([
+            'employee_id' => ['required', 'integer'],
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+        ]);
+
+        $employeeId = (int) $validated['employee_id'];
+        $year = (int) ($validated['year'] ?? now()->year);
+
+        $manualCarrySum = (float) DB::table('annual_leave_decisions')
+            ->where('employee_id', $employeeId)
+            ->where('year', $year)
+            ->sum('carried_over_days');
+
+        $prev = $service->getEmployeeYearBalance($employeeId, $year - 1);
+        $autoCarry = (int) max(0, (int) ($prev['remaining_days'] ?? 0));
+
+        $usageAgg = DB::table('annual_leave_usages')
+            ->select('annual_leave_decision_id', DB::raw('CAST(ROUND(SUM(COALESCE(days,0)),0) AS SIGNED) as used_days'))
+            ->groupBy('annual_leave_decision_id');
+
+        $decisions = DB::table('annual_leave_decisions as d')
+            ->leftJoinSub($usageAgg, 'u', function ($join) {
+                $join->on('u.annual_leave_decision_id', '=', 'd.id');
+            })
+            ->where('d.employee_id', $employeeId)
+            ->where('d.year', $year)
+            ->orderBy('d.part')
+            ->orderBy('d.id')
+            ->get([
+                'd.id',
+                'd.part',
+                'd.decision_number',
+                'd.valid_from',
+                'd.valid_to',
+                DB::raw('CAST(ROUND(COALESCE(d.granted_days,0) + COALESCE(d.carried_over_days,0),0) AS SIGNED) as total_days'),
+                DB::raw('CAST(COALESCE(u.used_days,0) AS SIGNED) as used_days'),
+                DB::raw('CAST((ROUND(COALESCE(d.granted_days,0) + COALESCE(d.carried_over_days,0),0) - COALESCE(u.used_days,0)) AS SIGNED) as remaining_days'),
+            ])
+            ->map(function ($d) {
+                $part = $d->part ?? 'ostalo';
+                $num = $d->decision_number ? (' #' . $d->decision_number) : '';
+                $range = ($d->valid_from || $d->valid_to)
+                    ? (' (' . ($d->valid_from ?? '?') . ' - ' . ($d->valid_to ?? '?') . ')')
+                    : '';
+                $label = strtoupper((string) $part) . $num . $range . ' | Preostalo: ' . ((int) $d->remaining_days);
+
+                return [
+                    'id' => (int) $d->id,
+                    'part' => (string) $part,
+                    'decision_number' => $d->decision_number,
+                    'valid_from' => $d->valid_from,
+                    'valid_to' => $d->valid_to,
+                    'total_days' => (int) $d->total_days,
+                    'used_days' => (int) $d->used_days,
+                    'remaining_days' => (int) $d->remaining_days,
+                    'label' => $label,
+                ];
+            })
+            ->values();
+
+        // If no carryover is stored for this year, expose automatic carryover as available on the first decision.
+        // This keeps the usage-entry dropdown consistent with the year balance.
+        if ($decisions->isNotEmpty() && $manualCarrySum <= 0 && $autoCarry > 0) {
+            $first = $decisions->first();
+            $first['total_days'] = (int) $first['total_days'] + $autoCarry;
+            $first['remaining_days'] = (int) $first['remaining_days'] + $autoCarry;
+
+            $num = $first['decision_number'] ? (' #' . $first['decision_number']) : '';
+            $range = ($first['valid_from'] || $first['valid_to'])
+                ? (' (' . ($first['valid_from'] ?? '?') . ' - ' . ($first['valid_to'] ?? '?') . ')')
+                : '';
+            $first['label'] = strtoupper((string) ($first['part'] ?? 'ostalo')) . $num . $range . ' | Preostalo: ' . ((int) $first['remaining_days']);
+
+            $decisions = $decisions->values();
+            $decisions->put(0, $first);
+        }
+
+        return response()->json([
+            'employee_id' => $employeeId,
+            'year' => $year,
+            'decisions' => $decisions,
+        ]);
+    })->name('api.godisnji.decisions');
+
+    Route::get('/api/godisnji/balance-details', function (Request $request, AnnualLeaveService $service) {
+        $validated = $request->validate([
+            'employee_id' => ['required', 'integer'],
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+        ]);
+
+        $employeeId = (int) $validated['employee_id'];
+        $year = (int) ($validated['year'] ?? now()->year);
+
+        $manualCarrySum = (float) DB::table('annual_leave_decisions')
+            ->where('employee_id', $employeeId)
+            ->where('year', $year)
+            ->sum('carried_over_days');
+
+        $prev = $service->getEmployeeYearBalance($employeeId, $year - 1);
+        $autoCarry = (int) max(0, (int) ($prev['remaining_days'] ?? 0));
+        $carryOverDays = $manualCarrySum > 0 ? (int) round($manualCarrySum, 0) : $autoCarry;
+        $carryOverMode = $manualCarrySum > 0 ? 'stored' : 'auto';
+
+        $decisions = DB::table('annual_leave_decisions as d')
+            ->where('d.employee_id', $employeeId)
+            ->where('d.year', $year)
+            ->orderBy('d.part')
+            ->orderBy('d.id')
+            ->get([
+                'd.id',
+                'd.part',
+                'd.decision_number',
+                'd.decision_date',
+                'd.valid_from',
+                'd.valid_to',
+                DB::raw('CAST(ROUND(COALESCE(d.granted_days,0) + COALESCE(d.carried_over_days,0),0) AS SIGNED) as total_days'),
+            ])
+            ->map(function ($d) {
+                return [
+                    'id' => (int) $d->id,
+                    'part' => (string) ($d->part ?? 'ostalo'),
+                    'decision_number' => $d->decision_number,
+                    'decision_date' => $d->decision_date,
+                    'valid_from' => $d->valid_from,
+                    'valid_to' => $d->valid_to,
+                    'total_days' => (int) $d->total_days,
+                ];
+            })
+            ->values();
+
+        $usages = DB::table('annual_leave_usages as u')
+            ->join('annual_leave_decisions as d', 'd.id', '=', 'u.annual_leave_decision_id')
+            ->where('d.employee_id', $employeeId)
+            ->where('d.year', $year)
+            ->orderBy('u.date_from')
+            ->orderBy('u.id')
+            ->get([
+                'u.id',
+                'u.annual_leave_decision_id',
+                'u.date_from',
+                'u.date_to',
+                DB::raw('CAST(ROUND(COALESCE(u.days,0),0) AS SIGNED) as days'),
+                'u.note',
+                'd.part',
+                'd.decision_number',
+            ])
+            ->map(function ($u) {
+                return [
+                    'id' => (int) $u->id,
+                    'annual_leave_decision_id' => (int) $u->annual_leave_decision_id,
+                    'date_from' => $u->date_from,
+                    'date_to' => $u->date_to,
+                    'days' => (int) $u->days,
+                    'note' => $u->note,
+                    'part' => (string) ($u->part ?? 'ostalo'),
+                    'decision_number' => $u->decision_number,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'employee_id' => $employeeId,
+            'year' => $year,
+            'carryover_days' => $carryOverDays,
+            'carryover_mode' => $carryOverMode,
+            'carryover_from_year' => $carryOverMode === 'auto' ? ($year - 1) : null,
+            'decisions' => $decisions,
+            'usages' => $usages,
+        ]);
+    })->name('api.godisnji.balanceDetails');
+
+    Route::get('/api/godisnji/balance-all', function (Request $request) {
+        $validated = $request->validate([
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+        ]);
+
+        $year = (int) ($validated['year'] ?? now()->year);
+
+        $minYear = (int) (DB::table('annual_leave_decisions')->min('year') ?? $year);
+        $minYear = max(2000, min($minYear, $year));
+
+        $decisionsAgg = DB::table('annual_leave_decisions')
+            ->whereBetween('year', [$minYear, $year])
+            ->select([
+                'employee_id',
+                'year',
+                DB::raw('CAST(ROUND(SUM(COALESCE(granted_days,0)), 0) AS SIGNED) as granted_days'),
+                DB::raw('CAST(ROUND(SUM(COALESCE(carried_over_days,0)), 0) AS SIGNED) as carried_over_days'),
+            ])
+            ->groupBy('employee_id', 'year')
+            ->get();
+
+        $usageAgg = DB::table('annual_leave_usages as u')
+            ->join('annual_leave_decisions as d', 'd.id', '=', 'u.annual_leave_decision_id')
+            ->whereBetween('d.year', [$minYear, $year])
+            ->select([
+                'd.employee_id',
+                'd.year',
+                DB::raw('CAST(ROUND(SUM(COALESCE(u.days,0)), 0) AS SIGNED) as used_days'),
+            ])
+            ->groupBy('d.employee_id', 'd.year')
+            ->get();
+
+        $granted = [];
+        $manualCarry = [];
+        foreach ($decisionsAgg as $r) {
+            $eid = (int) $r->employee_id;
+            $y = (int) $r->year;
+            $granted[$eid][$y] = (int) $r->granted_days;
+            $manualCarry[$eid][$y] = (int) $r->carried_over_days;
+        }
+
+        $used = [];
+        foreach ($usageAgg as $r) {
+            $eid = (int) $r->employee_id;
+            $y = (int) $r->year;
+            $used[$eid][$y] = (int) $r->used_days;
+        }
+
+        $employees = DB::table('employees as e')
+            ->where(function ($q) {
+                $q->whereNull('e.Active')->orWhere('e.Active', '=', 1);
+            })
+            ->select([
+                'e.id as employee_id',
+                'e.firstName',
+                'e.lastName',
+            ])
+            ->orderBy('e.lastName')
+            ->orderBy('e.firstName')
+            ->get();
+
+        $rows = $employees->map(function ($e) use ($year, $minYear, $granted, $manualCarry, $used) {
+            $eid = (int) $e->employee_id;
+            $prevRemaining = 0;
+            $totalDays = 0;
+            $usedDays = 0;
+            $remainingDays = 0;
+
+            for ($y = $minYear; $y <= $year; $y++) {
+                $g = (int) ($granted[$eid][$y] ?? 0);
+                $mCarry = (int) ($manualCarry[$eid][$y] ?? 0);
+                $u = (int) ($used[$eid][$y] ?? 0);
+
+                $autoCarry = max(0, (int) $prevRemaining);
+                $carry = $mCarry > 0 ? $mCarry : $autoCarry;
+                $approved = $g + $carry;
+                $remaining = $approved - $u;
+
+                if ($y === $year) {
+                    $totalDays = (int) $approved;
+                    $usedDays = (int) $u;
+                    $remainingDays = (int) $remaining;
+                }
+
+                $prevRemaining = $remaining;
+            }
+
+            return [
+                'employee_id' => $eid,
+                'firstName' => $e->firstName,
+                'lastName' => $e->lastName,
+                'year' => $year,
+                'used_days' => $usedDays,
+                'total_days' => $totalDays,
+                'remaining_days' => $remainingDays,
+            ];
+        })->values();
+
+        return response()->json([
+            'year' => $year,
+            'rows' => $rows,
+        ]);
+    })->name('api.godisnji.balanceAll');
 
     // HR
     Route::get('/hr/sihterica', [SihtericaController::class, 'index'])

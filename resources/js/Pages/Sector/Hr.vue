@@ -23,6 +23,26 @@ const links = [
     description: 'Dolazak po mjesecu (attendance_records).',
     href: route('hr.sihterica'),
   },
+  {
+    title: 'Saldo godišnjeg',
+    description: 'Pregled salda godišnjeg odmora po radniku.',
+    href: route('hr.godisnji.saldo'),
+  },
+  {
+    title: 'Unos rješenja godišnjeg',
+    description: 'Forma za unos rješenja (ljetni/zimski/jednodnevni).',
+    href: route('hr.godisnji.rjesenja'),
+  },
+  {
+    title: 'Iskorišteni godišnji',
+    description: 'Unos iskorištenog godišnjeg na osnovu rješenja.',
+    href: route('hr.godisnji.iskoristenje'),
+  },
+  {
+    title: 'Bolovanja',
+    description: 'Evidencija bolovanja po radniku.',
+    href: route('hr.bolovanja'),
+  },
 ]
 </script>
 

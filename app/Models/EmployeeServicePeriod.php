@@ -5,33 +5,31 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
-class Leave extends Model
+class EmployeeServicePeriod extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'employee_id',
-        'type',
-        'from',
-        'to',
+        'employer_name',
+        'position',
+        'service_type',
+        'start_date',
+        'end_date',
+        'is_recognized',
+        'document_number',
         'note',
-        'status',
     ];
 
     protected $casts = [
-        'from' => 'date',
-        'to' => 'date',
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'is_recognized' => 'boolean',
     ];
 
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
-    }
-
-    public function annualLeaveUsage(): HasOne
-    {
-        return $this->hasOne(AnnualLeaveUsage::class);
     }
 }
