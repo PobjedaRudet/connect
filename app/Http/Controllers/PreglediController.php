@@ -258,26 +258,33 @@ class PreglediController extends Controller
      */
     public function apiIzvjestajPregledi()
     {
-        $pregledi = Pregledi::with(['employee'])
-            ->whereHas('employee', function ($query) {
-                $query->where('Active', '1');
-            })
-            ->orderByDesc('datum_pregleda')
+        $pregledi = Employee::query()
+            ->where('Active', 1)
+            ->with(['pregledi' => function ($query) {
+                $query->orderByDesc('datum_pregleda')->limit(1);
+            }])
             ->get()
-            ->map(function ($p) {
+            ->map(function ($employee) {
+                $lastExam = $employee->pregledi->first();
+
                 return [
-                    'organizacija' => $p->organizacija,
-                    'datum_pregleda' => $p->datum_pregleda,
-                    'lastName' => $p->employee->lastName ?? '',
-                    'middleName' => $p->employee->middleName ?? '',
-                    'firstName' => $p->employee->firstName ?? '',
-                    'radno_mjesto' => $p->employee->radno_mjesto ?? '',
-                    'type' => $p->type,
-                    'profesionalno_oboljenje' => $p->employee->profesionalno_oboljenje ?? '',
-                    'invalidnost_radnika' => $p->employee->invalidnost_radnika ?? '',
-                    'employee_id' => $p->employee->empID ?? null,
+                    'organizacija' => $lastExam->organizacija ?? '',
+                    'datum_pregleda' => $lastExam->datum_pregleda ?? null,
+                    'lastName' => $employee->lastName ?? '',
+                    'middleName' => $employee->middleName ?? '',
+                    'firstName' => $employee->firstName ?? '',
+                    'radno_mjesto' => $employee->radno_mjesto ?? '',
+                    'type' => $lastExam->type ?? '',
+                    'profesionalno_oboljenje' => $employee->profesionalno_oboljenje ?? '',
+                    'invalidnost_radnika' => $employee->invalidnost_radnika ?? '',
+                    'employee_id' => $employee->empID ?? null,
                 ];
-            });
+            })
+            ->sortByDesc(function ($row) {
+                return $row['datum_pregleda'] ?? '0000-00-00';
+            })
+            ->values();
+
         return response()->json($pregledi);
     }
 

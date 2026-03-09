@@ -13,7 +13,7 @@ return new class extends Migration {
         Schema::create('redosljed', function (Blueprint $table) {
             $table->id(); // auto increment primary key
             $table->string('radno_mjesto');
-            $table->integer('redni_broj');
+            $table->float('redni_broj');
             $table->timestamps();
         });
     }

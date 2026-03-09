@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Shift extends Model
 {
@@ -16,6 +15,7 @@ class Shift extends Model
         'name',
         'start_time',
         'end_time',
+        'attendance_credit_code',
     ];
 
     protected $casts = [
@@ -26,10 +26,5 @@ class Shift extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
-    }
-
-    public function employees(): BelongsToMany
-    {
-        return $this->belongsToMany(Employee::class, 'employee_shift');
     }
 }

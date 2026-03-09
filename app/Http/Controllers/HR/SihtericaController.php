@@ -5,6 +5,7 @@ namespace App\Http\Controllers\HR;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
+use App\Models\Shift;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -60,6 +61,7 @@ class SihtericaController extends Controller
             ->get(['id', 'empID', 'firstName', 'lastName']);
 
         $records = AttendanceRecord::query()
+            ->with(['shift:id,name,start_time,end_time,attendance_credit_code'])
             ->whereBetween('entry_time', [
                 $monthStart->copy()->startOfDay(),
                 $monthEnd->copy()->endOfDay(),
@@ -69,6 +71,7 @@ class SihtericaController extends Controller
             ->get([
                 'id',
                 'employee_id',
+                'shift_id',
                 'entry_time',
                 'effective_start',
                 'exit_time',
@@ -100,6 +103,7 @@ class SihtericaController extends Controller
                 'entry_time' => $record->entry_time?->timezone(config('app.timezone'))->format('H:i'),
                 'exit_time' => $record->exit_time?->timezone(config('app.timezone'))->format('H:i'),
                 'duration_minutes' => $record->duration_minutes,
+                'duration_display' => $this->resolveDurationDisplay($record),
                 'late_flag' => $record->late_flag,
                 'status' => $record->status,
                 'entry_time_raw' => $record->entry_time?->getTimestamp(),
@@ -123,5 +127,66 @@ class SihtericaController extends Controller
             ])->values()->all(),
             'attendance' => $attendance,
         ]);
+    }
+
+    private function resolveDurationDisplay(AttendanceRecord $record): ?string
+    {
+        $shift = $record->shift;
+        if (!$shift) {
+            return null;
+        }
+
+        $code = $shift->attendance_credit_code;
+        if (!is_string($code) || trim($code) === '') {
+            return null;
+        }
+
+        $code = strtoupper(trim($code));
+        if (!in_array($code, ['II', 'III'], true)) {
+            return null;
+        }
+
+        // "Došao na vrijeme" => nije zakasnio
+        if (!empty($record->late_flag)) {
+            return null;
+        }
+
+        // "Otišao na vrijeme" => exit_time >= kraj smjene
+        if (!$record->entry_time || !$record->exit_time) {
+            return null;
+        }
+        if (!$shift->start_time || !$shift->end_time) {
+            return null;
+        }
+
+        $tz = config('app.timezone');
+
+        $workDate = Carbon::parse($record->entry_time)->timezone($tz)->toDateString();
+
+        $startTimeStr = $shift->start_time instanceof Carbon
+            ? $shift->start_time->format('H:i:s')
+            : (string) $shift->start_time;
+
+        $endTimeStr = $shift->end_time instanceof Carbon
+            ? $shift->end_time->format('H:i:s')
+            : (string) $shift->end_time;
+
+        try {
+            $shiftStart = Carbon::parse($workDate . ' ' . $startTimeStr, $tz);
+            $shiftEnd = Carbon::parse($workDate . ' ' . $endTimeStr, $tz);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if ($shiftEnd->lessThanOrEqualTo($shiftStart)) {
+            $shiftEnd->addDay();
+        }
+
+        $exit = Carbon::parse($record->exit_time)->timezone($tz);
+        if ($exit->lessThan($shiftEnd)) {
+            return null;
+        }
+
+        return $code;
     }
 }

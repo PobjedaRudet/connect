@@ -18,4 +18,8 @@ class RadniciPoRedosljedu extends Model
         'redni_broj',
         'employee_id',
     ];
+
+    protected $casts = [
+        'redni_broj' => 'float',
+    ];
 }

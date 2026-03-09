@@ -25,6 +25,7 @@ use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\HR\SihtericaController;
 use App\Http\Controllers\HR\EmployeePagesController;
 use App\Http\Controllers\HR\AnnualLeaveDecisionPagesController;
+use App\Http\Controllers\HR\DepartmentShiftPagesController;
 use App\Http\Controllers\HR\SickLeavePagesController;
 use App\Http\Controllers\HR\AnnualLeaveUsagePagesController;
 use App\Http\Controllers\UpcomingExamsController;
@@ -458,6 +459,12 @@ Route::middleware('auth')->group(function () {
     // HR
     Route::get('/hr/sihterica', [SihtericaController::class, 'index'])
         ->name('hr.sihterica');
+
+    Route::get('/hr/dodjela-smjene', [DepartmentShiftPagesController::class, 'index'])
+        ->name('hr.smjene.dodjela');
+
+    Route::post('/hr/dodjela-smjene', [DepartmentShiftPagesController::class, 'store'])
+        ->name('hr.smjene.dodjela.store');
 
     Route::get('/hr/uposlenici-forma/{employee?}', [EmployeePagesController::class, 'form'])
         ->name('hr.uposlenici.forma');

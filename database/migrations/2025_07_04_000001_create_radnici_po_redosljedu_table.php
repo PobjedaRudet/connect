@@ -15,7 +15,7 @@ return new class extends Migration {
             $table->string('prezime');
             $table->string('ime');
             $table->string('radno_mjesto');
-            $table->integer('redni_broj');
+            $table->float('redni_broj');
             $table->unsignedBigInteger('employee_id');
             $table->timestamps();
         });

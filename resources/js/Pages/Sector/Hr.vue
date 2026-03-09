@@ -24,6 +24,11 @@ const links = [
     href: route('hr.sihterica'),
   },
   {
+    title: 'Dodjela smjena odjelu',
+    description: 'Smjene se određuju po odjelu radnika.',
+    href: route('hr.smjene.dodjela'),
+  },
+  {
     title: 'Saldo godišnjeg',
     description: 'Pregled salda godišnjeg odmora po radniku.',
     href: route('hr.godisnji.saldo'),

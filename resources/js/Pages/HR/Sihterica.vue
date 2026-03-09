@@ -61,6 +61,12 @@ const formatHours = (minutes) => {
   if (Number.isInteger(rounded)) return String(rounded)
   return rounded.toFixed(1)
 }
+
+const cellValue = (entry) => {
+  if (!entry) return '—'
+  if (entry.duration_display) return String(entry.duration_display)
+  return formatHours(entry.duration_minutes)
+}
 </script>
 
 <template>
@@ -146,7 +152,7 @@ const formatHours = (minutes) => {
                 >
                   <template v-if="cell(e.id, d.date)">
                     <div class="leading-4">
-                      <div>{{ formatHours(cell(e.id, d.date).duration_minutes) }}</div>
+                      <div>{{ cellValue(cell(e.id, d.date)) }}</div>
                     </div>
                   </template>
                   <template v-else>

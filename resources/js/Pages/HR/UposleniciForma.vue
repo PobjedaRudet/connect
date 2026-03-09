@@ -8,25 +8,10 @@ const props = defineProps({
   departments: { type: Array, default: () => [] },
   funkcije: { type: Array, default: () => [] },
   supervisors: { type: Array, default: () => [] },
-  shifts: { type: Array, default: () => [] },
   cancelUrl: { type: String, default: '/employees' },
 })
 
 const isEdit = computed(() => Boolean(props.employee?.id))
-
-const formatTime = (value) => {
-  if (!value) return ''
-  const str = String(value)
-  return str.length >= 5 ? str.slice(0, 5) : str
-}
-
-const shiftLabel = (s) => {
-  const start = formatTime(s?.start_time)
-  const end = formatTime(s?.end_time)
-  if (start && end) return `${s.name} (${start} - ${end})`
-  if (start && !end) return `${s.name} (${start})`
-  return s.name
-}
 
 const radnaMjestaOptions = [
   'Upravnik pogona proizvodnje detonatora',
@@ -97,7 +82,6 @@ const form = useForm({
   profesionalno_oboljenje: props.employee?.profesionalno_oboljenje ?? '',
   invalidnost_radnika: props.employee?.invalidnost_radnika ?? '',
   nadlezne_osobe: props.employee?.nadlezne_osobe ?? [],
-  shift_id: props.employee?.shift_id ?? '',
 })
 
 const hasErrors = computed(() => Object.keys(form.errors || {}).length > 0)

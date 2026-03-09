@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Employee extends Model
@@ -63,12 +62,6 @@ class Employee extends Model
         // Veza: pregledis.employee_id <-> employees.empID
         return $this->hasMany(Pregledi::class, 'employee_id', 'empID');
     }
-
-    public function shifts(): BelongsToMany
-    {
-        return $this->belongsToMany(Shift::class, 'employee_shift');
-    }
-
     public function annualLeaveDecisions(): HasMany
     {
         return $this->hasMany(AnnualLeaveDecision::class);

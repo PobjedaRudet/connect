@@ -9,13 +9,19 @@ class EmployeeController extends Controller
     // API: Ažuriranje kolone Active zaposlenika
     public function updateActive(Request $request, $id)
     {
-        $employee = Employee::findOrFail($id);
+        $employee = Employee::query()
+            ->where('empID', $id)
+            ->orWhere('id', $id)
+            ->firstOrFail();
+
         $data = $request->validate([
             'active' => 'required|in:0,1',
         ]);
-        $employee->active = $data['active'];
+
+        $employee->Active = (int) $data['active'];
         $employee->save();
-        return response()->json(['success' => true, 'active' => $employee->active]);
+
+        return response()->json(['success' => true, 'active' => (int) $employee->Active]);
     }
     public function showEmployee($id)
     {

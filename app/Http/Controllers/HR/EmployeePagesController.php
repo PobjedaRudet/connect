@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Funkcija;
-use App\Models\Shift;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -44,7 +43,6 @@ class EmployeePagesController extends Controller
             'position',
             'profesionalno_oboljenje',
             'invalidnost_radnika',
-            'shift_id',
         ];
 
         foreach ($nullableFields as $field) {
@@ -96,8 +94,6 @@ class EmployeePagesController extends Controller
 
             'nadlezne_osobe' => ['nullable', 'array'],
             'nadlezne_osobe.*' => ['integer', 'exists:users,id'],
-
-            'shift_id' => ['nullable', 'integer', 'exists:shifts,id'],
 
             'picture' => ['nullable', 'image', 'max:4096'],
         ]);
@@ -185,7 +181,6 @@ class EmployeePagesController extends Controller
                 'name' => $f->Opis ?: $f->Funkcija,
             ])->values();
         $supervisors = User::orderBy('name')->get(['id', 'name']);
-        $shifts = Shift::orderBy('name')->get(['id', 'name', 'start_time', 'end_time']);
 
         $employeePayload = $employee ? [
             'id' => $employee->id,
@@ -223,7 +218,6 @@ class EmployeePagesController extends Controller
             'profesionalno_oboljenje' => $employee->profesionalno_oboljenje,
             'invalidnost_radnika' => $employee->invalidnost_radnika,
             'nadlezne_osobe' => $employee->nadlezne_osobe ?? [],
-            'shift_id' => (int) ($employee->shifts()->pluck('shifts.id')->first() ?? 0) ?: null,
         ] : null;
 
         return Inertia::render('HR/UposleniciForma', [
@@ -231,7 +225,6 @@ class EmployeePagesController extends Controller
             'departments' => $departments,
             'funkcije' => $funkcije,
             'supervisors' => $supervisors,
-            'shifts' => $shifts,
             'cancelUrl' => route('hr.uposlenici.pregled'),
         ]);
     }
@@ -248,8 +241,6 @@ class EmployeePagesController extends Controller
         }
 
         $employee->save();
-
-        $employee->shifts()->sync(isset($data['shift_id']) && $data['shift_id'] ? [$data['shift_id']] : []);
 
         return redirect()->route('hr.uposlenici.pregled');
     }
@@ -268,8 +259,6 @@ class EmployeePagesController extends Controller
         }
 
         $employee->save();
-
-        $employee->shifts()->sync(isset($data['shift_id']) && $data['shift_id'] ? [$data['shift_id']] : []);
 
         return redirect()->route('hr.uposlenici.pregled');
     }
