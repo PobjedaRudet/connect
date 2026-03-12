@@ -68,7 +68,6 @@ const form = useForm({
   middle_name: props.employee?.middle_name ?? '',
   firstName: props.employee?.firstName ?? '',
   lastName: props.employee?.lastName ?? '',
-  position: props.employee?.position ?? '',
   radno_mjesto: props.employee?.radno_mjesto ?? '',
   department_id: props.employee?.department_id ?? '',
   email: props.employee?.email ?? '',
@@ -76,8 +75,6 @@ const form = useForm({
   risk: props.employee?.risk ?? false,
   period: props.employee?.period ?? '',
   status: props.employee?.status ?? '',
-  start_date: props.employee?.start_date ?? '',
-  term_date: props.employee?.term_date ?? '',
   active: props.employee?.Active ?? true,
   profesionalno_oboljenje: props.employee?.profesionalno_oboljenje ?? '',
   invalidnost_radnika: props.employee?.invalidnost_radnika ?? '',
@@ -217,34 +214,31 @@ const submit = () => {
           <!-- Radni podaci -->
           <div class="px-6 py-5 border-b border-gray-200 bg-white">
             <h2 class="text-sm font-semibold text-gray-800">Radni podaci</h2>
-            <p class="text-xs text-gray-500 mt-0.5">Odjel, radno mjesto, nadležni i smjena.</p>
+            <p class="text-xs text-gray-500 mt-0.5">Odjel, radno mjesto i nadležne osobe.</p>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700">Odjel</label>
                 <select v-model="form.department_id" :class="selectClass('department_id')">
                   <option value="">Odaberite odjel</option>
-                  <option v-for="dept in departments" :key="dept.id" :value="dept.id">{{ dept.name }}</option>
+                  <option v-for="dept in departments" :key="dept.id" :value="dept.id">
+                    {{ dept.name }}
+                  </option>
                 </select>
+                <p class="text-xs text-gray-500 mt-1">Prikazuje se naziv odjela, a u pozadini se sprema ID iz tabele departments.</p>
                 <p v-if="form.errors.department_id" class="text-sm text-red-600 mt-1">{{ form.errors.department_id }}</p>
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700">Pozicija</label>
-                <input v-model="form.position" type="text" :class="fieldClass('position')" placeholder="npr. Rukovodilac" />
-                <p v-if="form.errors.position" class="text-sm text-red-600 mt-1">{{ form.errors.position }}</p>
-              </div>
-
-              <div class="md:col-span-2">
                 <label class="block text-sm font-medium text-gray-700">Radno mjesto</label>
-                <select v-model="selectedRadnoMjesto" :class="selectClass('radno_mjesto')">
+                <select v-model="selectedRadnoMjesto" :class="selectClass('radno_mjesto')" class="max-w-md">
                   <option value="">Odaberite radno mjesto</option>
                   <option v-for="o in radnaMjestaOptions" :key="o" :value="o">{{ o }}</option>
                   <option value="__custom__">Drugo (ručni unos)...</option>
                 </select>
 
                 <div v-if="selectedRadnoMjesto === '__custom__'" class="mt-2">
-                  <input v-model="form.radno_mjesto" type="text" :class="fieldClass('radno_mjesto')" placeholder="Unesite radno mjesto" />
+                  <input v-model="form.radno_mjesto" type="text" :class="fieldClass('radno_mjesto')" class="max-w-md" placeholder="Unesite radno mjesto" />
                 </div>
 
                 <p class="text-xs text-gray-500 mt-1">Možete odabrati sa liste ili ručno unijeti vrijednost.</p>
@@ -264,23 +258,13 @@ const submit = () => {
                 <p class="text-xs text-gray-500 mt-1">Izaberite korisnike koji su nadležni za ovog uposlenika.</p>
                 <p v-if="form.errors.nadlezne_osobe" class="text-sm text-red-600 mt-1">{{ form.errors.nadlezne_osobe }}</p>
               </div>
-
-              <div class="md:col-span-2">
-                <label class="block text-sm font-medium text-gray-700">Smjena</label>
-                <select v-model="form.shift_id" :class="selectClass('shift_id')">
-                  <option value="">Odaberite smjenu</option>
-                  <option v-for="s in shifts" :key="s.id" :value="s.id">{{ shiftLabel(s) }}</option>
-                </select>
-                <p class="text-xs text-gray-500 mt-1">Odaberite smjenu za ovog uposlenika.</p>
-                <p v-if="form.errors.shift_id" class="text-sm text-red-600 mt-1">{{ form.errors.shift_id }}</p>
-              </div>
             </div>
           </div>
 
           <!-- Status i period -->
           <div class="px-6 py-5 border-b border-gray-200 bg-white">
             <h2 class="text-sm font-semibold text-gray-800">Status i period</h2>
-            <p class="text-xs text-gray-500 mt-0.5">Aktivnost, rizik, period i datumi.</p>
+            <p class="text-xs text-gray-500 mt-0.5">Aktivnost, rizik, period i status ugovora.</p>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div>
@@ -297,34 +281,27 @@ const submit = () => {
 
               <div>
                 <label class="block text-sm font-medium text-gray-700">Status</label>
-                <input v-model="form.status" type="text" :class="fieldClass('status')" placeholder="npr. zaposlen / na odmoru" />
+                <select v-model="form.status" :class="selectClass('status')">
+                  <option value="">Odaberite status</option>
+                  <option value="1">Neodređeno</option>
+                  <option value="2">Određeno</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Prikazuje se naziv statusa, a sprema se vrijednost 1 ili 2.</p>
                 <p v-if="form.errors.status" class="text-sm text-red-600 mt-1">{{ form.errors.status }}</p>
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700">Datum početka</label>
-                <input v-model="form.start_date" type="date" :class="fieldClass('start_date')" />
-                <p v-if="form.errors.start_date" class="text-sm text-red-600 mt-1">{{ form.errors.start_date }}</p>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700">Datum završetka</label>
-                <input v-model="form.term_date" type="date" :class="fieldClass('term_date')" />
-                <p v-if="form.errors.term_date" class="text-sm text-red-600 mt-1">{{ form.errors.term_date }}</p>
+                <label class="block text-sm font-medium text-gray-700">Aktivan</label>
+                <select v-model="form.active" :class="selectClass('active')">
+                  <option :value="true">Da</option>
+                  <option :value="false">Ne</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Određuje da li je uposlenik aktivan i prikazuje se u listama.</p>
+                <p v-if="form.errors.active" class="text-sm text-red-600 mt-1">{{ form.errors.active }}</p>
               </div>
 
               <div class="md:col-span-2">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div class="rounded-md border border-gray-200 p-4">
-                    <div class="flex items-start gap-3">
-                      <input v-model="form.active" type="checkbox" class="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-                      <div>
-                        <p class="text-sm font-medium text-gray-800">Aktivan</p>
-                        <p class="text-xs text-gray-500">Uposlenik je aktivan i prikazuje se u listama.</p>
-                      </div>
-                    </div>
-                  </div>
-
                   <div class="rounded-md border border-gray-200 p-4">
                     <div class="flex items-start gap-3">
                       <input v-model="form.risk" type="checkbox" class="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />

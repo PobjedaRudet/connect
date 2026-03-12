@@ -8,7 +8,6 @@ use App\Models\Employee;
 use App\Models\Funkcija;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -27,20 +26,8 @@ class EmployeePagesController extends Controller
             'funkcija_id',
             'department_id',
             'email',
-            'start_date',
             'status',
-            'term_date',
-            'term_reason',
-            'home_street',
-            'home_zip',
-            'home_city',
             'home_county',
-            'home_countr',
-            'home_state',
-            'mart_status',
-            'n_children',
-            'gov_id',
-            'position',
             'profesionalno_oboljenje',
             'invalidnost_radnika',
         ];
@@ -69,33 +56,14 @@ class EmployeePagesController extends Controller
             'department_id' => ['nullable', 'integer', 'exists:departments,id'],
             'email' => ['nullable', 'email', 'max:100', Rule::unique('employees', 'email')->ignore($employeeId)],
 
-            'start_date' => ['nullable', 'date'],
             'status' => ['nullable', 'string', 'max:50'],
-            'term_date' => ['nullable', 'date'],
-            'term_reason' => ['nullable', 'string', 'max:255'],
-
-            'home_street' => ['nullable', 'string', 'max:255'],
-            'home_zip' => ['nullable', 'string', 'max:20'],
-            'home_city' => ['nullable', 'string', 'max:100'],
             'home_county' => ['nullable', 'string', 'max:100'],
-            'home_countr' => ['nullable', 'string', 'max:100'],
-            'home_state' => ['nullable', 'string', 'max:100'],
-
-            'birthday' => ['nullable', 'date'],
-            'brth_countr' => ['nullable', 'string', 'max:100'],
-            'mart_status' => ['nullable', 'string', 'max:50'],
-            'n_children' => ['nullable', 'integer', 'min:0'],
-            'gov_id' => ['nullable', 'string', 'max:50'],
-
-            'position' => ['nullable', 'string', 'max:100'],
             'active' => ['sometimes', 'boolean'],
             'profesionalno_oboljenje' => ['nullable', 'string', 'max:100'],
             'invalidnost_radnika' => ['nullable', 'string', 'max:100'],
 
             'nadlezne_osobe' => ['nullable', 'array'],
             'nadlezne_osobe.*' => ['integer', 'exists:users,id'],
-
-            'picture' => ['nullable', 'image', 'max:4096'],
         ]);
     }
 
@@ -120,49 +88,10 @@ class EmployeePagesController extends Controller
             : null;
         $employee->email = $data['email'] ?? null;
 
-        $employee->startDate = $data['start_date'] ?? null;
         $employee->status = $data['status'] ?? null;
-        $employee->termDate = $data['term_date'] ?? null;
-        if (array_key_exists('term_reason', $data)) {
-            $employee->termReason = $data['term_reason'] ?? null;
-        }
-
-        if (array_key_exists('home_street', $data)) {
-            $employee->homeStreet = $data['home_street'] ?? null;
-        }
-        if (array_key_exists('home_zip', $data)) {
-            $employee->homeZip = $data['home_zip'] ?? null;
-        }
-        if (array_key_exists('home_city', $data)) {
-            $employee->homeCity = $data['home_city'] ?? null;
-        }
         if (array_key_exists('home_county', $data)) {
             $employee->homeCounty = $data['home_county'] ?? null;
         }
-        if (array_key_exists('home_countr', $data)) {
-            $employee->homeCountr = $data['home_countr'] ?? null;
-        }
-        if (array_key_exists('home_state', $data)) {
-            $employee->homeState = $data['home_state'] ?? null;
-        }
-
-        if (array_key_exists('birthday', $data)) {
-            $employee->birthDate = $data['birthday'] ?? null;
-        }
-        if (array_key_exists('brth_countr', $data)) {
-            $employee->brthCountr = $data['brth_countr'] ?? null;
-        }
-        if (array_key_exists('mart_status', $data)) {
-            $employee->martStatus = $data['mart_status'] ?? null;
-        }
-        if (array_key_exists('n_children', $data)) {
-            $employee->nChildren = $data['n_children'] ?? null;
-        }
-        if (array_key_exists('gov_id', $data)) {
-            $employee->govID = $data['gov_id'] ?? null;
-        }
-
-        $employee->position = $data['position'] ?? null;
         if (array_key_exists('active', $data)) {
             $employee->Active = (bool) $data['active'];
         }
@@ -191,7 +120,6 @@ class EmployeePagesController extends Controller
             'lastName' => $employee->lastName,
             'department_id' => $employee->dept !== null ? (int) $employee->dept : null,
             'funkcija_id' => $employee->jobTitle,
-            'position' => $employee->position,
             'radno_mjesto' => $employee->radno_mjesto,
             'email' => $employee->email,
             'sex' => $employee->sex,
@@ -199,21 +127,7 @@ class EmployeePagesController extends Controller
             'risk' => $employee->rizik,
             'period' => $employee->period,
             'status' => $employee->status,
-            'start_date' => $employee->startDate?->toDateString(),
-            'term_date' => $employee->termDate?->toDateString(),
-            'term_reason' => $employee->termReason,
-            'birthday' => $employee->birthDate?->toDateString(),
-            'brth_countr' => $employee->brthCountr,
-            'mart_status' => $employee->martStatus,
-            'n_children' => $employee->nChildren,
-            'gov_id' => $employee->govID,
-            'home_street' => $employee->homeStreet,
-            'home_zip' => $employee->homeZip,
-            'home_city' => $employee->homeCity,
             'home_county' => $employee->homeCounty,
-            'home_countr' => $employee->homeCountr,
-            'home_state' => $employee->homeState,
-            'picture' => $employee->picture,
             'Active' => $employee->Active,
             'profesionalno_oboljenje' => $employee->profesionalno_oboljenje,
             'invalidnost_radnika' => $employee->invalidnost_radnika,
@@ -236,10 +150,6 @@ class EmployeePagesController extends Controller
         $employee = new Employee();
         $this->fillEmployee($employee, $data);
 
-        if ($request->hasFile('picture')) {
-            $employee->picture = $request->file('picture')->store('employees', 'public');
-        }
-
         $employee->save();
 
         return redirect()->route('hr.uposlenici.pregled');
@@ -251,13 +161,6 @@ class EmployeePagesController extends Controller
 
         $this->fillEmployee($employee, $data);
 
-        if ($request->hasFile('picture')) {
-            if ($employee->picture) {
-                Storage::disk('public')->delete($employee->picture);
-            }
-            $employee->picture = $request->file('picture')->store('employees', 'public');
-        }
-
         $employee->save();
 
         return redirect()->route('hr.uposlenici.pregled');
@@ -268,7 +171,6 @@ class EmployeePagesController extends Controller
         $search = trim((string) $request->query('search', ''));
 
         $departments = Department::pluck('name', 'id');
-        $funkcije = Funkcija::pluck('Opis', 'Funkcija');
 
         $employeesQuery = Employee::query()
             ->orderBy('lastName')
@@ -282,6 +184,7 @@ class EmployeePagesController extends Controller
                     ->orWhere('middleName', 'like', $like)
                     ->orWhere('lastName', 'like', $like)
                     ->orWhere('dept', 'like', $like)
+                    ->orWhere('radno_mjesto', 'like', $like)
                     ->orWhere('jobTitle', 'like', $like)
                     ->orWhere('email', 'like', $like);
             });
@@ -289,7 +192,7 @@ class EmployeePagesController extends Controller
 
         $employees = $employeesQuery
             ->paginate(20)
-            ->through(function ($e) use ($departments, $funkcije) {
+            ->through(function ($e) use ($departments) {
                 return [
                     'id' => (int) $e->id,
                     'empID' => $e->empID,
@@ -298,7 +201,7 @@ class EmployeePagesController extends Controller
                     'lastName' => $e->lastName,
                     'full_name' => trim("{$e->firstName} {$e->lastName}"),
                     'department_name' => $departments[$e->dept] ?? ($e->dept ?? ''),
-                    'funkcija_name' => $funkcije[$e->jobTitle] ?? ($e->jobTitle ?? ''),
+                    'radno_mjesto' => $e->radno_mjesto,
                     'email' => $e->email,
                     'phone' => null,
                     'status' => $e->status,

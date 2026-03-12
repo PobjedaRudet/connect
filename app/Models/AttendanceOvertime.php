@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AttendanceOvertime extends Model
 {
@@ -30,5 +31,10 @@ class AttendanceOvertime extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    public function usageAllocations(): HasMany
+    {
+        return $this->hasMany(OvertimeUsageAllocation::class, 'attendance_overtime_id');
     }
 }

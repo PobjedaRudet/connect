@@ -22,6 +22,8 @@ use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\PartnerController;
 use App\Http\Controllers\ProductionPlanningController;
 use App\Http\Controllers\HolidayController;
+use App\Http\Controllers\HR\OvertimePagesController;
+use App\Http\Controllers\HR\OvertimeUsagePagesController;
 use App\Http\Controllers\HR\SihtericaController;
 use App\Http\Controllers\HR\EmployeePagesController;
 use App\Http\Controllers\HR\AnnualLeaveDecisionPagesController;
@@ -30,6 +32,7 @@ use App\Http\Controllers\HR\SickLeavePagesController;
 use App\Http\Controllers\HR\AnnualLeaveUsagePagesController;
 use App\Http\Controllers\UpcomingExamsController;
 use App\Services\AnnualLeaveService;
+use App\Services\OvertimeService;
 use Illuminate\Http\Request;
 
 // API za CE oznaku
@@ -460,11 +463,40 @@ Route::middleware('auth')->group(function () {
     Route::get('/hr/sihterica', [SihtericaController::class, 'index'])
         ->name('hr.sihterica');
 
+    Route::get('/hr/prekovremeni-sati', [OvertimePagesController::class, 'index'])
+        ->name('hr.prekovremeni-sati');
+
+    Route::get('/hr/prekovremeni-iskoristenje', [OvertimeUsagePagesController::class, 'index'])
+        ->name('hr.prekovremeni.iskoristenje');
+
+    Route::post('/hr/prekovremeni-iskoristenje', [OvertimeUsagePagesController::class, 'store'])
+        ->name('hr.prekovremeni.iskoristenje.store');
+
+    Route::get('/api/prekovremeni/balance', function (Request $request, OvertimeService $service) {
+        $validated = $request->validate([
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
+            'usage_date' => ['required', 'date'],
+            'minutes_requested' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        return response()->json($service->getAvailableBalance(
+            (int) $validated['employee_id'],
+            (string) $validated['usage_date'],
+            isset($validated['minutes_requested']) ? (int) $validated['minutes_requested'] : null,
+        ));
+    })->name('api.prekovremeni.balance');
+
     Route::get('/hr/dodjela-smjene', [DepartmentShiftPagesController::class, 'index'])
         ->name('hr.smjene.dodjela');
 
     Route::post('/hr/dodjela-smjene', [DepartmentShiftPagesController::class, 'store'])
         ->name('hr.smjene.dodjela.store');
+
+    Route::post('/hr/dodjela-smjene/smjena', [DepartmentShiftPagesController::class, 'storeShift'])
+        ->name('hr.smjene.store');
+
+    Route::put('/hr/dodjela-smjene/{department}', [DepartmentShiftPagesController::class, 'update'])
+        ->name('hr.smjene.dodjela.update');
 
     Route::get('/hr/uposlenici-forma/{employee?}', [EmployeePagesController::class, 'form'])
         ->name('hr.uposlenici.forma');

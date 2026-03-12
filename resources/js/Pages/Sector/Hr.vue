@@ -24,8 +24,18 @@ const links = [
     href: route('hr.sihterica'),
   },
   {
-    title: 'Dodjela smjena odjelu',
-    description: 'Smjene se određuju po odjelu radnika.',
+    title: 'Prekovremeni sati',
+    description: 'Pregled prekovremenih po mjesecu (attendance_overtimes).',
+    href: route('hr.prekovremeni-sati'),
+  },
+  {
+    title: 'Iskorištenje prekovremenih',
+    description: 'Unos i FIFO raspodjela iskorištenih prekovremenih sati.',
+    href: route('hr.prekovremeni.iskoristenje'),
+  },
+  {
+    title: 'Odjeli i smjene',
+    description: 'Unos i izmjena odjela uz dodjelu jedne ili više smjena.',
     href: route('hr.smjene.dodjela'),
   },
   {

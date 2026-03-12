@@ -15,6 +15,12 @@ const search = ref(props.search || '')
 
 const employeesData = computed(() => props.employees?.data ?? [])
 
+const formatStatus = (value) => {
+  if (value === 1 || value === '1') return 'Neodređeno'
+  if (value === 2 || value === '2') return 'Određeno'
+  return value || '—'
+}
+
 const goTo = (url) => {
   if (!url) return
   router.get(url, { preserveState: true, preserveScroll: true })
@@ -56,7 +62,7 @@ watch(search, (val) => {
           <input
             v-model="search"
             type="text"
-            placeholder="Pretraga (ime, prezime, odjel, funkcija)"
+            placeholder="Pretraga (ime, prezime, odjel, radno mjesto)"
             class="w-full sm:w-72 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
           />
           <Link
@@ -73,12 +79,10 @@ watch(search, (val) => {
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr class="text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                <th class="px-4 py-3">Šifra</th>
+                <th class="px-4 py-3">SAP ID</th>
                 <th class="px-4 py-3">Ime i prezime</th>
                 <th class="px-4 py-3">Odjel</th>
-                <th class="px-4 py-3">Funkcija</th>
-                <th class="px-4 py-3">Email</th>
-                <th class="px-4 py-3">Telefon</th>
+                <th class="px-4 py-3">Radno mjesto</th>
                 <th class="px-4 py-3">Status</th>
                 <th class="px-4 py-3">Aktivan</th>
                 <th class="px-4 py-3 text-right sticky right-0 bg-gray-50">Akcije</th>
@@ -89,10 +93,8 @@ watch(search, (val) => {
                 <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ e.empID || '—' }}</td>
                 <td class="px-4 py-3 text-sm text-gray-800 font-medium whitespace-nowrap">{{ e.full_name }}</td>
                 <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ e.department_name || '—' }}</td>
-                <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ e.funkcija_name || '—' }}</td>
-                <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ e.email || '—' }}</td>
-                <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ e.phone || '—' }}</td>
-                <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ e.status || '—' }}</td>
+                <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ e.radno_mjesto || '—' }}</td>
+                <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ formatStatus(e.status) }}</td>
                 <td class="px-4 py-3 text-sm whitespace-nowrap">
                   <span
                     :class="e.active ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'"
@@ -111,7 +113,7 @@ watch(search, (val) => {
                 </td>
               </tr>
               <tr v-if="employeesData.length === 0">
-                <td colspan="9" class="px-4 py-6 text-center text-sm text-gray-500">Nema uposlenika za prikaz.</td>
+                <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">Nema uposlenika za prikaz.</td>
               </tr>
             </tbody>
           </table>
