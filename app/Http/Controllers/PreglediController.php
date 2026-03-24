@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Employee;
 use App\Models\Pregledi;
 use App\Models\RadniciPoRedosljedu;
+use App\Models\RadnoMjesto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -258,13 +259,16 @@ class PreglediController extends Controller
      */
     public function apiIzvjestajPregledi()
     {
+        // Dohvati redosljed radnih mjesta iz tabele radna_mjesta (po id-u)
+        $radnaMjestaOrder = RadnoMjesto::pluck('id', 'radno_mjesto');
+
         $pregledi = Employee::query()
             ->where('Active', 1)
             ->with(['pregledi' => function ($query) {
                 $query->orderByDesc('datum_pregleda')->limit(1);
             }])
             ->get()
-            ->map(function ($employee) {
+            ->map(function ($employee) use ($radnaMjestaOrder) {
                 $lastExam = $employee->pregledi->first();
 
                 return [
@@ -278,11 +282,10 @@ class PreglediController extends Controller
                     'profesionalno_oboljenje' => $employee->profesionalno_oboljenje ?? '',
                     'invalidnost_radnika' => $employee->invalidnost_radnika ?? '',
                     'employee_id' => $employee->empID ?? null,
+                    'radno_mjesto_order' => $radnaMjestaOrder[$employee->radno_mjesto] ?? 99999,
                 ];
             })
-            ->sortByDesc(function ($row) {
-                return $row['datum_pregleda'] ?? '0000-00-00';
-            })
+            ->sortBy('radno_mjesto_order')
             ->values();
 
         return response()->json($pregledi);
