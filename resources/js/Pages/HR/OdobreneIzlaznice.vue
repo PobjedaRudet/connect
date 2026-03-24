@@ -1,5 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import HrNav from '@/Components/HrNav.vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 
 const props = defineProps({
@@ -49,6 +50,7 @@ const onMonthChange = (event) => {
 <template>
   <AppLayout title="Odobrene izlaznice">
     <Head title="Odobrene izlaznice" />
+    <HrNav />
 
     <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
       <div class="flex items-center justify-between">
@@ -56,12 +58,6 @@ const onMonthChange = (event) => {
           <h1 class="text-2xl font-semibold text-gray-800">Odobrene izlaznice</h1>
           <p class="text-sm text-gray-500">Prikaz odobrenih izlaznica po mjesecima. Trenutno prikazano: {{ formatMonthLabel(selectedMonth) }}.</p>
         </div>
-        <Link
-          :href="route('passes.active')"
-          class="inline-flex items-center px-3 py-2 bg-white text-gray-700 border border-gray-200 rounded-md text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
-        >
-          Nazad na odobravanje
-        </Link>
       </div>
 
       <div class="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-4 shadow-sm">

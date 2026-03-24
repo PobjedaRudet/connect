@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Employee extends Model
@@ -61,5 +62,10 @@ class Employee extends Model
     public function sickLeaves(): HasMany
     {
         return $this->hasMany(SickLeave::class);
+    }
+
+    public function radnoMjestoRelacija(): BelongsTo
+    {
+        return $this->belongsTo(RadnoMjesto::class, 'radno_mjesto', 'radno_mjesto');
     }
 }

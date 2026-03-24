@@ -1,10 +1,6 @@
 <template>
     <AppLayout title="Nadolazeći pregledi">
-        <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Nadolazeći pregledi
-            </h2>
-        </template>
+        <PpzNav />
         <div class="p-6 flex justify-center">
             <div class="w-full max-w-4xl">
                 <h2 class="text-lg font-semibold mb-4">📅 Nadolazeći pregledi za tekući mjesec</h2>
@@ -187,6 +183,7 @@
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import PpzNav from '@/Components/PpzNav.vue'
 
 const props = defineProps({
     upcoming: Array,

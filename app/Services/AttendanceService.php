@@ -226,7 +226,7 @@ class AttendanceService
             $openRecord->update([
                 'exit_time' => $moment,
                 'status' => 'left',
-                'terminal_id' => $openRecord->terminal_id ?? $terminalId,
+                'terminal_out' => $terminalId ?? $openRecord->terminal_out,
             ]);
             return [
                 'status' => 'checkout',
@@ -255,7 +255,7 @@ class AttendanceService
             'effective_start' => $effectiveStart,
             'status' => 'working',
             'late_flag' => $lateFlag === 'none' ? null : $lateFlag,
-            'terminal_id' => $terminalId,
+            'terminal_in' => $terminalId,
         ]);
         return [
             'status' => 'checkin',
@@ -289,7 +289,7 @@ class AttendanceService
             'effective_start' => $effectiveStart,
             'status' => 'working',
             'late_flag' => $lateFlag === 'none' ? null : $lateFlag,
-            'terminal_id' => $terminalId,
+            'terminal_in' => $terminalId,
         ]);
 
         return [
@@ -310,7 +310,7 @@ class AttendanceService
         $record->update([
             'exit_time' => $exitTime,
             'status' => 'left',
-            'terminal_id' => $record->terminal_id ?? $terminalId,
+            'terminal_out' => $terminalId ?? $record->terminal_out,
         ]);
 
         return [

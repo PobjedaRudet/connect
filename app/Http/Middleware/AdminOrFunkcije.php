@@ -30,6 +30,6 @@ class AdminOrFunkcije
             return $next($request);
         }
 
-        abort(403, 'Nemate prava pristupa ovoj stranici.');
+        return redirect('/')->with('error', 'Nemate pravo pristupa ovoj stranici.');
     }
 }

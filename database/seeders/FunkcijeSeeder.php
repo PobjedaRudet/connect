@@ -16,6 +16,14 @@ class FunkcijeSeeder extends Seeder
             ['Funkcija' => 'Direktor Proizvodnje', 'Opis' => 'Direktor Proizvodnje', 'Redosljed' => 4],
             ['Funkcija' => 'Šef Operative', 'Opis' => 'Šef Operative', 'Redosljed' => 5],
 
+            // Službe / odjeli
+            ['Funkcija' => 'HR', 'Opis' => 'Služba za ljudske resurse', 'Redosljed' => 10],
+            ['Funkcija' => 'PPZ', 'Opis' => 'Zaštita na radu', 'Redosljed' => 11],
+            ['Funkcija' => 'Prodaja', 'Opis' => 'Služba prodaje', 'Redosljed' => 12],
+            ['Funkcija' => 'Proizvodnja', 'Opis' => 'Služba proizvodnje', 'Redosljed' => 13],
+            ['Funkcija' => 'Informatika', 'Opis' => 'IT služba', 'Redosljed' => 14],
+            ['Funkcija' => 'Finansije', 'Opis' => 'Služba finansija', 'Redosljed' => 15],
+
             // Production substitutes (not part of the main approval chain; used when Director of Production is absent)
             ['Funkcija' => 'Zamjenik1', 'Opis' => 'Zamjenik1', 'Redosljed' => 90],
             ['Funkcija' => 'Zamjenik2', 'Opis' => 'Zamjenik2', 'Redosljed' => 91],

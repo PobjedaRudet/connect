@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Funkcija;
+use App\Models\RadnoMjesto;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -110,6 +111,7 @@ class EmployeePagesController extends Controller
                 'name' => $f->Opis ?: $f->Funkcija,
             ])->values();
         $supervisors = User::orderBy('name')->get(['id', 'name']);
+        $radnaMjesta = RadnoMjesto::orderBy('radno_mjesto')->pluck('radno_mjesto');
 
         $employeePayload = $employee ? [
             'id' => $employee->id,
@@ -139,6 +141,7 @@ class EmployeePagesController extends Controller
             'departments' => $departments,
             'funkcije' => $funkcije,
             'supervisors' => $supervisors,
+            'radnaMjesta' => $radnaMjesta,
             'cancelUrl' => route('hr.uposlenici.pregled'),
         ]);
     }

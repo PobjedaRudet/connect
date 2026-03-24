@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\HR;
 
 use App\Http\Controllers\Controller;
+use App\Models\AttendanceDayStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\Shift;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class SihtericaController extends Controller
@@ -60,6 +62,8 @@ class SihtericaController extends Controller
             ->orderBy('firstName')
             ->get(['id', 'empID', 'firstName', 'lastName']);
 
+        $employeeIds = $employees->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+
         $records = AttendanceRecord::query()
             ->with(['shift:id,name,start_time,end_time,attendance_credit_code'])
             ->whereBetween('entry_time', [
@@ -78,6 +82,8 @@ class SihtericaController extends Controller
                 'duration_minutes',
                 'late_flag',
                 'status',
+                'terminal_in',
+                'terminal_out',
             ]);
 
         $attendance = [];
@@ -106,8 +112,51 @@ class SihtericaController extends Controller
                 'duration_display' => $this->resolveDurationDisplay($record),
                 'late_flag' => $record->late_flag,
                 'status' => $record->status,
+                'terminal_in' => $record->terminal_in,
+                'terminal_out' => $record->terminal_out,
+                'manual_status' => false,
+                'manual_note' => null,
                 'entry_time_raw' => $record->entry_time?->getTimestamp(),
             ];
+        }
+
+        if (!empty($employeeIds) && Schema::hasTable('attendance_day_statuses')) {
+            $manualStatuses = AttendanceDayStatus::query()
+                ->whereIn('employee_id', $employeeIds)
+                ->whereBetween('work_date', [
+                    $monthStart->copy()->toDateString(),
+                    $monthEnd->copy()->toDateString(),
+                ])
+                ->orderBy('work_date')
+                ->get(['employee_id', 'work_date', 'status_code', 'note']);
+
+            foreach ($manualStatuses as $manualStatus) {
+                $employeeId = (int) $manualStatus->employee_id;
+                $dateKey = $manualStatus->work_date?->toDateString();
+
+                if (!$dateKey) {
+                    continue;
+                }
+
+                if (isset($attendance[$employeeId][$dateKey])) {
+                    continue;
+                }
+
+                $attendance[$employeeId][$dateKey] = [
+                    'record_id' => null,
+                    'entry_time' => null,
+                    'exit_time' => null,
+                    'duration_minutes' => null,
+                    'duration_display' => strtoupper((string) $manualStatus->status_code),
+                    'late_flag' => null,
+                    'status' => null,
+                    'terminal_in' => null,
+                    'terminal_out' => null,
+                    'manual_status' => true,
+                    'manual_note' => $manualStatus->note,
+                    'entry_time_raw' => null,
+                ];
+            }
         }
 
         // Strip raw timestamps from the response payload

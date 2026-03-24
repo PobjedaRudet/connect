@@ -1,11 +1,6 @@
 <template>
   <AppLayout title="Kontrolni pregledi">
-    <template #header>
-      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Kontrolni pregledi
-      </h2>
-    </template>
-    <!-- Sadržaj stranice -->
+    <PpzNav />
     <div class="p-6 flex justify-center">
       <div class="w-full max-w-4xl">
         <h2 class="text-lg font-semibold mb-4">Lista uposlenika za kontrolni ljekarski pregled</h2>
@@ -89,6 +84,7 @@
 
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
+import PpzNav from '@/Components/PpzNav.vue'
 import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 

@@ -1,5 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import HrNav from '@/Components/HrNav.vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 
@@ -47,6 +48,11 @@ const cellClasses = (dayMeta, entry) => {
   if (dayMeta?.isWeekend) base.push('bg-gray-50')
   if (!entry) return base.join(' ')
 
+  if (entry.manual_status) {
+    base.push('text-indigo-700', 'font-semibold', 'bg-indigo-50')
+    return base.join(' ')
+  }
+
   if (entry.late_flag === 'major') base.push('text-red-700', 'font-semibold')
   else if (entry.late_flag === 'minor') base.push('text-amber-700', 'font-semibold')
   else base.push('text-gray-800')
@@ -67,22 +73,38 @@ const cellValue = (entry) => {
   if (entry.duration_display) return String(entry.duration_display)
   return formatHours(entry.duration_minutes)
 }
+
+const cellTitle = (entry) => {
+  if (!entry) return ''
+
+  const lines = []
+
+  if (entry.manual_status && entry.duration_display) {
+    lines.push(`Rucni status: ${entry.duration_display}`)
+  }
+
+  if (entry.entry_time || entry.exit_time) {
+    lines.push(`Prijava: ${entry.entry_time || '—'} | Odjava: ${entry.exit_time || '—'}`)
+  }
+
+  if (entry.terminal_in || entry.terminal_out) {
+    lines.push(`Terminal IN: ${entry.terminal_in || '—'} | Terminal OUT: ${entry.terminal_out || '—'}`)
+  }
+
+  if (entry.manual_status && entry.manual_note) {
+    lines.push(`Napomena: ${entry.manual_note}`)
+  }
+
+  return lines.join('\n')
+}
 </script>
 
 <template>
   <AppLayout title="Šihterica">
     <Head title="Šihterica" />
+    <HrNav />
 
     <div class="max-w-[95rem] mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div class="mb-4">
-        <Link
-          :href="route('sector.hr')"
-          class="inline-flex items-center px-3 py-2 bg-white text-gray-700 border border-gray-200 rounded-md text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
-        >
-          Nazad na HR
-        </Link>
-      </div>
-
       <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
         <div>
           <h1 class="text-2xl font-semibold text-gray-800">Šihterica (dolazak po mjesecu)</h1>
@@ -149,6 +171,7 @@ const cellValue = (entry) => {
                   :key="`${e.id}-${d.date}`"
                   class="text-center"
                   :class="cellClasses(d, cell(e.id, d.date))"
+                  :title="cellTitle(cell(e.id, d.date))"
                 >
                   <template v-if="cell(e.id, d.date)">
                     <div class="leading-4">
@@ -171,7 +194,7 @@ const cellValue = (entry) => {
         </div>
 
         <div class="px-4 py-3 text-xs text-gray-500 border-t border-gray-200 bg-gray-50">
-          Legenda: <span class="font-semibold text-yellow-600">minor</span> / <span class="font-semibold text-red-700">major</span> kašnjenje (late_flag).
+          Legenda: <span class="font-semibold text-yellow-600">minor</span> / <span class="font-semibold text-red-700">major</span> kasnjenje (late_flag), rucni statusi: <span class="font-semibold text-indigo-700">P</span>, <span class="font-semibold text-indigo-700">GO</span>, <span class="font-semibold text-indigo-700">BO</span>, <span class="font-semibold text-indigo-700">PO</span>, <span class="font-semibold text-indigo-700">RP</span>, <span class="font-semibold text-indigo-700">PR</span>.
         </div>
       </div>
     </div>

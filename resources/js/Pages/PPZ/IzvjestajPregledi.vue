@@ -1,5 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
+import PpzNav from '@/Components/PpzNav.vue'
 import { ref, computed } from 'vue';
 import axios from 'axios';
 
@@ -62,11 +63,7 @@ async function exportToWord() {
 
 <template>
   <AppLayout title="Izvještaj - Ljekarski pregledi">
-    <template #header>
-      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        EVIDENCIJA O PERIODIČNIM LJEKARSKIM PREGLEDIMA RADNIKA
-      </h2>
-    </template>
+    <PpzNav />
     <div class="min-h-screen bg-gray-100 p-8 mx-8">
       <div v-if="loading" class="text-center py-8 text-gray-500">Učitavanje...</div>
       <div v-else>

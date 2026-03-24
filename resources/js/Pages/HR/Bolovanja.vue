@@ -1,5 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import HrNav from '@/Components/HrNav.vue'
 import { Head, Link, useForm } from '@inertiajs/vue3'
 import InputError from '@/Components/InputError.vue'
 import InputLabel from '@/Components/InputLabel.vue'
@@ -61,15 +62,12 @@ const submit = () => {
 <template>
   <AppLayout title="Bolovanja">
     <Head title="Bolovanja" />
+    <HrNav />
 
     <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
-      <div class="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 class="text-2xl font-semibold text-gray-800">Evidencija bolovanja</h1>
-          <p class="text-sm text-gray-500">Unos bolovanja po radniku.</p>
-        </div>
-
-        <Link :href="route('sector.hr')" class="text-sm text-indigo-600 hover:text-indigo-500">Nazad na HR sektor</Link>
+      <div>
+        <h1 class="text-2xl font-semibold text-gray-800">Evidencija bolovanja</h1>
+        <p class="text-sm text-gray-500">Unos bolovanja po radniku.</p>
       </div>
 
       <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">

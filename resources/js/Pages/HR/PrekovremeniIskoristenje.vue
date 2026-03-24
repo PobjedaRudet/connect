@@ -4,6 +4,7 @@ import InputLabel from '@/Components/InputLabel.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import TextInput from '@/Components/TextInput.vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import HrNav from '@/Components/HrNav.vue'
 import { Head, Link, useForm } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 
@@ -127,22 +128,12 @@ function submit() {
 <template>
   <AppLayout title="Iskorištenje prekovremenih">
     <Head title="Iskorištenje prekovremenih" />
+    <HrNav />
 
     <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
-      <div class="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 class="text-2xl font-semibold text-gray-800">Unos iskorištenih prekovremenih sati</h1>
-          <p class="text-sm text-gray-500">Potrošnja se automatski raspoređuje FIFO na najstarije raspoložive prekovremene.</p>
-        </div>
-
-        <div class="flex items-center gap-3">
-          <Link :href="route('hr.prekovremeni-sati')" class="text-sm text-indigo-600 hover:text-indigo-500">
-            Pregled prekovremenih
-          </Link>
-          <Link :href="route('sector.hr')" class="text-sm text-gray-600 hover:text-gray-800">
-            Nazad na HR
-          </Link>
-        </div>
+      <div>
+        <h1 class="text-2xl font-semibold text-gray-800">Unos iskorištenih prekovremenih sati</h1>
+        <p class="text-sm text-gray-500">Potrošnja se automatski raspoređuje FIFO na najstarije raspoložive prekovremene.</p>
       </div>
 
       <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">

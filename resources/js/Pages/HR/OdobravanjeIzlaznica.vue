@@ -1,5 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import HrNav from '@/Components/HrNav.vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 
 const props = defineProps({
@@ -45,17 +46,9 @@ const confirmPass = (passId, type) => {
 <template>
   <AppLayout title="Odobravanje izlaznica">
     <Head title="Odobravanje izlaznica" />
+    <HrNav />
 
     <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div class="mb-4">
-        <Link
-          :href="route('sector.hr')"
-          class="inline-flex items-center px-3 py-2 bg-white text-gray-700 border border-gray-200 rounded-md text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
-        >
-          Nazad na HR
-        </Link>
-      </div>
-
       <div class="flex items-center justify-between mb-6">
         <div>
           <h1 class="text-2xl font-semibold text-gray-800">Odobravanje izlaznica</h1>

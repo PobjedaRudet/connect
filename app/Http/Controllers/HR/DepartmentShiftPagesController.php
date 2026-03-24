@@ -32,8 +32,8 @@ class DepartmentShiftPagesController extends Controller
                 'shifts' => $d->shifts->map(fn ($s) => [
                     'id' => (int) $s->id,
                     'name' => $s->name,
-                    'start_time' => $s->start_time,
-                    'end_time' => $s->end_time,
+                    'start_time' => $this->formatShiftTime($s, 'start_time'),
+                    'end_time' => $this->formatShiftTime($s, 'end_time'),
                     'attendance_credit_code' => $s->attendance_credit_code,
                 ])->values(),
             ])
@@ -46,8 +46,8 @@ class DepartmentShiftPagesController extends Controller
             ->map(fn ($s) => [
                 'id' => (int) $s->id,
                 'name' => $s->name,
-                'start_time' => $s->start_time,
-                'end_time' => $s->end_time,
+                'start_time' => $this->formatShiftTime($s, 'start_time'),
+                'end_time' => $this->formatShiftTime($s, 'end_time'),
                 'department_id' => $s->department_id !== null ? (int) $s->department_id : null,
                 'department_name' => $s->department?->name,
                 'attendance_credit_code' => $s->attendance_credit_code,
@@ -161,5 +161,15 @@ class DepartmentShiftPagesController extends Controller
                     ->update(['department_id' => $department->id]);
             }
         });
+    }
+
+    private function formatShiftTime(Shift $shift, string $field): ?string
+    {
+        $raw = $shift->getRawOriginal($field);
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        return substr((string) $raw, 0, 8);
     }
 }

@@ -1,4 +1,6 @@
 <script setup>
+import AppLayout from '@/Layouts/AppLayout.vue'
+import PpzNav from '@/Components/PpzNav.vue'
 import { Link, Head } from '@inertiajs/vue3';
 
 const options = [
@@ -60,26 +62,25 @@ const options = [
 </script>
 
 <template>
+  <AppLayout title="ZNR I PPZ Dashboard">
     <Head title="ZNR I PPZ Dashboard" />
-    <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-black relative">
-        <!-- Logout dugme -->
-        <Link :href="route('logout')" method="post" as="button" class="absolute top-6 right-6 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow">
-            Log Out
-        </Link>
-        <h1 class="text-2xl font-bold mb-8 text-center text-black dark:text-white">ZNR I PPZ Dashboard</h1>
+    <PpzNav />
+
+    <div class="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+        <h1 class="text-2xl font-bold mb-8 text-center text-gray-800">ZNR I PPZ Dashboard</h1>
         <div class="grid gap-8 lg:grid-cols-2 md:grid-cols-2 sm:grid-cols-1">
             <div
                 v-for="option in options"
                 :key="option.name"
-                class="bg-white dark:bg-gray-900 rounded shadow p-8 flex flex-col items-center hover:shadow-lg transition"
+                class="bg-white rounded shadow p-8 flex flex-col items-center hover:shadow-lg transition"
             >
                 <Link :href="option.link" class="flex flex-col items-center group w-full">
                     <span v-html="option.icon"></span>
                     <span class="mt-4 text-lg font-semibold group-hover:text-[#FF2D20] transition text-center">{{ option.name }}</span>
-                    <span class="mt-2 text-sm text-gray-500 dark:text-gray-400 text-center">{{ option.description }}</span>
+                    <span class="mt-2 text-sm text-gray-500 text-center">{{ option.description }}</span>
                 </Link>
             </div>
         </div>
     </div>
-
+  </AppLayout>
 </template>

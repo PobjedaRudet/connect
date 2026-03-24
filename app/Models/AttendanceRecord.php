@@ -23,7 +23,8 @@ class AttendanceRecord extends Model
         'duration_minutes',
         'status', // working | left
         'late_flag', // minor | major | null
-        'terminal_id',
+        'terminal_in',
+        'terminal_out',
     ];
 
     protected $casts = [

@@ -20,7 +20,8 @@ return new class extends Migration
             $table->timestamp('exit_time')->nullable();
             $table->enum('status', ['working','left'])->default('working');
             $table->string('late_flag')->nullable();
-            $table->string('terminal_id')->nullable();
+            $table->string('terminal_in')->nullable();
+            $table->string('terminal_out')->nullable();
             $table->timestamps();
         });
     }

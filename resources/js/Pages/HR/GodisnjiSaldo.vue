@@ -1,5 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import HrNav from '@/Components/HrNav.vue'
 import { Head, Link } from '@inertiajs/vue3'
 import { computed, onMounted, ref, watch } from 'vue'
 
@@ -167,6 +168,7 @@ onMounted(load)
 <template>
   <AppLayout title="Saldo godišnjeg">
     <Head title="Saldo godišnjeg" />
+    <HrNav />
 
     <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
       <div class="flex items-center justify-between gap-4 flex-wrap">
@@ -176,13 +178,6 @@ onMounted(load)
         </div>
 
         <div class="flex items-center gap-3">
-          <Link
-            :href="route('sector.hr')"
-            class="text-sm text-gray-600 hover:text-gray-800"
-          >
-            Nazad
-          </Link>
-
           <div class="flex items-center gap-2">
             <label class="text-sm text-gray-600">Godina</label>
             <input

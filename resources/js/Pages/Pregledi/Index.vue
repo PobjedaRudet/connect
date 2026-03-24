@@ -1,5 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
+import PpzNav from '@/Components/PpzNav.vue'
 import { Link } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
 import axios from 'axios';
@@ -212,11 +213,7 @@ async function sacuvajInvalidnost() {
 
 <template>
   <AppLayout title="Ljekarski pregledi">
-    <template #header>
-      <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-        Ljekarski pregledi
-      </h2>
-    </template>
+    <PpzNav />
     <div class="min-h-screen bg-gray-100 p-8 mx-16">
 
       <div class="mb-4 flex justify-center">

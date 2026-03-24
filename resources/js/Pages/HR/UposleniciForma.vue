@@ -1,66 +1,56 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import HrNav from '@/Components/HrNav.vue'
 import { Head, Link, useForm } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   employee: { type: Object, default: null },
   departments: { type: Array, default: () => [] },
   funkcije: { type: Array, default: () => [] },
   supervisors: { type: Array, default: () => [] },
+  radnaMjesta: { type: Array, default: () => [] },
   cancelUrl: { type: String, default: '/employees' },
 })
 
 const isEdit = computed(() => Boolean(props.employee?.id))
 
-const radnaMjestaOptions = [
-  'Upravnik pogona proizvodnje detonatora',
-  'Zamjenik Upravnika',
-  'Administrativni radnik za poslove kontrole i mjern...',
-  'Izrada, kompletiranje i kontrola DK',
-  'Izrada EZG',
-  'Tehnolog konstruktor (310.002)',
-  'Administrativni radnik za poslove investicija i up...',
-  'Glavni tehnolog konstruktor',
-  'Referent pravnih i kadrovskih poslova',
-  'Vodeći poslovi operativne pripreme',
-  'Poslovi expedita, distribucije pošte i arhivski po...',
-  'Reglaža automata i složenih mašina',
-  'Građevinsko održavanje (330.006)',
-  'Rukovođenje i reglaža na izradi inicirajuće cjevči...',
-  'Sječenje i regulisanje vremana gorenja usporača',
-  'Doziranje i presovanje inicijalnog punjenja DK',
-  'Priprema olovnih cijevi i topljenje olova',
-  'Reglaža na laboraciji',
-  'Vođa poligona za međuoperacijsku i završnu kontrol...',
-  'Izrada i priprema pirotehničkih smješa',
-  'Vođa odjeljenja',
-  'Izrada inicirajuće cjevčice',
-  'Reglaža mašina mehaničke obrade',
-  'Poslovi operativne pripreme',
-  'Izrada i kontrola mehaničkih elemenata',
-]
+// Pretraga radnih mjesta
+const radnoMjestoSearch = ref(props.employee?.radno_mjesto ?? '')
+const radnoMjestoOpen = ref(false)
 
-const selectedRadnoMjesto = computed({
-  get() {
-    const value = form.radno_mjesto ?? ''
-    if (!value) return ''
-    return radnaMjestaOptions.includes(value) ? value : '__custom__'
-  },
-  set(val) {
-    if (!val) {
-      form.radno_mjesto = ''
-      return
-    }
-    if (val === '__custom__') {
-      if (radnaMjestaOptions.includes(form.radno_mjesto)) {
-        form.radno_mjesto = ''
-      }
-      return
-    }
-    form.radno_mjesto = val
-  },
+const filteredRadnaMjesta = computed(() => {
+  const q = radnoMjestoSearch.value.toLowerCase().trim()
+  if (!q) return props.radnaMjesta
+  return props.radnaMjesta.filter(rm => rm.toLowerCase().includes(q))
 })
+
+const selectRadnoMjesto = (val) => {
+  form.radno_mjesto = val
+  radnoMjestoSearch.value = val
+  radnoMjestoOpen.value = false
+}
+
+const onRadnoMjestoFocus = () => {
+  radnoMjestoOpen.value = true
+  radnoMjestoSearch.value = ''
+}
+
+const onRadnoMjestoBlur = () => {
+  setTimeout(() => {
+    radnoMjestoOpen.value = false
+    if (!form.radno_mjesto) {
+      radnoMjestoSearch.value = ''
+    } else {
+      radnoMjestoSearch.value = form.radno_mjesto
+    }
+  }, 200)
+}
+
+const clearRadnoMjesto = () => {
+  form.radno_mjesto = ''
+  radnoMjestoSearch.value = ''
+}
 
 const form = useForm({
   empID: props.employee?.empID ?? '',
@@ -107,16 +97,11 @@ const submit = () => {
 <template>
   <AppLayout :title="isEdit ? 'Uredi uposlenika' : 'Novi uposlenik'">
     <Head :title="isEdit ? 'Uredi uposlenika' : 'Novi uposlenik'" />
+    <HrNav />
 
     <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
       <div class="flex items-center justify-between">
         <div class="flex gap-2">
-          <Link
-            :href="route('sector.hr')"
-            class="inline-flex items-center px-3 py-2 bg-white text-gray-700 border border-gray-200 rounded-md text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
-          >
-            Nazad na HR
-          </Link>
           <Link
             :href="cancelUrl"
             class="inline-flex items-center px-3 py-2 bg-white text-gray-700 border border-gray-200 rounded-md text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
@@ -231,17 +216,47 @@ const submit = () => {
 
               <div>
                 <label class="block text-sm font-medium text-gray-700">Radno mjesto</label>
-                <select v-model="selectedRadnoMjesto" :class="selectClass('radno_mjesto')" class="max-w-md">
-                  <option value="">Odaberite radno mjesto</option>
-                  <option v-for="o in radnaMjestaOptions" :key="o" :value="o">{{ o }}</option>
-                  <option value="__custom__">Drugo (ručni unos)...</option>
-                </select>
+                <div class="relative max-w-md">
+                  <input
+                    v-model="radnoMjestoSearch"
+                    type="text"
+                    :class="fieldClass('radno_mjesto')"
+                    placeholder="Pretražite ili odaberite radno mjesto..."
+                    autocomplete="off"
+                    @focus="onRadnoMjestoFocus"
+                    @blur="onRadnoMjestoBlur"
+                  />
+                  <button
+                    v-if="form.radno_mjesto"
+                    type="button"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    @mousedown.prevent="clearRadnoMjesto"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
 
-                <div v-if="selectedRadnoMjesto === '__custom__'" class="mt-2">
-                  <input v-model="form.radno_mjesto" type="text" :class="fieldClass('radno_mjesto')" class="max-w-md" placeholder="Unesite radno mjesto" />
+                  <ul
+                    v-if="radnoMjestoOpen && filteredRadnaMjesta.length > 0"
+                    class="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-md bg-white py-1 shadow-lg ring-1 ring-black/5 text-sm"
+                  >
+                    <li
+                      v-for="rm in filteredRadnaMjesta"
+                      :key="rm"
+                      class="cursor-pointer select-none px-3 py-2 hover:bg-indigo-50"
+                      :class="{ 'bg-indigo-100 font-semibold': form.radno_mjesto === rm }"
+                      @mousedown.prevent="selectRadnoMjesto(rm)"
+                    >
+                      {{ rm }}
+                    </li>
+                  </ul>
+                  <div
+                    v-if="radnoMjestoOpen && filteredRadnaMjesta.length === 0"
+                    class="absolute z-50 mt-1 w-full rounded-md bg-white py-2 px-3 shadow-lg ring-1 ring-black/5 text-sm text-gray-500"
+                  >
+                    Nema rezultata za "{{ radnoMjestoSearch }}"
+                  </div>
                 </div>
-
-                <p class="text-xs text-gray-500 mt-1">Možete odabrati sa liste ili ručno unijeti vrijednost.</p>
+                <p v-if="form.radno_mjesto" class="text-xs text-green-600 mt-1">Odabrano: {{ form.radno_mjesto }}</p>
                 <p v-if="form.errors.radno_mjesto" class="text-sm text-red-600 mt-1">{{ form.errors.radno_mjesto }}</p>
               </div>
 

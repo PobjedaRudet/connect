@@ -1,5 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import HrNav from '@/Components/HrNav.vue'
 import { Head, Link, useForm } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 
@@ -168,6 +169,7 @@ const submitShift = () => {
 <template>
   <AppLayout title="Odjeli i smjene">
     <Head title="Odjeli i smjene" />
+    <HrNav />
 
     <div class="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)]">
       <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-8">
@@ -176,12 +178,6 @@ const submitShift = () => {
             <div class="px-6 py-8 sm:px-8 lg:px-10 lg:py-10 bg-[radial-gradient(circle_at_top_left,#e0f2fe_0%,#ffffff_48%,#ffffff_100%)]">
               <div class="flex items-center justify-between gap-4 flex-wrap">
                 <div class="flex gap-2 flex-wrap">
-                  <Link
-                    :href="route('sector.hr')"
-                    class="inline-flex items-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
-                  >
-                    Nazad na HR
-                  </Link>
                   <button
                     type="button"
                     class="inline-flex items-center rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1"

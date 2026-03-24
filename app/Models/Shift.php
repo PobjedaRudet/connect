@@ -18,11 +18,6 @@ class Shift extends Model
         'attendance_credit_code',
     ];
 
-    protected $casts = [
-        'start_time' => 'datetime:H:i:s',
-        'end_time' => 'datetime:H:i:s',
-    ];
-
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
