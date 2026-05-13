@@ -2,24 +2,66 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Employee;
 use App\Models\Pass;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Inertia\Response;
 
 class PassController extends Controller
 {
+    private function isAdminUser($user): bool
+    {
+        return (bool) (($user?->isadmin ?? false) || ($user?->is_admin ?? false));
+    }
+
+    private function scopePassesBySupervisor(Builder $query, $user): Builder
+    {
+        if (!$user || $this->isAdminUser($user)) {
+            return $query;
+        }
+
+        $uid = (int) $user->id;
+
+        return $query->whereHas('employee', function ($q) use ($uid) {
+            $q->whereJsonContains('nadlezne_osobe', $uid)
+                ->orWhereJsonContains('nadlezne_osobe', (string) $uid);
+        });
+    }
+
+    private function canAccessPass($user, Pass $pass): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if ($this->isAdminUser($user)) {
+            return true;
+        }
+
+        return Employee::where('id', (int) $pass->employee_id)
+            ->where(function ($q) use ($user) {
+                $q->whereJsonContains('nadlezne_osobe', (int) $user->id)
+                    ->orWhereJsonContains('nadlezne_osobe', (string) $user->id);
+            })
+            ->exists();
+    }
+
     /**
      * Public page: list all open passes.
      */
-    public function active(): Response
+    public function active(Request $request): Response
     {
-        $passes = Pass::with('employee')
+        $passesQuery = Pass::with('employee')
             ->whereNull('approved_by')
             ->where('approved', false)
             ->orderByRaw("status = 'open' desc")
             ->orderByDesc('start_time')
+            ;
+
+        $passes = $this->scopePassesBySupervisor($passesQuery, $request->user())
             ->get()
             ->map(function (Pass $pass) {
                 $employee = $pass->employee;
@@ -63,10 +105,13 @@ class PassController extends Controller
         $start = $selectedMonth->copy();
         $end = $selectedMonth->copy()->endOfMonth();
 
-        $passes = Pass::with('employee')
+        $passesQuery = Pass::with('employee')
             ->where('approved', true)
             ->whereBetween('start_time', [$start, $end])
             ->orderByDesc('start_time')
+            ;
+
+        $passes = $this->scopePassesBySupervisor($passesQuery, $request->user())
             ->get()
             ->map(function (Pass $pass) {
                 $employee = $pass->employee;
@@ -102,6 +147,10 @@ class PassController extends Controller
      */
     public function updateType(Request $request, Pass $pass): RedirectResponse
     {
+        if (!$this->canAccessPass($request->user(), $pass)) {
+            abort(403, 'Nemate pravo pristupa ovoj izlaznici.');
+        }
+
         $validated = $request->validate([
             'type' => 'required|in:privatni,službeni',
         ]);
@@ -120,6 +169,10 @@ class PassController extends Controller
      */
     public function confirm(Request $request, Pass $pass): RedirectResponse
     {
+        if (!$this->canAccessPass($request->user(), $pass)) {
+            abort(403, 'Nemate pravo pristupa ovoj izlaznici.');
+        }
+
         $validated = $request->validate([
             'type' => 'required|in:privatni,službeni',
         ]);

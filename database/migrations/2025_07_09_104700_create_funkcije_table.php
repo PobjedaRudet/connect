@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('funkcije', function (Blueprint $table) {
             $table->string('Funkcija', 50)->primary();
             $table->string('Opis', 255)->nullable();
+            $table->integer('Redosljed');
+            $table->boolean('is_absent')->default(false);
             $table->timestamps();
         });
     }

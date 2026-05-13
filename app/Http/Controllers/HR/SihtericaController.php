@@ -14,6 +14,8 @@ use Inertia\Inertia;
 
 class SihtericaController extends Controller
 {
+    use Concerns\ScopesEmployeesByUser;
+
     public function index(Request $request)
     {
         $monthParam = (string) $request->query('month', '');
@@ -47,19 +49,7 @@ class SihtericaController extends Controller
             ];
         }
 
-        $userId = $request->user()?->id;
-
-        $employees = Employee::query()
-            ->where('Active', true)
-            ->when($userId, function ($query) use ($userId) {
-                $query->where(function ($q) use ($userId) {
-                    // Cover both integer and string JSON storage
-                    $q->whereJsonContains('nadlezne_osobe', (int) $userId)
-                      ->orWhereJsonContains('nadlezne_osobe', (string) $userId);
-                });
-            })
-            ->orderBy('lastName')
-            ->orderBy('firstName')
+        $employees = $this->scopedEmployeeQuery($request->user())
             ->get(['id', 'empID', 'firstName', 'lastName']);
 
         $employeeIds = $employees->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
@@ -166,6 +156,8 @@ class SihtericaController extends Controller
             }
         }
 
+        $shifts = Shift::orderBy('name')->get(['id', 'name', 'start_time', 'end_time']);
+
         return Inertia::render('HR/Sihterica', [
             'month' => $monthParam,
             'days' => $days,
@@ -175,7 +167,53 @@ class SihtericaController extends Controller
                 'full_name' => trim((string) $e->lastName . ' ' . (string) $e->firstName),
             ])->values()->all(),
             'attendance' => $attendance,
+            'shifts' => $shifts,
         ]);
+    }
+
+    public function manualStore(Request $request)
+    {
+        $validated = $request->validate([
+            'employee_id' => 'required|exists:employees,id',
+            'shift_id'    => 'nullable|exists:shifts,id',
+            'date'        => 'required|date',
+            'entry_time'  => 'required|date_format:H:i',
+            'exit_time'   => 'nullable|date_format:H:i',
+        ]);
+
+        $tz = config('app.timezone');
+        $date = $validated['date'];
+
+        $entryTime = Carbon::parse($date . ' ' . $validated['entry_time'], $tz);
+
+        $exitTime = null;
+        $status = 'working';
+        if (!empty($validated['exit_time'])) {
+            $exitTime = Carbon::parse($date . ' ' . $validated['exit_time'], $tz);
+            if ($exitTime->lessThanOrEqualTo($entryTime)) {
+                $exitTime->addDay();
+            }
+            $status = 'left';
+        }
+
+        if (!$this->canAccessEmployee($request->user(), (int) $validated['employee_id'])) {
+            return back()->withErrors(['employee_id' => 'Nemate pristup odabranom radniku.']);
+        }
+
+        AttendanceRecord::create([
+            'employee_id' => $validated['employee_id'],
+            'shift_id'    => $validated['shift_id'] ?: null,
+            'entry_time'  => $entryTime,
+            'exit_time'   => $exitTime,
+            'status'      => $status,
+            'terminal_in' => 'MANUAL',
+            'terminal_out' => $exitTime ? 'MANUAL' : null,
+        ]);
+
+        $month = Carbon::parse($date)->format('Y-m');
+
+        return redirect()->route('hr.sihterica', ['month' => $month])
+            ->with('success', 'Smjena uspješno unesena.');
     }
 
     private function resolveDurationDisplay(AttendanceRecord $record): ?string

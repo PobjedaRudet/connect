@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('employees', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('empID')->unique();
+            $table->string('rfid_code', 50)->nullable()->unique();
+            $table->json('nadlezne_osobe')->nullable();
             $table->string('lastName', 100);
             $table->string('firstName', 100);
             $table->string('middleName', 100)->nullable();
@@ -24,9 +26,9 @@ return new class extends Migration
             $table->string('jobTitle', 100)->nullable();
             $table->string('dept', 100)->nullable();
             $table->string('email', 100)->unique()->nullable();
-            $table->string('status', 50)->nullable(); //Ugovor na neodređeno=1, određeno=2
+            $table->string('status', 50)->nullable();
             $table->string('homeCounty', 100)->nullable();
-            $table->boolean('Active')->default(true); // AU radnom odnosu, trenutno zaposlen
+            $table->boolean('Active')->default(true);
             $table->string('profesionalno_oboljenje', 100)->nullable();
             $table->string('invalidnost_radnika', 100)->nullable();
 

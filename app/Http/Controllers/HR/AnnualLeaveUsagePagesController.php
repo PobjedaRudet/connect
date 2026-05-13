@@ -14,14 +14,11 @@ use Inertia\Response;
 
 class AnnualLeaveUsagePagesController extends Controller
 {
-    public function index(): Response
+    use Concerns\ScopesEmployeesByUser;
+
+    public function index(Request $request): Response
     {
-        $employees = Employee::query()
-            ->where(function ($q) {
-                $q->whereNull('Active')->orWhere('Active', '=', 1);
-            })
-            ->orderBy('lastName')
-            ->orderBy('firstName')
+        $employees = $this->scopedEmployeeQuery($request->user())
             ->get(['id', 'firstName', 'lastName'])
             ->map(fn ($e) => [
                 'id' => $e->id,
@@ -53,6 +50,11 @@ class AnnualLeaveUsagePagesController extends Controller
         ]);
 
         $employeeId = (int) $validated['employee_id'];
+
+        if (!$this->canAccessEmployee($request->user(), $employeeId)) {
+            return back()->withErrors(['employee_id' => 'Nemate pristup odabranom radniku.']);
+        }
+
         $year = (int) $validated['year'];
         $decisionId = (int) $validated['annual_leave_decision_id'];
 

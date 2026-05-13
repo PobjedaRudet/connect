@@ -12,9 +12,11 @@ use Inertia\Response;
 
 class OvertimeUsagePagesController extends Controller
 {
+    use Concerns\ScopesEmployeesByUser;
+
     public function index(Request $request): Response
     {
-        $employees = $this->employeeQuery($request->user()?->id)
+        $employees = $this->scopedEmployeeQuery($request->user())
             ->get(['id', 'empID', 'firstName', 'lastName'])
             ->map(fn ($employee) => [
                 'id' => (int) $employee->id,
@@ -49,11 +51,7 @@ class OvertimeUsagePagesController extends Controller
             'note' => ['nullable', 'string'],
         ]);
 
-        $allowed = $this->employeeQuery($request->user()?->id)
-            ->whereKey((int) $validated['employee_id'])
-            ->exists();
-
-        if (!$allowed) {
+        if (!$this->canAccessEmployee($request->user(), (int) $validated['employee_id'])) {
             return back()->withErrors([
                 'employee_id' => 'Nemate pristup odabranom radniku.',
             ]);
@@ -71,20 +69,6 @@ class OvertimeUsagePagesController extends Controller
         return redirect()
             ->route('hr.prekovremeni.iskoristenje')
             ->banner('Iskorištenje prekovremenih sati je uspješno sačuvano.');
-    }
-
-    private function employeeQuery(?int $userId)
-    {
-        return Employee::query()
-            ->where('Active', true)
-            ->when($userId, function ($query) use ($userId) {
-                $query->where(function ($q) use ($userId) {
-                    $q->whereJsonContains('nadlezne_osobe', (int) $userId)
-                        ->orWhereJsonContains('nadlezne_osobe', (string) $userId);
-                });
-            })
-            ->orderBy('lastName')
-            ->orderBy('firstName');
     }
 
     private function usageTypeLabel(string $type): string

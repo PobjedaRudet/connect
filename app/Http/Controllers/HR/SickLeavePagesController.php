@@ -12,14 +12,11 @@ use Inertia\Response;
 
 class SickLeavePagesController extends Controller
 {
-    public function index(): Response
+    use Concerns\ScopesEmployeesByUser;
+
+    public function index(Request $request): Response
     {
-        $employees = Employee::query()
-            ->where(function ($q) {
-                $q->whereNull('Active')->orWhere('Active', '=', 1);
-            })
-            ->orderBy('lastName')
-            ->orderBy('firstName')
+        $employees = $this->scopedEmployeeQuery($request->user())
             ->get(['id', 'firstName', 'lastName'])
             ->map(fn ($e) => [
                 'id' => $e->id,
@@ -87,6 +84,10 @@ class SickLeavePagesController extends Controller
             'note' => ['nullable', 'string'],
             'status' => ['nullable', 'in:otvoreno,zatvoreno'],
         ]);
+
+        if (!$this->canAccessEmployee($request->user(), (int) $validated['employee_id'])) {
+            return back()->withErrors(['employee_id' => 'Nemate pristup odabranom radniku.']);
+        }
 
         $validated['status'] = $validated['status'] ?? 'otvoreno';
         $validated['created_by_user_id'] = $request->user()?->id;

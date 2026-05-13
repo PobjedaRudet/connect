@@ -1,7 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import HrNav from '@/Components/HrNav.vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
@@ -9,6 +9,7 @@ const props = defineProps({
   days: { type: Array, default: () => [] },
   employees: { type: Array, default: () => [] },
   attendance: { type: Object, default: () => ({}) },
+  shifts: { type: Array, default: () => [] },
 })
 
 const selectedMonth = ref(props.month)
@@ -97,6 +98,36 @@ const cellTitle = (entry) => {
 
   return lines.join('\n')
 }
+
+// Manual entry modal
+const showManualModal = ref(false)
+const manualForm = useForm({
+  employee_id: '',
+  shift_id: '',
+  date: '',
+  entry_time: '',
+  exit_time: '',
+})
+
+const openManualModal = () => {
+  manualForm.reset()
+  manualForm.date = new Date().toISOString().slice(0, 10)
+  showManualModal.value = true
+}
+
+const submitManual = () => {
+  manualForm.post(route('hr.sihterica.manual'), {
+    preserveScroll: true,
+    onSuccess: () => { showManualModal.value = false },
+  })
+}
+
+const employeeSearch = ref('')
+const filteredModalEmployees = computed(() => {
+  const term = employeeSearch.value.trim().toLowerCase()
+  if (!term) return props.employees
+  return props.employees.filter(e => (e.full_name || '').toLowerCase().includes(term))
+})
 </script>
 
 <template>
@@ -112,6 +143,13 @@ const cellTitle = (entry) => {
         </div>
 
         <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
+          <button
+            @click="openManualModal"
+            class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition shadow-sm"
+          >
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Ručni unos
+          </button>
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">Mjesec</label>
             <input
@@ -198,5 +236,79 @@ const cellTitle = (entry) => {
         </div>
       </div>
     </div>
+
+    <!-- Manual entry modal -->
+    <Teleport to="body">
+      <div v-if="showManualModal" class="fixed inset-0 z-50 flex items-center justify-center">
+        <div class="fixed inset-0 bg-black/40" @click="showManualModal = false"></div>
+        <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+          <div class="flex items-center justify-between mb-5">
+            <h3 class="text-lg font-semibold text-gray-800">Ručni unos smjene</h3>
+            <button @click="showManualModal = false" class="text-gray-400 hover:text-gray-600">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+
+          <form @submit.prevent="submitManual" class="space-y-4">
+            <!-- Employee -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Uposlenik</label>
+              <input
+                v-model="employeeSearch"
+                type="text"
+                placeholder="Pretraži..."
+                class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500 mb-1"
+              />
+              <select v-model="manualForm.employee_id" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" required>
+                <option value="" disabled>— Odaberi uposlenika —</option>
+                <option v-for="e in filteredModalEmployees" :key="e.id" :value="e.id">{{ e.full_name }} (#{{ e.empID }})</option>
+              </select>
+              <div v-if="manualForm.errors.employee_id" class="text-red-600 text-xs mt-1">{{ manualForm.errors.employee_id }}</div>
+            </div>
+
+            <!-- Shift -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Smjena</label>
+              <select v-model="manualForm.shift_id" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="">— Bez smjene —</option>
+                <option v-for="s in shifts" :key="s.id" :value="s.id">{{ s.name }} ({{ s.start_time?.slice(0,5) }} – {{ s.end_time?.slice(0,5) }})</option>
+              </select>
+            </div>
+
+            <!-- Date -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+              <input v-model="manualForm.date" type="date" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" required />
+              <div v-if="manualForm.errors.date" class="text-red-600 text-xs mt-1">{{ manualForm.errors.date }}</div>
+            </div>
+
+            <!-- Time row -->
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Prijava (dolazak)</label>
+                <input v-model="manualForm.entry_time" type="time" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" required />
+                <div v-if="manualForm.errors.entry_time" class="text-red-600 text-xs mt-1">{{ manualForm.errors.entry_time }}</div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Odjava (odlazak)</label>
+                <input v-model="manualForm.exit_time" type="time" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" />
+                <div v-if="manualForm.errors.exit_time" class="text-red-600 text-xs mt-1">{{ manualForm.errors.exit_time }}</div>
+                <p class="text-xs text-gray-400 mt-0.5">Ostavite prazno ako radnik još radi.</p>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-end gap-3 pt-2">
+              <button type="button" @click="showManualModal = false" class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition">
+                Otkaži
+              </button>
+              <button type="submit" :disabled="manualForm.processing" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition disabled:opacity-50">
+                {{ manualForm.processing ? 'Spremam...' : 'Spremi' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
   </AppLayout>
 </template>

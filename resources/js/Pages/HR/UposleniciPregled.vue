@@ -3,6 +3,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import HrNav from '@/Components/HrNav.vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
+import axios from 'axios'
 
 const props = defineProps({
   employees: {
@@ -10,9 +11,30 @@ const props = defineProps({
     default: () => ({ data: [], links: [], current_page: 1, last_page: 1, prev_page_url: null, next_page_url: null }),
   },
   search: { type: String, default: '' },
+  radnaMjesta: { type: Array, default: () => [] },
 })
 
 const search = ref(props.search || '')
+const updatingId = ref(null)
+const updateError = ref(null)
+
+const updateRadnoMjesto = async (employee, newValue) => {
+  const val = newValue || null
+  if (employee.radno_mjesto === val) return
+  updatingId.value = employee.id
+  updateError.value = null
+  try {
+    const res = await axios.put(
+      route('hr.uposlenici.update-radno-mjesto', employee.id),
+      { radno_mjesto: val }
+    )
+    employee.radno_mjesto = res.data.radno_mjesto
+  } catch {
+    updateError.value = 'Greška pri ažuriranju radnog mjesta.'
+  } finally {
+    updatingId.value = null
+  }
+}
 
 const employeesData = computed(() => props.employees?.data ?? [])
 
@@ -49,7 +71,7 @@ watch(search, (val) => {
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 class="text-2xl font-semibold text-gray-800">Pregled uposlenika</h1>
-          <p class="text-sm text-gray-500">Pretraga, pregled i brzi odlazak na izmjenu podataka.</p>
+          <p class="text-sm text-gray-500">Pretraga, pregled i brzi odlazak na izmjenu podataka. Radno mjesto možete mijenjati direktno iz liste.</p>
         </div>
         <div class="flex gap-2">
           <input
@@ -65,6 +87,10 @@ watch(search, (val) => {
             Novi
           </Link>
         </div>
+      </div>
+
+      <div v-if="updateError" class="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-700">
+        {{ updateError }}
       </div>
 
       <div class="bg-white shadow rounded-lg border border-gray-200 overflow-hidden">
@@ -86,7 +112,23 @@ watch(search, (val) => {
                 <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ e.empID || '—' }}</td>
                 <td class="px-4 py-3 text-sm text-gray-800 font-medium whitespace-nowrap">{{ e.full_name }}</td>
                 <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ e.department_name || '—' }}</td>
-                <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ e.radno_mjesto || '—' }}</td>
+                <td class="px-4 py-3 text-sm text-gray-700">
+                  <div class="flex items-center gap-1">
+                    <select
+                      :value="e.radno_mjesto || ''"
+                      @change="ev => updateRadnoMjesto(e, ev.target.value)"
+                      :disabled="updatingId === e.id"
+                      class="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed w-36"
+                    >
+                      <option value="">-- Odaberi --</option>
+                      <option v-for="rm in radnaMjesta" :key="rm" :value="rm">{{ rm }}</option>
+                    </select>
+                    <svg v-if="updatingId === e.id" class="animate-spin h-4 w-4 text-indigo-500 flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                  </div>
+                </td>
                 <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ formatStatus(e.status) }}</td>
                 <td class="px-4 py-3 text-sm whitespace-nowrap">
                   <span

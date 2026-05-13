@@ -13,10 +13,11 @@ return new class extends Migration
     {
         Schema::create('shifts', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('department_id')->constrained('departments')->cascadeOnDelete();
+            $table->foreignId('department_id')->nullable()->constrained('departments')->nullOnDelete();
             $table->string('name');
             $table->time('start_time');
             $table->time('end_time')->nullable();
+            $table->string('attendance_credit_code', 5)->nullable();
             $table->timestamps();
         });
     }

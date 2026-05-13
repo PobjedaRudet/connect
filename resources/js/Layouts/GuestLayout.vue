@@ -1,6 +1,7 @@
 <script setup>
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import { Link } from '@inertiajs/vue3';
+import FlashErrorModal from '@/Components/FlashErrorModal.vue';
 </script>
 
 <template>
@@ -18,5 +19,7 @@ import { Link } from '@inertiajs/vue3';
         >
             <slot />
         </div>
+
+        <FlashErrorModal />
     </div>
 </template>

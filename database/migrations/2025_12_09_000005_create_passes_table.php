@@ -18,7 +18,9 @@ return new class extends Migration
             $table->text('reason');
             $table->timestamp('start_time');
             $table->timestamp('end_time')->nullable();
+            $table->unsignedInteger('duration_minutes')->nullable();
             $table->foreignId('approved_by')->nullable()->constrained('employees')->nullOnDelete();
+            $table->boolean('approved')->default(false);
             $table->enum('status', ['open','closed'])->default('open');
             $table->timestamps();
         });

@@ -11,6 +11,8 @@ use Inertia\Inertia;
 
 class OvertimePagesController extends Controller
 {
+    use Concerns\ScopesEmployeesByUser;
+
     public function index(Request $request, OvertimeService $service)
     {
         $monthParam = (string) $request->query('month', '');
@@ -44,18 +46,7 @@ class OvertimePagesController extends Controller
             ];
         }
 
-        $userId = $request->user()?->id;
-
-        $employees = Employee::query()
-            ->where('Active', true)
-            ->when($userId, function ($query) use ($userId) {
-                $query->where(function ($q) use ($userId) {
-                    $q->whereJsonContains('nadlezne_osobe', (int) $userId)
-                        ->orWhereJsonContains('nadlezne_osobe', (string) $userId);
-                });
-            })
-            ->orderBy('lastName')
-            ->orderBy('firstName')
+        $employees = $this->scopedEmployeeQuery($request->user())
             ->get(['id', 'empID', 'firstName', 'lastName']);
 
         $employeeIds = $employees->pluck('id');

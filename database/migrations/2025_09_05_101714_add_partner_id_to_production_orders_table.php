@@ -13,6 +13,10 @@ return new class extends Migration
     {
         Schema::table('production_orders', function (Blueprint $table) {
             $table->foreignId('partner_id')->nullable()->constrained('partners')->nullOnDelete();
+            $table->string('dodatno', 250)->nullable()->after('DatumPrijema');
+            $table->boolean('is_void')->default(false)->after('Status');
+            $table->timestamp('voided_at')->nullable()->after('is_void');
+            $table->string('void_reason', 500)->nullable()->after('voided_at');
         });
     }
 
@@ -23,7 +27,7 @@ return new class extends Migration
     {
         Schema::table('production_orders', function (Blueprint $table) {
             $table->dropForeign(['partner_id']);
-            $table->dropColumn('partner_id');
+            $table->dropColumn(['partner_id', 'dodatno', 'is_void', 'voided_at', 'void_reason']);
         });
     }
 };

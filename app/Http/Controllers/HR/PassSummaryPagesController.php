@@ -12,6 +12,7 @@ use Inertia\Response;
 
 class PassSummaryPagesController extends Controller
 {
+    use Concerns\ScopesEmployeesByUser;
     public function index(Request $request): Response
     {
         $monthParam = trim((string) $request->query('month', ''));
@@ -23,18 +24,7 @@ class PassSummaryPagesController extends Controller
         $monthStart = Carbon::createFromFormat('Y-m', $monthParam, config('app.timezone'))->startOfMonth();
         $monthEnd = $monthStart->copy()->endOfMonth();
 
-        $userId = $request->user()?->id;
-
-        $employees = Employee::query()
-            ->where('Active', true)
-            ->when($userId, function ($query) use ($userId) {
-                $query->where(function ($q) use ($userId) {
-                    $q->whereJsonContains('nadlezne_osobe', (int) $userId)
-                        ->orWhereJsonContains('nadlezne_osobe', (string) $userId);
-                });
-            })
-            ->orderBy('lastName')
-            ->orderBy('firstName')
+        $employees = $this->scopedEmployeeQuery($request->user())
             ->get(['id', 'empID', 'firstName', 'lastName'])
             ->keyBy('id');
 

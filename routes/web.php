@@ -5,6 +5,7 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\HR\AnnualLeaveDecisionPagesController;
+use App\Http\Controllers\KapijaController;
 use App\Http\Controllers\HR\AnnualLeaveUsagePagesController;
 use App\Http\Controllers\HR\BulkDayStatusPagesController;
 use App\Http\Controllers\HR\DepartmentShiftPagesController;
@@ -65,6 +66,13 @@ Route::get('/private', function () {
     return Inertia::render('PrivacyPolicy');
 })->middleware(['auth'])->name('private');
 
+Route::middleware(['auth'])->group(function () {
+    Route::get('/kapija', [KapijaController::class, 'index'])
+    ->middleware(['adminOrFunkcije:HR, Kapija, Šef PPZ'])
+    ->name('kapija');
+    Route::get('/kapija/data', [KapijaController::class, 'data'])->name('kapija.data');
+});
+
 // ╔═══════════════════════════════════════════════════════════════════════╗
 // ║  2. ADMIN                                                          ║
 // ╚═══════════════════════════════════════════════════════════════════════╝
@@ -77,7 +85,7 @@ Route::get('/admin', function () {
 // ║  3. PPZ / ZNR                                                      ║
 // ╚═══════════════════════════════════════════════════════════════════════╝
 
-Route::middleware(['auth', 'adminOrFunkcije:PPZ'])->group(function () {
+Route::middleware(['auth', 'adminOrFunkcije:Šef PPZ,PPZ'])->group(function () {
     Route::get('/ppz/dashboard', function () {
         return Inertia::render('PPZ/Dashboard');
     })->name('ppz.dashboard');
@@ -117,7 +125,7 @@ Route::middleware(['auth', 'adminOrFunkcije:Proizvodnja, Direktor Proizvodnje'])
 // ║  5. PRODAJA — dashboard, izvještaji, proizvodi, kupci              ║
 // ╚═══════════════════════════════════════════════════════════════════════╝
 
-Route::middleware(['auth', 'adminOrFunkcije:Prodaja, PPZ, Direktor Proizvodnje'])->group(function () {
+Route::middleware(['auth', 'adminOrFunkcije:Prodaja,Direktor Proizvodnje'])->group(function () {
     // Dashboard
     Route::get('/prodaja/dashboard', function () {
         return Inertia::render('Nalozi/ProdajaDashboard');
@@ -209,7 +217,7 @@ Route::middleware('auth')->group(function () {
 // ║  6. RESURSI, IZLAZNICE, HR                                        ║
 // ╚═══════════════════════════════════════════════════════════════════════╝
 
-Route::middleware('auth')->group(function () {
+Route::middleware('auth', 'adminOrFunkcije:HR,Radnik, Šef PPZ')->group(function () {
 
     // ── Profil ──
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -223,13 +231,10 @@ Route::middleware('auth')->group(function () {
 
     // ── Izlaznice ──
     Route::get('/passes/active', [PassController::class, 'active'])
-        ->middleware('bossOrAdmin')
         ->name('passes.active');
     Route::get('/passes/approved', [PassController::class, 'approved'])
-        ->middleware('bossOrAdmin')
         ->name('passes.approved');
     Route::get('/hr/izlaznice-sumarno', [PassSummaryPagesController::class, 'index'])
-        ->middleware('adminOrFunkcije:HR,PPZ')
         ->name('hr.izlaznice.sumarno');
     Route::patch('/passes/{pass}/type', [PassController::class, 'updateType'])->name('passes.updateType');
     Route::post('/passes/{pass}/confirm', [PassController::class, 'confirm'])->name('passes.confirm');
@@ -238,7 +243,7 @@ Route::middleware('auth')->group(function () {
     // ┌───────────────────────────────────────────────────────────────────┐
     // │  HR — samo HR korisnik ili admin                                │
     // └───────────────────────────────────────────────────────────────────┘
-    Route::middleware('adminOrFunkcije:HR,PPZ')->group(function () {
+    Route::middleware('adminOrFunkcije:HR, Radnik, Šef PPZ')->group(function () {
 
         Route::get('/sector/hr', function () {
             return Inertia::render('Sector/Hr');
@@ -372,6 +377,21 @@ Route::middleware('auth')->group(function () {
             $employeeId = (int) $validated['employee_id'];
             $year = (int) ($validated['year'] ?? now()->year);
 
+            $user = $request->user();
+            $isAdmin = (bool) (($user?->isadmin ?? false) || ($user?->is_admin ?? false));
+            if (!$isAdmin) {
+                $canAccess = \App\Models\Employee::where('id', $employeeId)
+                    ->where(function ($q) use ($user) {
+                        $q->whereJsonContains('nadlezne_osobe', (int) $user->id)
+                            ->orWhereJsonContains('nadlezne_osobe', (string) $user->id);
+                    })
+                    ->exists();
+
+                if (!$canAccess) {
+                    return response()->json(['message' => 'Nemate pravo pristupa ovom radniku.'], 403);
+                }
+            }
+
             $manualCarrySum = (float) DB::table('annual_leave_decisions')
                 ->where('employee_id', $employeeId)
                 ->where('year', $year)
@@ -496,10 +516,23 @@ Route::middleware('auth')->group(function () {
                 $used[$eid][$y] = (int) $r->used_days;
             }
 
-            $employees = DB::table('employees as e')
+            $user = $request->user();
+            $isAdmin = (bool) (($user?->isadmin ?? false) || ($user?->is_admin ?? false));
+
+            $employeesQuery = DB::table('employees as e')
                 ->where(function ($q) {
                     $q->whereNull('e.Active')->orWhere('e.Active', '=', 1);
-                })
+                });
+
+            if (!$isAdmin && $user) {
+                $uid = (int) $user->id;
+                $employeesQuery->where(function ($q) use ($uid) {
+                    $q->whereJsonContains('e.nadlezne_osobe', $uid)
+                        ->orWhereJsonContains('e.nadlezne_osobe', (string) $uid);
+                });
+            }
+
+            $employees = $employeesQuery
                 ->select([
                     'e.id as employee_id',
                     'e.firstName',
@@ -554,9 +587,12 @@ Route::middleware('auth')->group(function () {
 
         // Šihterica
         Route::get('/hr/sihterica', [SihtericaController::class, 'index'])->name('hr.sihterica');
+        Route::post('/hr/sihterica/manual', [SihtericaController::class, 'manualStore'])->name('hr.sihterica.manual');
 
         // Masovna dodjela statusa
-        Route::get('/hr/masovna-dodjela-statusa', [BulkDayStatusPagesController::class, 'index'])->name('hr.statusi.masovno');
+        Route::get('/hr/masovna-dodjela-statusa', [BulkDayStatusPagesController::class, 'index'])
+        ->middleware(['adminOrFunkcije:HR'])
+        ->name('hr.statusi.masovno');
         Route::post('/hr/masovna-dodjela-statusa', [BulkDayStatusPagesController::class, 'store'])->name('hr.statusi.masovno.store');
 
         // Prekovremeni sati
@@ -578,14 +614,19 @@ Route::middleware('auth')->group(function () {
         })->name('api.prekovremeni.balance');
 
         // Dodjela smjena
-        Route::get('/hr/dodjela-smjene', [DepartmentShiftPagesController::class, 'index'])->name('hr.smjene.dodjela');
+        Route::get('/hr/dodjela-smjene', [DepartmentShiftPagesController::class, 'index'])
+        ->middleware(['adminOrFunkcije:HR'])
+        ->name('hr.smjene.dodjela');
         Route::post('/hr/dodjela-smjene', [DepartmentShiftPagesController::class, 'store'])->name('hr.smjene.dodjela.store');
         Route::post('/hr/dodjela-smjene/smjena', [DepartmentShiftPagesController::class, 'storeShift'])->name('hr.smjene.store');
         Route::put('/hr/dodjela-smjene/{department}', [DepartmentShiftPagesController::class, 'update'])->name('hr.smjene.dodjela.update');
 
         // Uposlenici
         Route::get('/hr/uposlenici', [EmployeePagesController::class, 'index'])->name('hr.uposlenici.pregled');
-        Route::get('/hr/uposlenici-forma/{employee?}', [EmployeePagesController::class, 'form'])->name('hr.uposlenici.forma');
+        Route::put('/hr/uposlenici/{employee}/radno-mjesto', [EmployeePagesController::class, 'updateRadnoMjesto'])->name('hr.uposlenici.update-radno-mjesto');
+        Route::get('/hr/uposlenici-forma/{employee?}', [EmployeePagesController::class, 'form'])
+        ->middleware(['adminOrFunkcije:HR'])
+        ->name('hr.uposlenici.forma');
         Route::post('/hr/uposlenici-forma', [EmployeePagesController::class, 'store'])->name('hr.uposlenici.store');
         Route::put('/hr/uposlenici-forma/{employee}', [EmployeePagesController::class, 'update'])->name('hr.uposlenici.update');
 

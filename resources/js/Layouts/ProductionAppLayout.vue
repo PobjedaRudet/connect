@@ -8,6 +8,7 @@ import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
+import FlashErrorModal from '@/Components/FlashErrorModal.vue';
 
 defineProps({
     title: String,
@@ -402,5 +403,7 @@ onMounted(() => {
                 <slot />
             </main>
         </div>
+
+        <FlashErrorModal />
     </div>
 </template>

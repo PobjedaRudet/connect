@@ -15,6 +15,8 @@ use Inertia\Response;
 
 class EmployeePagesController extends Controller
 {
+    use Concerns\ScopesEmployeesByUser;
+
     private function validateEmployee(Request $request, ?Employee $employee = null): array
     {
         $nullableFields = [
@@ -102,8 +104,12 @@ class EmployeePagesController extends Controller
         $employee->nadlezne_osobe = $data['nadlezne_osobe'] ?? null;
     }
 
-    public function form(?Employee $employee = null): Response
+    public function form(Request $request, ?Employee $employee = null): Response
     {
+        if ($employee && !$this->canAccessEmployee($request->user(), $employee->id)) {
+            abort(403, 'Nemate pristup ovom uposleniku.');
+        }
+
         $departments = Department::orderBy('name')->get(['id', 'name']);
         $funkcije = Funkcija::orderBy('Redosljed')->get(['Funkcija', 'Opis'])
             ->map(fn ($f) => [
@@ -160,6 +166,10 @@ class EmployeePagesController extends Controller
 
     public function update(Request $request, Employee $employee)
     {
+        if (!$this->canAccessEmployee($request->user(), $employee->id)) {
+            abort(403, 'Nemate pristup ovom uposleniku.');
+        }
+
         $data = $this->validateEmployee($request, $employee);
 
         $this->fillEmployee($employee, $data);
@@ -175,9 +185,7 @@ class EmployeePagesController extends Controller
 
         $departments = Department::pluck('name', 'id');
 
-        $employeesQuery = Employee::query()
-            ->orderBy('lastName')
-            ->orderBy('firstName');
+        $employeesQuery = $this->scopedEmployeeQuery($request->user());
 
         if ($search !== '') {
             $employeesQuery->where(function ($q) use ($search) {
@@ -216,6 +224,26 @@ class EmployeePagesController extends Controller
         return Inertia::render('HR/UposleniciPregled', [
             'employees' => $employees,
             'search' => $search,
+            'radnaMjesta' => RadnoMjesto::orderBy('radno_mjesto')->pluck('radno_mjesto')->toArray(),
+        ]);
+    }
+
+    public function updateRadnoMjesto(Request $request, Employee $employee)
+    {
+        if (!$this->canAccessEmployee($request->user(), $employee->id)) {
+            abort(403, 'Nemate pristup ovom uposleniku.');
+        }
+
+        $data = $request->validate([
+            'radno_mjesto' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $employee->radno_mjesto = $data['radno_mjesto'] ?? null;
+        $employee->save();
+
+        return response()->json([
+            'success' => true,
+            'radno_mjesto' => $employee->radno_mjesto,
         ]);
     }
 }

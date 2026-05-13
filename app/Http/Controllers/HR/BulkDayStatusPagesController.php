@@ -15,6 +15,8 @@ use Inertia\Response;
 
 class BulkDayStatusPagesController extends Controller
 {
+    use Concerns\ScopesEmployeesByUser;
+
     public function index(): Response
     {
         $recentRows = collect();
@@ -88,11 +90,7 @@ class BulkDayStatusPagesController extends Controller
             ]);
         }
 
-        $employeeIds = Employee::query()
-            ->where(function ($q) {
-                $q->whereNull('Active')
-                    ->orWhere('Active', '=', 1);
-            })
+        $employeeIds = $this->scopedEmployeeQuery($request->user())
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->values()

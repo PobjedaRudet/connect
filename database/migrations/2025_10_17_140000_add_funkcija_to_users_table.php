@@ -13,14 +13,20 @@ return new class extends Migration
                 $table->string('funkcija', 50)->nullable()->after('email');
                 $table->foreign('funkcija')->references('Funkcija')->on('funkcije')->nullOnDelete();
             }
+            if (!Schema::hasColumn('users', 'isadmin')) {
+                $table->boolean('isadmin')->default(false)->after('funkcija');
+            }
         });
     }
 
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
+            if (Schema::hasColumn('users', 'isadmin')) {
+                $table->dropColumn('isadmin');
+            }
             if (Schema::hasColumn('users', 'funkcija')) {
-                try { $table->dropForeign(['funkcija']); } catch (\Throwable $e) { /* ignore */ }
+                try { $table->dropForeign(['funkcija']); } catch (\Throwable $e) {}
                 $table->dropColumn('funkcija');
             }
         });
