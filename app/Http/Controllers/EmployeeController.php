@@ -42,12 +42,18 @@ class EmployeeController extends Controller
     // API: Ažuriranje invalidnosti zaposlenika
     public function updateInvalidnost(Request $request, $id)
     {
-        $employee = Employee::findOrFail($id);
+        $employee = Employee::query()
+            ->where('empID', $id)
+            ->orWhere('id', $id)
+            ->firstOrFail();
+
         $data = $request->validate([
             'invalidnost_radnika' => 'nullable|string',
         ]);
-        $employee->invalidnost_radnika = $data['invalidnost_radnika'];
+
+        $employee->invalidnost_radnika = $data['invalidnost_radnika'] ?? null;
         $employee->save();
+
         return response()->json(['success' => true, 'invalidnost_radnika' => $employee->invalidnost_radnika]);
     }
 
