@@ -217,7 +217,7 @@ Route::middleware('auth')->group(function () {
 // ║  6. RESURSI, IZLAZNICE, HR                                        ║
 // ╚═══════════════════════════════════════════════════════════════════════╝
 
-Route::middleware('auth', 'adminOrFunkcije:HR,Radnik, Šef PPZ')->group(function () {
+Route::middleware('auth', 'adminOrFunkcije:HR,IT,Radnik, Šef PPZ')->group(function () {
 
     // ── Profil ──
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -243,7 +243,7 @@ Route::middleware('auth', 'adminOrFunkcije:HR,Radnik, Šef PPZ')->group(function
     // ┌───────────────────────────────────────────────────────────────────┐
     // │  HR — samo HR korisnik ili admin                                │
     // └───────────────────────────────────────────────────────────────────┘
-    Route::middleware('adminOrFunkcije:HR, Radnik, Šef PPZ')->group(function () {
+    Route::middleware('adminOrFunkcije:HR, IT, Šef PPZ')->group(function () {
 
         Route::get('/sector/hr', function () {
             return Inertia::render('Sector/Hr');
