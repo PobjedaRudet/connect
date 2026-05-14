@@ -87,6 +87,7 @@ const onMonthChange = (event) => {
               <th class="px-4 py-3">Izlazak</th>
               <th class="px-4 py-3">Povratak</th>
               <th class="px-4 py-3">Trajanje</th>
+              <th class="px-4 py-3">Odobrio</th>
               <th class="px-4 py-3">Odobreno</th>
             </tr>
           </thead>
@@ -98,10 +99,11 @@ const onMonthChange = (event) => {
               <td class="px-4 py-3 text-sm text-gray-700">{{ formatDateTime(passItem.start_time) }}</td>
               <td class="px-4 py-3 text-sm text-gray-700">{{ formatDateTime(passItem.end_time) }}</td>
               <td class="px-4 py-3 text-sm text-gray-700">{{ formatDuration(passItem.duration_minutes) }}</td>
+              <td class="px-4 py-3 text-sm text-gray-700">{{ passItem.approved_by_name || '—' }}</td>
               <td class="px-4 py-3 text-sm text-gray-700">{{ formatDateTime(passItem.approved_at) }}</td>
             </tr>
             <tr v-if="passes.length === 0">
-              <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">Nema odobrenih izlaznica za odabrani mjesec.</td>
+              <td colspan="8" class="px-4 py-6 text-center text-sm text-gray-500">Nema odobrenih izlaznica za odabrani mjesec.</td>
             </tr>
           </tbody>
         </table>

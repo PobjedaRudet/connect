@@ -34,7 +34,7 @@ class AttendanceService
         }
 
         $employee = Employee::where('rfid_code', $rfidTrimmed)
-            ->select(['id', 'dept', 'nadlezne_osobe'])
+            ->select(['id', 'dept', 'pass_approvers'])
             ->first();
 
         if (!$employee) {
@@ -150,7 +150,7 @@ class AttendanceService
         }
 
         $employee = Employee::where('rfid_code', $rfidTrimmed)
-            ->select(['id', 'dept', 'nadlezne_osobe'])
+            ->select(['id', 'dept', 'pass_approvers'])
             ->first();
         if (!$employee) {
             return ['status' => 'error', 'message' => 'Nepoznata kartica!'];
@@ -497,7 +497,7 @@ class AttendanceService
                 'status' => 'open',
             ]);
 
-            $this->sendPassCreatedEmailToSupervisors($employee, $pass);
+            $this->sendPassCreatedEmailToPassApprovers($employee, $pass);
 
             return [
                 'status' => 'pass-open',
@@ -570,7 +570,7 @@ class AttendanceService
                 'status' => 'open',
             ]);
 
-            $this->sendPassCreatedEmailToSupervisors($employee, $pass);
+            $this->sendPassCreatedEmailToPassApprovers($employee, $pass);
 
             return [
                 'status' => 'pass-open',
@@ -580,24 +580,24 @@ class AttendanceService
         });
     }
 
-    private function sendPassCreatedEmailToSupervisors(Employee $employee, Pass $pass): void
+    private function sendPassCreatedEmailToPassApprovers(Employee $employee, Pass $pass): void
     {
         try {
-            Log::info('Pass created: preparing notification email', [
+            Log::info('Pass created: preparing pass approver notification email', [
                 'employee_id' => $employee->id ?? null,
                 'pass_id' => $pass->id ?? null,
                 'pass_type' => $pass->type ?? null,
                 'mail_default' => config('mail.default'),
                 'from' => config('mail.from.address'),
-                'nadlezne_osobe' => $employee->nadlezne_osobe ?? null,
+                'pass_approvers' => $employee->pass_approvers ?? null,
             ]);
 
-            $emails = $this->resolveSupervisorEmails($employee);
+            $emails = $this->resolvePassApproverEmails($employee);
             if (empty($emails)) {
-                Log::warning('Pass created email skipped: no supervisor emails resolved', [
+                Log::warning('Pass created email skipped: no pass approver emails resolved', [
                     'employee_id' => $employee->id ?? null,
                     'pass_id' => $pass->id ?? null,
-                    'nadlezne_osobe' => $employee->nadlezne_osobe ?? null,
+                    'pass_approvers' => $employee->pass_approvers ?? null,
                 ]);
                 return;
             }
@@ -619,14 +619,14 @@ class AttendanceService
     }
 
     /**
-     * Reads employees.nadlezne_osobe (JSON/scalar) as list of USER ids (users.id) and resolves their emails.
+     * Reads employees.pass_approvers (JSON/scalar) as list of USER ids (users.id) and resolves their emails.
      * Accepts either array, JSON string, numeric string, or integer.
      *
      * @return string[]
      */
-    private function resolveSupervisorEmails(Employee $employee): array
+    private function resolvePassApproverEmails(Employee $employee): array
     {
-        $raw = $employee->nadlezne_osobe ?? null;
+        $raw = $employee->pass_approvers ?? null;
 
         // Some records may store a single supervisor id as a scalar (e.g. 260) instead of JSON array.
         if (is_int($raw)) {
@@ -666,9 +666,9 @@ class AttendanceService
         $foundIds = $supervisors->pluck('id')->map(fn ($v) => (int) $v)->all();
         $missingIds = array_values(array_diff($ids, $foundIds));
         if (!empty($missingIds)) {
-            Log::warning('Pass email: supervisor ids not found in users table', [
+            Log::warning('Pass email: pass approver ids not found in users table', [
                 'employee_id' => $employee->id ?? null,
-                'missing_supervisor_ids' => $missingIds,
+                'missing_pass_approver_ids' => $missingIds,
             ]);
         }
 
@@ -680,9 +680,9 @@ class AttendanceService
             ->all();
 
         if (!empty($missingEmailIds)) {
-            Log::warning('Pass email: supervisor users have no email set', [
+            Log::warning('Pass email: pass approver users have no email set', [
                 'employee_id' => $employee->id ?? null,
-                'supervisor_ids_missing_email' => $missingEmailIds,
+                'pass_approver_ids_missing_email' => $missingEmailIds,
             ]);
         }
 

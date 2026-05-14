@@ -17,6 +17,7 @@ class Pass extends Model
         'start_time',
         'end_time',
         'approved_by', // employee_id of approver
+        'approved_by_user_id',
         'status', // open | closed
         'duration_minutes', // total minutes outside when closed
         'approved',
@@ -37,5 +38,10 @@ class Pass extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(Employee::class, 'approved_by');
+    }
+
+    public function approverUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by_user_id');
     }
 }

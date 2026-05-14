@@ -13,6 +13,7 @@ class Employee extends Model
         'empID',
         'rfid_code',
         'nadlezne_osobe',
+        'pass_approvers',
         'lastName',
         'firstName',
         'middleName',
@@ -33,6 +34,7 @@ class Employee extends Model
 
     protected $casts = [
         'nadlezne_osobe' => 'array',
+        'pass_approvers' => 'array',
         'rizik' => 'boolean',
         'Active' => 'boolean',
         'period' => 'integer',

@@ -69,6 +69,7 @@ const form = useForm({
   profesionalno_oboljenje: props.employee?.profesionalno_oboljenje ?? '',
   invalidnost_radnika: props.employee?.invalidnost_radnika ?? '',
   nadlezne_osobe: props.employee?.nadlezne_osobe ?? [],
+  pass_approvers: props.employee?.pass_approvers ?? [],
 })
 
 const hasErrors = computed(() => Object.keys(form.errors || {}).length > 0)
@@ -199,7 +200,7 @@ const submit = () => {
           <!-- Radni podaci -->
           <div class="px-6 py-5 border-b border-gray-200 bg-white">
             <h2 class="text-sm font-semibold text-gray-800">Radni podaci</h2>
-            <p class="text-xs text-gray-500 mt-0.5">Odjel, radno mjesto i nadležne osobe.</p>
+            <p class="text-xs text-gray-500 mt-0.5">Odjel, radno mjesto, nadležne osobe i odobravaoci izlaznica.</p>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div>
@@ -272,6 +273,20 @@ const submit = () => {
                 </select>
                 <p class="text-xs text-gray-500 mt-1">Izaberite korisnike koji su nadležni za ovog uposlenika.</p>
                 <p v-if="form.errors.nadlezne_osobe" class="text-sm text-red-600 mt-1">{{ form.errors.nadlezne_osobe }}</p>
+              </div>
+
+              <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700">Odobravaoci izlaznica</label>
+                <select
+                  v-model="form.pass_approvers"
+                  multiple
+                  :class="selectClass('pass_approvers')"
+                  class="h-32"
+                >
+                  <option v-for="u in supervisors" :key="u.id" :value="u.id">{{ u.name }}</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Izaberite korisnike koji mogu pregledati i odobravati izlaznice ovog uposlenika.</p>
+                <p v-if="form.errors.pass_approvers" class="text-sm text-red-600 mt-1">{{ form.errors.pass_approvers }}</p>
               </div>
             </div>
           </div>

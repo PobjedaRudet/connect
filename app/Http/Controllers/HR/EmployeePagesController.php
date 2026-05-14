@@ -67,6 +67,8 @@ class EmployeePagesController extends Controller
 
             'nadlezne_osobe' => ['nullable', 'array'],
             'nadlezne_osobe.*' => ['integer', 'exists:users,id'],
+            'pass_approvers' => ['nullable', 'array'],
+            'pass_approvers.*' => ['integer', 'exists:users,id'],
         ]);
     }
 
@@ -102,6 +104,7 @@ class EmployeePagesController extends Controller
         $employee->profesionalno_oboljenje = $data['profesionalno_oboljenje'] ?? null;
         $employee->invalidnost_radnika = $data['invalidnost_radnika'] ?? null;
         $employee->nadlezne_osobe = $data['nadlezne_osobe'] ?? null;
+        $employee->pass_approvers = $data['pass_approvers'] ?? null;
     }
 
     public function form(Request $request, ?Employee $employee = null): Response
@@ -140,6 +143,7 @@ class EmployeePagesController extends Controller
             'profesionalno_oboljenje' => $employee->profesionalno_oboljenje,
             'invalidnost_radnika' => $employee->invalidnost_radnika,
             'nadlezne_osobe' => $employee->nadlezne_osobe ?? [],
+            'pass_approvers' => $employee->pass_approvers ?? [],
         ] : null;
 
         return Inertia::render('HR/UposleniciForma', [

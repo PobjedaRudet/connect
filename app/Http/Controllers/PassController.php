@@ -8,10 +8,23 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use App\Models\User;
 use Inertia\Response;
 
 class PassController extends Controller
 {
+    private function resolveApproverEmployeeId(?User $user): ?int
+    {
+        $email = trim((string) ($user?->email ?? ''));
+        if ($email === '') {
+            return null;
+        }
+
+        return Employee::query()
+            ->where('email', $email)
+            ->value('id');
+    }
+
     private function isAdminUser($user): bool
     {
         return (bool) (($user?->isadmin ?? false) || ($user?->is_admin ?? false));
@@ -26,8 +39,8 @@ class PassController extends Controller
         $uid = (int) $user->id;
 
         return $query->whereHas('employee', function ($q) use ($uid) {
-            $q->whereJsonContains('nadlezne_osobe', $uid)
-                ->orWhereJsonContains('nadlezne_osobe', (string) $uid);
+            $q->whereJsonContains('pass_approvers', $uid)
+                ->orWhereJsonContains('pass_approvers', (string) $uid);
         });
     }
 
@@ -43,8 +56,8 @@ class PassController extends Controller
 
         return Employee::where('id', (int) $pass->employee_id)
             ->where(function ($q) use ($user) {
-                $q->whereJsonContains('nadlezne_osobe', (int) $user->id)
-                    ->orWhereJsonContains('nadlezne_osobe', (string) $user->id);
+                $q->whereJsonContains('pass_approvers', (int) $user->id)
+                    ->orWhereJsonContains('pass_approvers', (string) $user->id);
             })
             ->exists();
     }
@@ -105,7 +118,7 @@ class PassController extends Controller
         $start = $selectedMonth->copy();
         $end = $selectedMonth->copy()->endOfMonth();
 
-        $passesQuery = Pass::with('employee')
+        $passesQuery = Pass::with(['employee', 'approverUser'])
             ->where('approved', true)
             ->whereBetween('start_time', [$start, $end])
             ->orderByDesc('start_time')
@@ -129,6 +142,7 @@ class PassController extends Controller
                     'end_time' => optional($pass->end_time)->toDateTimeString(),
                     'duration_minutes' => $pass->duration_minutes,
                     'approved_at' => optional($pass->updated_at)->toDateTimeString(),
+                    'approved_by_name' => $pass->approverUser?->name,
                 ];
             });
 
@@ -177,9 +191,17 @@ class PassController extends Controller
             'type' => 'required|in:privatni,službeni',
         ]);
 
+        if ($pass->approved) {
+            return back()->with('info', 'Izlaznica je već odobrena.');
+        }
+
+        $approverUser = $request->user();
+
         $pass->update([
             'type' => $validated['type'],
             'approved' => true,
+            'approved_by' => $this->resolveApproverEmployeeId($approverUser),
+            'approved_by_user_id' => $approverUser?->id,
         ]);
 
         return back()->with('success', 'Izlaznica označena kao odobrena.');
