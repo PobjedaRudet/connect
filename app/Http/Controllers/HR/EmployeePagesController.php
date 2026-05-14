@@ -43,7 +43,7 @@ class EmployeePagesController extends Controller
 
         $employeeId = $employee?->id;
 
-        return $request->validate([
+        $validator = validator($request->all(), [
             'empID' => ['required', 'integer', Rule::unique('employees', 'empID')->ignore($employeeId)],
             'rfid_code' => ['nullable', 'string', 'max:50', Rule::unique('employees', 'rfid_code')->ignore($employeeId)],
 
@@ -70,6 +70,27 @@ class EmployeePagesController extends Controller
             'pass_approvers' => ['nullable', 'array'],
             'pass_approvers.*' => ['integer', 'exists:users,id'],
         ]);
+
+        $validator->after(function ($validator) use ($request) {
+            $supervisors = collect($request->input('nadlezne_osobe', []))
+                ->map(fn ($value) => (int) $value)
+                ->filter(fn (int $value) => $value > 0)
+                ->unique()
+                ->values();
+
+            $passApprovers = collect($request->input('pass_approvers', []))
+                ->map(fn ($value) => (int) $value)
+                ->filter(fn (int $value) => $value > 0)
+                ->unique()
+                ->values();
+
+            $overlap = $supervisors->intersect($passApprovers)->values();
+            if ($overlap->isNotEmpty()) {
+                $validator->errors()->add('pass_approvers', 'Korisnik ne može istovremeno biti nadležna osoba i odobravalac izlaznica.');
+            }
+        });
+
+        return $validator->validate();
     }
 
     private function fillEmployee(Employee $employee, array $data): void

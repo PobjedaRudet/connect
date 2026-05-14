@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -12,12 +11,6 @@ return new class extends Migration
         Schema::table('employees', function (Blueprint $table) {
             $table->json('pass_approvers')->nullable()->after('nadlezne_osobe');
         });
-
-        DB::table('employees')
-            ->whereNotNull('nadlezne_osobe')
-            ->update([
-                'pass_approvers' => DB::raw('nadlezne_osobe'),
-            ]);
     }
 
     public function down(): void

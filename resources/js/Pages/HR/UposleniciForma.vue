@@ -83,6 +83,10 @@ const fieldClass = (field) => {
 
 const selectClass = (field) => fieldClass(field)
 
+const isSupervisorSelected = (userId) => form.nadlezne_osobe.includes(userId)
+
+const isPassApproverSelected = (userId) => form.pass_approvers.includes(userId)
+
 const submit = () => {
   const action = isEdit.value
     ? route('hr.uposlenici.update', props.employee.id)
@@ -269,9 +273,16 @@ const submit = () => {
                   :class="selectClass('nadlezne_osobe')"
                   class="h-32"
                 >
-                  <option v-for="u in supervisors" :key="u.id" :value="u.id">{{ u.name }}</option>
+                  <option
+                    v-for="u in supervisors"
+                    :key="u.id"
+                    :value="u.id"
+                    :disabled="isPassApproverSelected(u.id)"
+                  >
+                    {{ u.name }}
+                  </option>
                 </select>
-                <p class="text-xs text-gray-500 mt-1">Izaberite korisnike koji su nadležni za ovog uposlenika.</p>
+                <p class="text-xs text-gray-500 mt-1">Izaberite korisnike koji su nadležni za ovog uposlenika. Osoba koja je odabrana kao odobravalac izlaznica ne može biti i nadležna osoba.</p>
                 <p v-if="form.errors.nadlezne_osobe" class="text-sm text-red-600 mt-1">{{ form.errors.nadlezne_osobe }}</p>
               </div>
 
@@ -283,9 +294,16 @@ const submit = () => {
                   :class="selectClass('pass_approvers')"
                   class="h-32"
                 >
-                  <option v-for="u in supervisors" :key="u.id" :value="u.id">{{ u.name }}</option>
+                  <option
+                    v-for="u in supervisors"
+                    :key="u.id"
+                    :value="u.id"
+                    :disabled="isSupervisorSelected(u.id)"
+                  >
+                    {{ u.name }}
+                  </option>
                 </select>
-                <p class="text-xs text-gray-500 mt-1">Izaberite korisnike koji mogu pregledati i odobravati izlaznice ovog uposlenika.</p>
+                <p class="text-xs text-gray-500 mt-1">Izaberite korisnike koji mogu pregledati i odobravati izlaznice ovog uposlenika. Ista osoba ne može biti i nadležna osoba.</p>
                 <p v-if="form.errors.pass_approvers" class="text-sm text-red-600 mt-1">{{ form.errors.pass_approvers }}</p>
               </div>
             </div>
