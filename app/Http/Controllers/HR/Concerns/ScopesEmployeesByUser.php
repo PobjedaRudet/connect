@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 trait ScopesEmployeesByUser
 {
     /**
-     * Admins and users with funkcija=HR can access all employees.
+     * Admins and users with funkcija=Šef HR can access all employees.
      */
     protected function hasGlobalEmployeeAccess(?\App\Models\User $user): bool
     {
@@ -20,13 +20,13 @@ trait ScopesEmployeesByUser
             return true;
         }
 
-        return trim((string) ($user->funkcija ?? '')) === 'HR';
+        return trim((string) ($user->funkcija ?? '')) === 'Šef HR';
     }
 
     /**
      * Return an Employee query scoped to the given user.
-      * Admins and HR users see all active employees; other users see only those
-     * whose nadlezne_osobe JSON column contains the user's ID.
+     * - Admins / Šef HR: all active employees
+     * - Others (incl. HR): only employees whose nadlezne_osobe contains the user's ID
      */
     protected function scopedEmployeeQuery(?\App\Models\User $user): Builder
     {
@@ -37,7 +37,11 @@ trait ScopesEmployeesByUser
             ->orderBy('lastName')
             ->orderBy('firstName');
 
-        if (!$this->hasGlobalEmployeeAccess($user) && $user) {
+        if ($this->hasGlobalEmployeeAccess($user)) {
+            return $query;
+        }
+
+        if ($user) {
             $uid = $user->id;
             $query->where(function ($q) use ($uid) {
                 $q->whereJsonContains('nadlezne_osobe', (int) $uid)

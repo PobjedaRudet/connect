@@ -68,7 +68,7 @@ Route::get('/private', function () {
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/kapija', [KapijaController::class, 'index'])
-    ->middleware(['adminOrFunkcije:HR, Kapija, Šef PPZ'])
+    ->middleware(['adminOrFunkcije:HR, Šef HR, Kapija, Šef PPZ'])
     ->name('kapija');
     Route::get('/kapija/data', [KapijaController::class, 'data'])->name('kapija.data');
 });
@@ -217,7 +217,7 @@ Route::middleware('auth')->group(function () {
 // ║  6. RESURSI, IZLAZNICE, HR                                        ║
 // ╚═══════════════════════════════════════════════════════════════════════╝
 
-Route::middleware('auth', 'adminOrFunkcije:HR,IT,Radnik, Šef PPZ')->group(function () {
+Route::middleware('auth', 'adminOrFunkcije:HR,Šef HR,IT,Radnik, Šef PPZ')->group(function () {
 
     // ── Profil ──
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -243,7 +243,7 @@ Route::middleware('auth', 'adminOrFunkcije:HR,IT,Radnik, Šef PPZ')->group(funct
     // ┌───────────────────────────────────────────────────────────────────┐
     // │  HR — samo HR korisnik ili admin                                │
     // └───────────────────────────────────────────────────────────────────┘
-    Route::middleware('adminOrFunkcije:HR, IT, Šef PPZ')->group(function () {
+    Route::middleware('adminOrFunkcije:HR, Šef HR, IT, Šef PPZ')->group(function () {
 
         Route::get('/sector/hr', function () {
             return Inertia::render('Sector/Hr');
@@ -589,11 +589,11 @@ Route::middleware('auth', 'adminOrFunkcije:HR,IT,Radnik, Šef PPZ')->group(funct
         Route::get('/hr/sihterica', [SihtericaController::class, 'index'])->name('hr.sihterica');
         Route::post('/hr/sihterica/manual', [SihtericaController::class, 'manualStore'])->name('hr.sihterica.manual');
 
-        // Masovna dodjela statusa
-        Route::get('/hr/masovna-dodjela-statusa', [BulkDayStatusPagesController::class, 'index'])
-        ->middleware(['adminOrFunkcije:HR'])
-        ->name('hr.statusi.masovno');
-        Route::post('/hr/masovna-dodjela-statusa', [BulkDayStatusPagesController::class, 'store'])->name('hr.statusi.masovno.store');
+        // Masovna dodjela statusa — samo admin ili Šef HR
+        Route::middleware('adminOrFunkcije:Šef HR')->group(function () {
+            Route::get('/hr/masovna-dodjela-statusa', [BulkDayStatusPagesController::class, 'index'])->name('hr.statusi.masovno');
+            Route::post('/hr/masovna-dodjela-statusa', [BulkDayStatusPagesController::class, 'store'])->name('hr.statusi.masovno.store');
+        });
 
         // Prekovremeni sati
         Route::get('/hr/prekovremeni-sati', [OvertimePagesController::class, 'index'])->name('hr.prekovremeni-sati');
@@ -613,19 +613,19 @@ Route::middleware('auth', 'adminOrFunkcije:HR,IT,Radnik, Šef PPZ')->group(funct
             ));
         })->name('api.prekovremeni.balance');
 
-        // Dodjela smjena
-        Route::get('/hr/dodjela-smjene', [DepartmentShiftPagesController::class, 'index'])
-        ->middleware(['adminOrFunkcije:HR'])
-        ->name('hr.smjene.dodjela');
-        Route::post('/hr/dodjela-smjene', [DepartmentShiftPagesController::class, 'store'])->name('hr.smjene.dodjela.store');
-        Route::post('/hr/dodjela-smjene/smjena', [DepartmentShiftPagesController::class, 'storeShift'])->name('hr.smjene.store');
-        Route::put('/hr/dodjela-smjene/{department}', [DepartmentShiftPagesController::class, 'update'])->name('hr.smjene.dodjela.update');
+        // Dodjela smjena — samo admin ili Šef HR
+        Route::middleware('adminOrFunkcije:Šef HR')->group(function () {
+            Route::get('/hr/dodjela-smjene', [DepartmentShiftPagesController::class, 'index'])->name('hr.smjene.dodjela');
+            Route::post('/hr/dodjela-smjene', [DepartmentShiftPagesController::class, 'store'])->name('hr.smjene.dodjela.store');
+            Route::post('/hr/dodjela-smjene/smjena', [DepartmentShiftPagesController::class, 'storeShift'])->name('hr.smjene.store');
+            Route::put('/hr/dodjela-smjene/{department}', [DepartmentShiftPagesController::class, 'update'])->name('hr.smjene.dodjela.update');
+        });
 
         // Uposlenici
         Route::get('/hr/uposlenici', [EmployeePagesController::class, 'index'])->name('hr.uposlenici.pregled');
         Route::put('/hr/uposlenici/{employee}/radno-mjesto', [EmployeePagesController::class, 'updateRadnoMjesto'])->name('hr.uposlenici.update-radno-mjesto');
         Route::get('/hr/uposlenici-forma/{employee?}', [EmployeePagesController::class, 'form'])
-        ->middleware(['adminOrFunkcije:HR'])
+        ->middleware(['adminOrFunkcije:HR,Šef HR'])
         ->name('hr.uposlenici.forma');
         Route::post('/hr/uposlenici-forma', [EmployeePagesController::class, 'store'])->name('hr.uposlenici.store');
         Route::put('/hr/uposlenici-forma/{employee}', [EmployeePagesController::class, 'update'])->name('hr.uposlenici.update');

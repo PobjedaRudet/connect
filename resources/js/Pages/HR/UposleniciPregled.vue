@@ -101,7 +101,6 @@ watch(search, (val) => {
                 <th class="px-4 py-3">SAP ID</th>
                 <th class="px-4 py-3">Ime i prezime</th>
                 <th class="px-4 py-3">Odjel</th>
-                <th class="px-4 py-3">Radno mjesto</th>
                 <th class="px-4 py-3">Status</th>
                 <th class="px-4 py-3">Aktivan</th>
                 <th class="px-4 py-3 text-right sticky right-0 bg-gray-50">Akcije</th>
@@ -112,23 +111,6 @@ watch(search, (val) => {
                 <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ e.empID || '—' }}</td>
                 <td class="px-4 py-3 text-sm text-gray-800 font-medium whitespace-nowrap">{{ e.full_name }}</td>
                 <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ e.department_name || '—' }}</td>
-                <td class="px-4 py-3 text-sm text-gray-700">
-                  <div class="flex items-center gap-1">
-                    <select
-                      :value="e.radno_mjesto || ''"
-                      @change="ev => updateRadnoMjesto(e, ev.target.value)"
-                      :disabled="updatingId === e.id"
-                      class="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed w-36"
-                    >
-                      <option value="">-- Odaberi --</option>
-                      <option v-for="rm in radnaMjesta" :key="rm" :value="rm">{{ rm }}</option>
-                    </select>
-                    <svg v-if="updatingId === e.id" class="animate-spin h-4 w-4 text-indigo-500 flex-shrink-0" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                    </svg>
-                  </div>
-                </td>
                 <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ formatStatus(e.status) }}</td>
                 <td class="px-4 py-3 text-sm whitespace-nowrap">
                   <span
@@ -148,7 +130,7 @@ watch(search, (val) => {
                 </td>
               </tr>
               <tr v-if="employeesData.length === 0">
-                <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">Nema uposlenika za prikaz.</td>
+                <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">Nema uposlenika za prikaz.</td>
               </tr>
             </tbody>
           </table>
