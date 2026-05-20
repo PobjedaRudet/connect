@@ -585,6 +585,135 @@ Route::middleware('auth', 'adminOrFunkcije:HR,Šef HR,IT,Radnik, Šef PPZ')->gro
             ]);
         })->name('api.godisnji.balanceAll');
 
+        Route::get('/api/godisnji/balance-summary', function (Request $request) {
+            $user = $request->user();
+            $isAdmin = (bool) (($user?->isadmin ?? false) || ($user?->is_admin ?? false));
+
+            $decisionsAgg = DB::table('annual_leave_decisions')
+                ->select([
+                    'employee_id',
+                    DB::raw('CAST(ROUND(SUM(COALESCE(granted_days,0)), 0) AS SIGNED) as total_granted'),
+                ])
+                ->groupBy('employee_id')
+                ->get()
+                ->keyBy('employee_id');
+
+            $usageAgg = DB::table('annual_leave_usages as u')
+                ->join('annual_leave_decisions as d', 'd.id', '=', 'u.annual_leave_decision_id')
+                ->select([
+                    'd.employee_id',
+                    DB::raw('CAST(ROUND(SUM(COALESCE(u.days,0)), 0) AS SIGNED) as total_used'),
+                ])
+                ->groupBy('d.employee_id')
+                ->get()
+                ->keyBy('employee_id');
+
+            $employeesQuery = DB::table('employees as e')
+                ->where(function ($q) {
+                    $q->whereNull('e.Active')->orWhere('e.Active', '=', 1);
+                });
+
+            if (!$isAdmin && $user) {
+                $uid = (int) $user->id;
+                $employeesQuery->where(function ($q) use ($uid) {
+                    $q->whereJsonContains('e.nadlezne_osobe', $uid)
+                        ->orWhereJsonContains('e.nadlezne_osobe', (string) $uid);
+                });
+            }
+
+            $employees = $employeesQuery
+                ->select(['e.id as employee_id', 'e.firstName', 'e.lastName'])
+                ->orderBy('e.lastName')
+                ->orderBy('e.firstName')
+                ->get();
+
+            $rows = $employees->map(function ($e) use ($decisionsAgg, $usageAgg) {
+                $eid = (int) $e->employee_id;
+                $granted = (int) ($decisionsAgg[$eid]->total_granted ?? 0);
+                $used = (int) ($usageAgg[$eid]->total_used ?? 0);
+                $remaining = $granted - $used;
+
+                return [
+                    'employee_id' => $eid,
+                    'firstName' => $e->firstName,
+                    'lastName' => $e->lastName,
+                    'total_days' => $granted,
+                    'used_days' => $used,
+                    'remaining_days' => $remaining,
+                ];
+            })->values();
+
+            return response()->json(['rows' => $rows]);
+        })->name('api.godisnji.balanceSummary');
+
+        Route::get('/api/godisnji/balance-summary-details', function (Request $request) {
+            $validated = $request->validate([
+                'employee_id' => ['required', 'integer'],
+            ]);
+            $employeeId = (int) $validated['employee_id'];
+
+            $user = $request->user();
+            $isAdmin = (bool) (($user?->isadmin ?? false) || ($user?->is_admin ?? false));
+            if (!$isAdmin) {
+                $canAccess = \App\Models\Employee::where('id', $employeeId)
+                    ->where(function ($q) use ($user) {
+                        $q->whereJsonContains('nadlezne_osobe', (int) $user->id)
+                            ->orWhereJsonContains('nadlezne_osobe', (string) $user->id);
+                    })
+                    ->exists();
+                if (!$canAccess) {
+                    return response()->json(['message' => 'Nemate pravo pristupa ovom radniku.'], 403);
+                }
+            }
+
+            $yearTotals = DB::table('annual_leave_decisions')
+                ->where('employee_id', $employeeId)
+                ->select([
+                    'year',
+                    DB::raw('CAST(ROUND(SUM(COALESCE(granted_days,0)), 0) AS SIGNED) as granted_days'),
+                ])
+                ->groupBy('year')
+                ->orderBy('year')
+                ->get()
+                ->map(fn ($r) => ['year' => (int) $r->year, 'granted_days' => (int) $r->granted_days])
+                ->values();
+
+            $usages = DB::table('annual_leave_usages as u')
+                ->join('annual_leave_decisions as d', 'd.id', '=', 'u.annual_leave_decision_id')
+                ->where('d.employee_id', $employeeId)
+                ->orderBy('u.date_from')
+                ->orderBy('u.id')
+                ->get([
+                    'u.id',
+                    'u.date_from',
+                    'u.date_to',
+                    DB::raw('CAST(ROUND(COALESCE(u.days,0),0) AS SIGNED) as days'),
+                    'u.note',
+                    'd.year',
+                    'd.part',
+                    'd.decision_number',
+                ])
+                ->map(function ($u) {
+                    return [
+                        'id' => (int) $u->id,
+                        'date_from' => $u->date_from,
+                        'date_to' => $u->date_to,
+                        'days' => (int) $u->days,
+                        'note' => $u->note,
+                        'year' => (int) $u->year,
+                        'part' => (string) ($u->part ?? 'ostalo'),
+                        'decision_number' => $u->decision_number,
+                    ];
+                })
+                ->values();
+
+            return response()->json([
+                'employee_id' => $employeeId,
+                'year_totals' => $yearTotals,
+                'usages' => $usages,
+            ]);
+        })->name('api.godisnji.balanceSummaryDetails');
+
         // Šihterica
         Route::get('/hr/sihterica', [SihtericaController::class, 'index'])->name('hr.sihterica');
         Route::post('/hr/sihterica/manual', [SihtericaController::class, 'manualStore'])->name('hr.sihterica.manual');

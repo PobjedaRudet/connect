@@ -4,7 +4,6 @@ import HrNav from '@/Components/HrNav.vue'
 import { Head, Link } from '@inertiajs/vue3'
 import { computed, onMounted, ref, watch } from 'vue'
 
-const selectedYear = ref(new Date().getFullYear())
 const isLoading = ref(false)
 const error = ref(null)
 const rows = ref([])
@@ -22,12 +21,12 @@ const hover = ref({
   field: null, // 'approved' | 'used'
 })
 
-function cacheKey(employeeId, year) {
-  return `${employeeId}:${year}`
+function cacheKey(employeeId) {
+  return String(employeeId)
 }
 
 async function ensureDetails(employeeId) {
-  const key = cacheKey(employeeId, selectedYear.value)
+  const key = cacheKey(employeeId)
 
   if (detailsCache.value[key]) return
   if (detailsLoading.value[key]) return
@@ -36,8 +35,8 @@ async function ensureDetails(employeeId) {
   detailsError.value = { ...detailsError.value, [key]: null }
 
   try {
-    const { data } = await window.axios.get('/api/godisnji/balance-details', {
-      params: { employee_id: employeeId, year: selectedYear.value },
+    const { data } = await window.axios.get('/api/godisnji/balance-summary-details', {
+      params: { employee_id: employeeId },
     })
     detailsCache.value = { ...detailsCache.value, [key]: data }
   } catch (e) {
@@ -60,21 +59,21 @@ function hidePopover() {
 const activeDetails = computed(() => {
   const employeeId = hover.value.employee_id
   if (!employeeId) return null
-  const key = cacheKey(employeeId, selectedYear.value)
+  const key = cacheKey(employeeId)
   return detailsCache.value[key] ?? null
 })
 
 const activeLoading = computed(() => {
   const employeeId = hover.value.employee_id
   if (!employeeId) return false
-  const key = cacheKey(employeeId, selectedYear.value)
+  const key = cacheKey(employeeId)
   return !!detailsLoading.value[key]
 })
 
 const activeError = computed(() => {
   const employeeId = hover.value.employee_id
   if (!employeeId) return null
-  const key = cacheKey(employeeId, selectedYear.value)
+  const key = cacheKey(employeeId)
   return detailsError.value[key] ?? null
 })
 
@@ -106,9 +105,7 @@ async function load() {
   isLoading.value = true
   error.value = null
   try {
-    const { data } = await window.axios.get('/api/godisnji/balance-all', {
-      params: { year: selectedYear.value },
-    })
+    const { data } = await window.axios.get('/api/godisnji/balance-summary')
     rows.value = data?.rows ?? []
     page.value = 1
     detailsCache.value = {}
@@ -174,20 +171,11 @@ onMounted(load)
       <div class="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 class="text-2xl font-semibold text-gray-800">Saldo godišnjeg</h1>
-          <p class="text-sm text-gray-500">Pregled odobrenog, iskorištenog i preostalog po radniku.</p>
+          <p class="text-sm text-gray-500">Sumarni pregled odobrenog, iskorištenog i preostalog po radniku za sve godine.</p>
         </div>
 
         <div class="flex items-center gap-3">
           <div class="flex items-center gap-2">
-            <label class="text-sm text-gray-600">Godina</label>
-            <input
-              v-model.number="selectedYear"
-              type="number"
-              min="2000"
-              max="2100"
-              class="border rounded px-3 py-2 text-sm bg-white"
-            />
-
             <label class="text-sm text-gray-600">Pretraga</label>
             <input
               v-model="search"
@@ -247,30 +235,18 @@ onMounted(load)
 
                   <div v-if="activeLoading" class="text-sm text-gray-600">Učitavanje...</div>
                   <div v-else-if="activeError" class="text-sm text-red-600">{{ activeError }}</div>
-                  <div v-else-if="!activeDetails || (activeDetails.decisions?.length ?? 0) === 0" class="text-sm text-gray-600">
-                    <div v-if="(activeDetails?.carryover_days ?? 0) > 0" class="text-gray-700">
-                      Preneseno iz {{ activeDetails.carryover_from_year ?? (selectedYear - 1) }}: {{ fmtDays(activeDetails.carryover_days) }}
-                    </div>
-                    <div class="text-gray-600">Nema rješenja.</div>
+                  <div v-else-if="!activeDetails || (activeDetails.year_totals?.length ?? 0) === 0" class="text-sm text-gray-600">
+                    Nema rješenja.
                   </div>
                   <div v-else class="text-sm text-gray-800 max-h-60 overflow-auto">
-                    <div v-if="(activeDetails?.carryover_days ?? 0) > 0" class="py-2 border-b">
-                      <div class="font-medium">Preneseno iz {{ activeDetails.carryover_from_year ?? (selectedYear - 1) }}</div>
-                      <div class="text-gray-600">Dani: {{ fmtDays(activeDetails.carryover_days) }}</div>
-                    </div>
                     <div
-                      v-for="d in activeDetails.decisions"
-                      :key="d.id"
+                      v-for="yt in activeDetails.year_totals"
+                      :key="yt.year"
                       class="py-2 border-b last:border-b-0"
                     >
-                      <div class="font-medium">
-                        {{ fmtPart(d.part) }}
-                        <span v-if="d.decision_number" class="text-gray-600">#{{ d.decision_number }}</span>
-                      </div>
-                      <div class="text-gray-600">
-                        Dani: {{ fmtDays(d.total_days) }}
-                        <span v-if="d.valid_from || d.valid_to"> | Važi: {{ fmtRange(d.valid_from, d.valid_to) }}</span>
-                        <span v-if="d.decision_date" class="text-gray-600"> | Datum: {{ fmtDate(d.decision_date) }}</span>
+                      <div class="flex justify-between">
+                        <span class="font-medium">{{ yt.year }}.</span>
+                        <span class="text-gray-600">{{ fmtDays(yt.granted_days) }} dana</span>
                       </div>
                     </div>
                   </div>
@@ -306,6 +282,7 @@ onMounted(load)
                       <div class="font-medium">{{ fmtRange(u.date_from, u.date_to) }}</div>
                       <div class="text-gray-600">
                         Dani: {{ fmtDays(u.days) }}
+                        <span class="text-gray-600"> | {{ u.year }}.</span>
                         <span class="text-gray-600"> | {{ fmtPart(u.part) }}</span>
                         <span v-if="u.decision_number" class="text-gray-600"> #{{ u.decision_number }}</span>
                       </div>

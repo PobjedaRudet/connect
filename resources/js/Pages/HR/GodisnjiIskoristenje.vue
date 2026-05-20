@@ -109,6 +109,7 @@ watch(() => [form.date_from, form.date_to], () => {
 const submit = () => {
   form.post(route('hr.godisnji.iskoristenje.store'), {
     preserveScroll: true,
+    preserveState: true,
     onSuccess: () => {
       form.reset('annual_leave_decision_id', 'date_from', 'date_to', 'note')
       workingDays.value = null
