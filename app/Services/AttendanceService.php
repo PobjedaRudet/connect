@@ -8,6 +8,7 @@ use App\Models\Employee;
 use App\Models\Pass;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -34,7 +35,7 @@ class AttendanceService
         }
 
         $employee = Employee::where('rfid_code', $rfidTrimmed)
-            ->select(['id', 'dept', 'pass_approvers'])
+            ->select(['id', 'dept', 'pass_approvers', 'firstName', 'lastName'])
             ->first();
 
         if (!$employee) {
@@ -58,29 +59,29 @@ class AttendanceService
                 if ($openPassAnyType) {
                     $maybeClosed = $this->closePassUnlessDuplicateScan($openPassAnyType, $now);
                     if (!$maybeClosed) {
-                        return [
+                        return $this->scanResult([
                             'status' => 'pass-open',
                             'message' => $openPassAnyType->type === 'privatni' ? 'Izlaznica već otvorena' : 'Službena izlaznica već otvorena',
                             'pass' => $openPassAnyType,
-                        ];
+                        ], $employee);
                     }
-                    return [
+                    return $this->scanResult([
                         'status' => 'pass-closed',
                         'message' => $openPassAnyType->type === 'privatni' ? 'Izlaznica zatvorena' : 'Službena izlaznica zatvorena',
                         'pass' => $maybeClosed,
-                    ];
+                    ], $employee);
                 }
 
                 $recentlyClosed = $this->findRecentlyClosedPass($employee->id, $now);
                 if ($recentlyClosed) {
-                    return [
+                    return $this->scanResult([
                         'status' => 'pass-closed',
                         'message' => $passType === 'privatni' ? 'Izlaznica zatvorena' : 'Službena izlaznica zatvorena',
                         'pass' => $recentlyClosed,
-                    ];
+                    ], $employee);
                 }
 
-                return $this->togglePass($employee, $openRecord, $passType);
+                return $this->scanResult($this->togglePass($employee, $openRecord, $passType, true), $employee);
             }
             // No prefix: if there's an active (open) pass, close it automatically instead of checkout
             $activePass = Pass::where('employee_id', $employee->id)
@@ -92,37 +93,37 @@ class AttendanceService
                 $now = Carbon::now();
                 $maybeClosed = $this->closePassUnlessDuplicateScan($activePass, $now);
                 if (!$maybeClosed) {
-                    return [
+                    return $this->scanResult([
                         'status' => 'pass-open',
                         'message' => $activePass->type === 'privatni' ? 'Izlaznica već otvorena' : 'Službena izlaznica već otvorena',
                         'pass' => $activePass,
-                    ];
+                    ], $employee);
                 }
-                return [
+                return $this->scanResult([
                     'status' => 'pass-closed',
                     'message' => $activePass->type === 'privatni' ? 'Izlaznica zatvorena' : 'Službena izlaznica zatvorena',
                     'pass' => $maybeClosed,
-                ];
+                ], $employee);
             }
             // Guard: if a pass was just closed moments ago, do not interpret a duplicate scan as checkout
             $now = Carbon::now();
             $recentlyClosed = $this->findRecentlyClosedPass($employee->id, $now);
             if ($recentlyClosed) {
-                return [
+                return $this->scanResult([
                     'status' => 'pass-closed',
                     'message' => $recentlyClosed->type === 'privatni' ? 'Izlaznica zatvorena' : 'Službena izlaznica zatvorena',
                     'pass' => $recentlyClosed,
-                ];
+                ], $employee);
             }
             // No active pass: proceed with checkout
-            return $this->checkout($employee, $openRecord, $terminalId);
+            return $this->scanResult($this->checkout($employee, $openRecord, $terminalId), $employee);
         }
 
         // If no open record, pass cannot be issued; treat as check-in
         if ($passType) {
             return ['status' => 'error', 'message' => 'Radnik nije prijavljen; izlaznica se može izdati samo tokom rada.'];
         }
-        return $this->checkin($employee, $terminalId);
+        return $this->scanResult($this->checkin($employee, $terminalId), $employee);
     }
 
     /**
@@ -150,7 +151,7 @@ class AttendanceService
         }
 
         $employee = Employee::where('rfid_code', $rfidTrimmed)
-            ->select(['id', 'dept', 'pass_approvers'])
+            ->select(['id', 'dept', 'pass_approvers', 'firstName', 'lastName'])
             ->first();
         if (!$employee) {
             return ['status' => 'error', 'message' => 'Nepoznata kartica!'];
@@ -173,29 +174,29 @@ class AttendanceService
                 if ($openPassAnyType) {
                     $maybeClosed = $this->closePassUnlessDuplicateScan($openPassAnyType, $moment);
                     if (!$maybeClosed) {
-                        return [
+                        return $this->scanResult([
                             'status' => 'pass-open',
                             'message' => $openPassAnyType->type === 'privatni' ? 'Izlaznica već otvorena (offline)' : 'Službena izlaznica već otvorena (offline)',
                             'pass' => $openPassAnyType,
-                        ];
+                        ], $employee);
                     }
-                    return [
+                    return $this->scanResult([
                         'status' => 'pass-closed',
                         'message' => $openPassAnyType->type === 'privatni' ? 'Izlaznica zatvorena (offline)' : 'Službena izlaznica zatvorena (offline)',
                         'pass' => $maybeClosed,
-                    ];
+                    ], $employee);
                 }
 
                 $recentlyClosed = $this->findRecentlyClosedPass($employee->id, $moment);
                 if ($recentlyClosed) {
-                    return [
+                    return $this->scanResult([
                         'status' => 'pass-closed',
                         'message' => $passType === 'privatni' ? 'Izlaznica zatvorena (offline)' : 'Službena izlaznica zatvorena (offline)',
                         'pass' => $recentlyClosed,
-                    ];
+                    ], $employee);
                 }
 
-                return $this->togglePassAtTime($employee, $openRecord, $passType, $moment);
+                return $this->scanResult($this->togglePassAtTime($employee, $openRecord, $passType, $moment, true), $employee);
             }
             // Auto-close pass if one is active
             $activePass = \App\Models\Pass::where('employee_id', $employee->id)
@@ -395,9 +396,11 @@ class AttendanceService
             return collect();
         }
 
-        $shifts = \App\Models\Shift::query()
-            ->where('department_id', $deptId)
-            ->get();
+        $shifts = Cache::remember("shifts:dept:{$deptId}", 3600, function () use ($deptId) {
+            return \App\Models\Shift::query()
+                ->where('department_id', $deptId)
+                ->get();
+        });
 
         if ($shifts->isNotEmpty()) {
             Log::debug("Shift by department: employee_id={$employee->id} department_id={$deptId}");
@@ -432,31 +435,22 @@ class AttendanceService
 
     /**
      * ONLINE - Izdavanje izlaznice (private | business) samo dok je radnik prijavljen.
+     *
+     * @param  bool  $preflightDone  true when processScan already verified no open/recently-closed pass
      */
-    private function togglePass(Employee $employee, AttendanceRecord $openRecord, string $type): array
+    private function togglePass(Employee $employee, AttendanceRecord $openRecord, string $type, bool $preflightDone = false): array
     {
         $now = Carbon::now();
 
-        return DB::transaction(function () use ($employee, $openRecord, $type, $now) {
+        return DB::transaction(function () use ($employee, $openRecord, $type, $now, $preflightDone) {
             $openPass = Pass::where('employee_id', $employee->id)
-                ->where('type', $type)
                 ->where('status', 'open')
                 ->whereNull('end_time')
                 ->latest('start_time')
                 ->lockForUpdate()
                 ->first();
 
-            if (!$openPass) {
-                $openPass = Pass::where('employee_id', $employee->id)
-                    ->where('status', 'open')
-                    ->whereNull('end_time')
-                    ->latest('start_time')
-                    ->lockForUpdate()
-                    ->first();
-            }
-
             if ($openPass) {
-                // Close existing pass (regardless of originally requested type) and compute duration
                 $closedPass = $this->closePassUnlessDuplicateScan($openPass, $now);
                 if (!$closedPass) {
                     return [
@@ -473,16 +467,17 @@ class AttendanceService
                 ];
             }
 
-            $recentlyClosed = $this->findRecentlyClosedPass($employee->id, $now);
-            if ($recentlyClosed) {
-                return [
-                    'status' => 'pass-closed',
-                    'message' => $type === 'privatni' ? 'Izlaznica zatvorena' : 'Službena izlaznica zatvorena',
-                    'pass' => $recentlyClosed,
-                ];
+            if (!$preflightDone) {
+                $recentlyClosed = $this->findRecentlyClosedPass($employee->id, $now);
+                if ($recentlyClosed) {
+                    return [
+                        'status' => 'pass-closed',
+                        'message' => $type === 'privatni' ? 'Izlaznica zatvorena' : 'Službena izlaznica zatvorena',
+                        'pass' => $recentlyClosed,
+                    ];
+                }
             }
 
-            // Issue new pass
             $passStart = $now;
             if ($openRecord->effective_start && $passStart->lt($openRecord->effective_start)) {
                 $passStart = $openRecord->effective_start;
@@ -497,7 +492,7 @@ class AttendanceService
                 'status' => 'open',
             ]);
 
-            $this->sendPassCreatedEmailToPassApprovers($employee, $pass);
+            $this->queuePassCreatedEmail($employee, $pass);
 
             return [
                 'status' => 'pass-open',
@@ -509,26 +504,18 @@ class AttendanceService
 
     /**
      * OFFLINE - Toggle pass at a given moment (OFFLINE scenario).
+     *
+     * @param  bool  $preflightDone  true when processOfflineScan already verified no open/recently-closed pass
      */
-    private function togglePassAtTime(Employee $employee, AttendanceRecord $openRecord, string $type, Carbon $moment): array
+    private function togglePassAtTime(Employee $employee, AttendanceRecord $openRecord, string $type, Carbon $moment, bool $preflightDone = false): array
     {
-        return DB::transaction(function () use ($employee, $openRecord, $type, $moment) {
+        return DB::transaction(function () use ($employee, $openRecord, $type, $moment, $preflightDone) {
             $openPass = Pass::where('employee_id', $employee->id)
-                ->where('type', $type)
                 ->where('status', 'open')
                 ->whereNull('end_time')
                 ->latest('start_time')
                 ->lockForUpdate()
                 ->first();
-
-            if (!$openPass) {
-                $openPass = Pass::where('employee_id', $employee->id)
-                    ->where('status', 'open')
-                    ->whereNull('end_time')
-                    ->latest('start_time')
-                    ->lockForUpdate()
-                    ->first();
-            }
 
             if ($openPass) {
                 $closedPass = $this->closePassUnlessDuplicateScan($openPass, $moment);
@@ -547,13 +534,15 @@ class AttendanceService
                 ];
             }
 
-            $recentlyClosed = $this->findRecentlyClosedPass($employee->id, $moment);
-            if ($recentlyClosed) {
-                return [
-                    'status' => 'pass-closed',
-                    'message' => $type === 'privatni' ? 'Izlaznica zatvorena (offline)' : 'Službena izlaznica zatvorena (offline)',
-                    'pass' => $recentlyClosed,
-                ];
+            if (!$preflightDone) {
+                $recentlyClosed = $this->findRecentlyClosedPass($employee->id, $moment);
+                if ($recentlyClosed) {
+                    return [
+                        'status' => 'pass-closed',
+                        'message' => $type === 'privatni' ? 'Izlaznica zatvorena (offline)' : 'Službena izlaznica zatvorena (offline)',
+                        'pass' => $recentlyClosed,
+                    ];
+                }
             }
 
             $passStart = $moment;
@@ -570,7 +559,7 @@ class AttendanceService
                 'status' => 'open',
             ]);
 
-            $this->sendPassCreatedEmailToPassApprovers($employee, $pass);
+            $this->queuePassCreatedEmail($employee, $pass);
 
             return [
                 'status' => 'pass-open',
@@ -580,42 +569,36 @@ class AttendanceService
         });
     }
 
-    private function sendPassCreatedEmailToPassApprovers(Employee $employee, Pass $pass): void
+    private function queuePassCreatedEmail(Employee $employee, Pass $pass): void
     {
-        try {
-            Log::info('Pass created: preparing pass approver notification email', [
-                'employee_id' => $employee->id ?? null,
-                'pass_id' => $pass->id ?? null,
-                'pass_type' => $pass->type ?? null,
-                'mail_default' => config('mail.default'),
-                'from' => config('mail.from.address'),
-                'pass_approvers' => $employee->pass_approvers ?? null,
-            ]);
+        $employeeId = $employee->id;
+        $passId = $pass->id;
 
-            $emails = $this->resolvePassApproverEmails($employee);
-            if (empty($emails)) {
-                Log::warning('Pass created email skipped: no pass approver emails resolved', [
-                    'employee_id' => $employee->id ?? null,
-                    'pass_id' => $pass->id ?? null,
-                    'pass_approvers' => $employee->pass_approvers ?? null,
+        DB::afterCommit(function () use ($employeeId, $passId) {
+            try {
+                $employee = Employee::query()
+                    ->select(['id', 'firstName', 'lastName', 'pass_approvers'])
+                    ->find($employeeId);
+                $pass = Pass::query()->find($passId);
+
+                if (!$employee || !$pass) {
+                    return;
+                }
+
+                $emails = $this->resolvePassApproverEmails($employee);
+                if (empty($emails)) {
+                    return;
+                }
+
+                Mail::to($emails)->queue(new PassCreatedMail($pass, $employee));
+            } catch (\Throwable $e) {
+                Log::warning('Failed to queue pass created email', [
+                    'employee_id' => $employeeId,
+                    'pass_id' => $passId,
+                    'error' => $e->getMessage(),
                 ]);
-                return;
             }
-
-            Log::info('Sending pass created email', [
-                'employee_id' => $employee->id ?? null,
-                'pass_id' => $pass->id ?? null,
-                'recipients' => $emails,
-            ]);
-
-            Mail::to($emails)->queue(new PassCreatedMail($pass, $employee));
-        } catch (\Throwable $e) {
-            Log::warning('Failed to send pass created email', [
-                'employee_id' => $employee->id ?? null,
-                'pass_id' => $pass->id ?? null,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        });
     }
 
     /**
@@ -805,5 +788,29 @@ class AttendanceService
             // Fallback: use moment at top-of-hour to avoid crash
             return $moment->copy()->startOfHour();
         }
+    }
+
+    private function scanResult(array $result, ?Employee $employee = null): array
+    {
+        if (!$employee) {
+            return $result;
+        }
+
+        $fullName = trim((string) ($employee->firstName ?? '') . ' ' . (string) ($employee->lastName ?? ''));
+        $result['employee_id'] = $employee->id;
+
+        if ($fullName !== '') {
+            $result['employee_full_name'] = $fullName;
+
+            if (isset($result['pass']) && is_object($result['pass'])) {
+                $result['pass']->full_name = $fullName;
+            }
+
+            if (isset($result['record']) && is_object($result['record'])) {
+                $result['record']->full_name = $fullName;
+            }
+        }
+
+        return $result;
     }
 }

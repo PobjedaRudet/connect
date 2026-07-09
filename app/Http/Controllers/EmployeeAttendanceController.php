@@ -11,6 +11,12 @@ class EmployeeAttendanceController extends Controller
 {
     private function appendFullNameToRecord(array $result): array
     {
+        $fullName = null;
+
+        if (!empty($result['employee_full_name']) && is_string($result['employee_full_name'])) {
+            $fullName = trim($result['employee_full_name']);
+        }
+
         $employeeId = null;
 
         if (isset($result['employee_id'])) {
@@ -35,16 +41,22 @@ class EmployeeAttendanceController extends Controller
             }
         }
 
-        if (!$employeeId) {
-            return $result;
+        if ($fullName === null || $fullName === '') {
+            if (!$employeeId) {
+                return $result;
+            }
+
+            $employee = Employee::query()->select(['id', 'firstName', 'lastName'])->find($employeeId);
+            if (!$employee) {
+                return $result;
+            }
+
+            $fullName = trim((string) $employee->firstName . ' ' . (string) $employee->lastName);
         }
 
-        $employee = Employee::query()->select(['id', 'firstName', 'lastName'])->find($employeeId);
-        if (!$employee) {
+        if ($fullName === '') {
             return $result;
         }
-
-        $fullName = trim((string) $employee->firstName . ' ' . (string) $employee->lastName);
 
         if (isset($result['record'])) {
             if (is_array($result['record'])) {
@@ -63,6 +75,34 @@ class EmployeeAttendanceController extends Controller
         }
 
         return $result;
+    }
+
+    private function resolveScanHttpStatus(array $result): int
+    {
+        return match ($result['status'] ?? '') {
+            'checkin' => 201,
+            'checkout', 'pass-open', 'pass-closed' => 200,
+            default => 404,
+        };
+    }
+
+    private function logScanResult(array $result, string $context): void
+    {
+        $passId = null;
+        if (isset($result['pass'])) {
+            $pass = $result['pass'];
+            if (is_object($pass) && isset($pass->id)) {
+                $passId = $pass->id;
+            } elseif (is_array($pass) && isset($pass['id'])) {
+                $passId = $pass['id'];
+            }
+        }
+
+        Log::debug($context, [
+            'status' => $result['status'] ?? null,
+            'employee_id' => $result['employee_id'] ?? null,
+            'pass_id' => $passId,
+        ]);
     }
 
     /**
@@ -105,10 +145,9 @@ class EmployeeAttendanceController extends Controller
             }
         }
 
-        $httpStatus = $result['status'] === 'checkin' ? 201 : ($result['status'] === 'checkout' ? 200 : 404);
-        Log::info('RFID Scan Result', $result);
+        $this->logScanResult($result, 'RFID Scan Result');
 
-        return response()->json($result, $httpStatus);
+        return response()->json($result, $this->resolveScanHttpStatus($result));
     }
 
     /**
@@ -126,7 +165,7 @@ class EmployeeAttendanceController extends Controller
         $result = $service->processOfflineScan($data['rfid_code'], $data['terminal_id'], $data['timestamp']);
         $result = $this->appendFullNameToRecord($result);
 
-        Log::info('Offline Scan Result', $result);
+        $this->logScanResult($result, 'Offline Scan Result');
 
         return response()->json($result, 201);
     }
