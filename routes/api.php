@@ -42,6 +42,7 @@ Route::get('/pregledi/kontrolni', [KontrolniPreglediController::class, 'kontroln
 
 //Unosi podatke o kontrolnim pregledima
 Route::post('/kontrolni-pregledi', [KontrolniPreglediController::class, 'store']);
+Route::put('/kontrolni-pregledi/{id}', [KontrolniPreglediController::class, 'update']);
 
 // API ruta za sve preglede uposlenika
 Route::get('/employee/{id}/pregledi', function($id) {
@@ -51,7 +52,12 @@ Route::get('/employee/{id}/pregledi', function($id) {
 // API ruta za sve kontrolne preglede po nizu pregleda
 Route::get('/kontrolni-pregledi/by-pregledi', function(\Illuminate\Http\Request $request) {
     $ids = $request->query('ids', []);
-    Log::info("Fetching kontrolni pregledi for pregledi IDs: " . implode(',', $ids));
+    if (is_string($ids)) {
+        $ids = array_filter(explode(',', $ids));
+    }
+    if (empty($ids)) {
+        return collect();
+    }
     return KontrolniPregledi::whereIn('pregledi_id', $ids)->orderByDesc('datum_kontrolnog_pregleda')->get();
 });
 // Izvještaj pregleda za PPZ

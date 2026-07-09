@@ -81,7 +81,10 @@ function closeEditModal() {
 async function sacuvajIzmjenuKontrolnog() {
   if (!editKontrolni.value) return;
   try {
-    await axios.put(`/api/kontrolni-pregledi/${editKontrolni.value.id}`, editKontrolni.value);
+    await axios.put(`/api/kontrolni-pregledi/${editKontrolni.value.id}`, {
+      kontrolni_komentar: editKontrolni.value.kontrolni_komentar,
+      status: editKontrolni.value.status ? 1 : 0,
+    });
     closeEditModal();
     // Osvježi podatke o pregledima nakon izmjene
     const { data: preglediData } = await axios.get(`/api/employee/${selectedRadnik.value.empID}/pregledi`);

@@ -27,11 +27,11 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-100">
                             <tr v-for="(item, index) in sortedUpcoming" :key="'upcoming-' + index"
-                                :class="{ 'bg-blue-100': selectedUpcoming.includes(index), 'hover:bg-gray-50': !selectedUpcoming.includes(index) }"
+                                :class="{ 'bg-blue-100': selectedUpcoming.includes(item.employee.empID), 'hover:bg-gray-50': !selectedUpcoming.includes(item.employee.empID) }"
                                 class="transition">
                                 <td class="px-4 py-4 text-center">
-                                    <input type="checkbox" :checked="selectedUpcoming.includes(index)"
-                                        @change="onCheckboxChange(item.employee.empID, index)"
+                                    <input type="checkbox" :checked="selectedUpcoming.includes(item.employee.empID)"
+                                        @change="onCheckboxChange(item.employee.empID, index, 'upcoming')"
                                         class="form-checkbox h-4 w-4 text-blue-600" />
                                 </td>
                                 <td class="px-6 py-4 text-center">{{ index + 1 }}</td>
@@ -72,11 +72,11 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-100">
                             <tr v-for="(item, index) in sortedExpired" :key="'expired-' + index"
-                                :class="{ 'bg-red-100': selectedExpired.includes(index), 'hover:bg-red-50': !selectedExpired.includes(index) }"
+                                :class="{ 'bg-red-100': selectedExpired.includes(item.employee.empID), 'hover:bg-red-50': !selectedExpired.includes(item.employee.empID) }"
                                 class="transition">
                                 <td class="px-4 py-4 text-center">
-                                    <input type="checkbox" :checked="selectedUpcoming.includes(index)"
-                                        @change="onCheckboxChange(item.employee.empID, index)"
+                                    <input type="checkbox" :checked="selectedExpired.includes(item.employee.empID)"
+                                        @change="onCheckboxChange(item.employee.empID, index, 'expired')"
                                         class="form-checkbox h-4 w-4 text-blue-600" />
                                 </td>
                                 <td class="px-6 py-4 text-center">{{ index + 1 }}</td>
@@ -105,7 +105,7 @@
                             <select v-model="form.tip" class="form-select w-full" required>
                                 <option value="Sposoban">Sposoban</option>
                                 <option value="Nesposoban">Nesposoban</option>
-                                <option value="Nesposoban">Privremeno nesposoban</option>
+                                <option value="Privremeno nesposoban">Privremeno nesposoban</option>
                                 <option value="Ograničen">Ograničen</option>
                             </select>
                         </div>
@@ -124,7 +124,7 @@
                             <label class="block text-sm font-medium mb-1">Ustanova</label>
                             <select v-model="form.ustanova" @change="onUstanovaChange" class="form-select w-full" required>
                                 <option value="J.U. Dom zdravlja 'Dr.Isak Samokovlija' Goražde">J.U. Dom zdravlja "Dr.Isak Samokovlija" Goražde</option>
-                                  <option value="J.U. Dom zdravlja 'Dr.Isak Samokovlija' Goražde">PZU "Eurofarm-Centar Poliklinika" PJ Goražde</option>
+                                <option value="PZU 'Eurofarm-Centar Poliklinika' PJ Goražde">PZU "Eurofarm-Centar Poliklinika" PJ Goražde</option>
                                   <option value="custom">Drugo (upišite ručno)</option>
                             </select>
                             <input v-if="showCustomUstanova" type="text" v-model="form.ustanova" placeholder="Unesite naziv ustanove" class="form-input w-full mt-2" required />
@@ -283,7 +283,10 @@ const azurirajPreglede = async () => {
         alert('Pregledi su ažurirani!');
         await fetchPregledi(); // Osvježi podatke
     } catch (e) {
-        alert('Greška pri ažuriranju!');
+        const msg = e?.response?.data?.message
+            || Object.values(e?.response?.data?.errors || {}).flat().join('\n')
+            || 'Greška pri ažuriranju!';
+        alert(msg);
     }
 };
 

@@ -143,15 +143,22 @@ function closePopup() {
 }
 async function submitPopup() {
   if (!selectedEmployee.value) return;
-  await axios.post('/api/kontrolni-pregledi', {
-    pregledi_id: selectedEmployee.value.id, // ID iz tabele pregledi
-    employee_id: selectedEmployee.value.employee.id, // ID uposlenika
-    datum_kontrolnog_pregleda: popupForm.value.datum,
-    kontrolni_komentar: popupForm.value.komentar,
-    status: popupForm.value.status ? 1 : 0,
-  });
-  showPopup.value = false;
-  await fetchKontrolniPregledi();
+  try {
+    await axios.post('/api/kontrolni-pregledi', {
+      pregledi_id: selectedEmployee.value.id,
+      employee_id: selectedEmployee.value.employee.id,
+      datum_kontrolnog_pregleda: popupForm.value.datum,
+      kontrolni_komentar: popupForm.value.komentar,
+      status: popupForm.value.status ? 1 : 0,
+    });
+    showPopup.value = false;
+    await fetchKontrolniPregledi();
+  } catch (e) {
+    const msg = e?.response?.data?.message
+      || Object.values(e?.response?.data?.errors || {}).flat().join('\n')
+      || 'Greška pri unosu kontrolnog pregleda!';
+    alert(msg);
+  }
 }
 
 onMounted(fetchKontrolniPregledi);

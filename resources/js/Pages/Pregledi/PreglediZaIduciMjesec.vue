@@ -89,6 +89,7 @@
                             <select v-model="form.tip" class="form-select w-full" required>
                                 <option value="Sposoban">Sposoban</option>
                                 <option value="Nesposoban">Nesposoban</option>
+                                <option value="Privremeno nesposoban">Privremeno nesposoban</option>
                                 <option value="Ograničen">Ograničen</option>
                             </select>
                         </div>

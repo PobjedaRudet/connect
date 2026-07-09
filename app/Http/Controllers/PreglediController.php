@@ -188,23 +188,25 @@ class PreglediController extends Controller
 
     public function azuriraj(Request $request)
     {
-        Log::info('Azuriranje pregleda', ['request' => $request->all()]);
         $data = $request->validate([
-            'ids' => 'required|array',
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'required',
             'datum' => 'required|date',
-            'tip' => 'required|string',
-            'kontrolni' => 'required',
+            'tip' => 'required|string|in:Sposoban,Nesposoban,Privremeno nesposoban,Ograničen',
+            'kontrolni' => 'required|in:0,1,"0","1",true,false',
             'komentar' => 'nullable|string',
-            'ustanova' => 'required|string',
+            'ustanova' => 'required|string|max:255',
         ]);
+
+        $kontrolniFlag = in_array((string) $data['kontrolni'], ['1', 'true'], true) ? 1 : 0;
 
         foreach ($data['ids'] as $id) {
             Pregledi::create([
                 'employee_id' => $id,
                 'datum_pregleda' => $data['datum'],
                 'type' => $data['tip'],
-                'kontrolni_pregled' => $data['kontrolni'],
-                'komentar' => $data['komentar'],
+                'kontrolni_pregled' => $kontrolniFlag,
+                'komentar' => $data['komentar'] ?? null,
                 'organizacija' => $data['ustanova'],
             ]);
         }
@@ -359,9 +361,9 @@ class PreglediController extends Controller
         try {
             $data = $request->validate([
                 'datum_pregleda' => 'required|date',
-                'type' => 'required|string',
+                'type' => 'required|string|in:Sposoban,Nesposoban,Privremeno nesposoban,Ograničen',
                 'komentar' => 'nullable|string',
-                'organizacija' => 'required|string',
+                'organizacija' => 'required|string|max:255',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('UPDATE PREGLED validation error', $e->errors());
