@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\SendPassCreatedEmailJob;
 use App\Mail\PassCreatedMail;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
@@ -442,7 +443,11 @@ class AttendanceService
     {
         $now = Carbon::now();
 
-        return DB::transaction(function () use ($employee, $openRecord, $type, $now, $preflightDone) {
+        if ($preflightDone) {
+            return $this->issueNewPass($employee, $openRecord, $type, $now);
+        }
+
+        return DB::transaction(function () use ($employee, $openRecord, $type, $now) {
             $openPass = Pass::where('employee_id', $employee->id)
                 ->where('status', 'open')
                 ->whereNull('end_time')
@@ -467,38 +472,16 @@ class AttendanceService
                 ];
             }
 
-            if (!$preflightDone) {
-                $recentlyClosed = $this->findRecentlyClosedPass($employee->id, $now);
-                if ($recentlyClosed) {
-                    return [
-                        'status' => 'pass-closed',
-                        'message' => $type === 'privatni' ? 'Izlaznica zatvorena' : 'Službena izlaznica zatvorena',
-                        'pass' => $recentlyClosed,
-                    ];
-                }
+            $recentlyClosed = $this->findRecentlyClosedPass($employee->id, $now);
+            if ($recentlyClosed) {
+                return [
+                    'status' => 'pass-closed',
+                    'message' => $type === 'privatni' ? 'Izlaznica zatvorena' : 'Službena izlaznica zatvorena',
+                    'pass' => $recentlyClosed,
+                ];
             }
 
-            $passStart = $now;
-            if ($openRecord->effective_start && $passStart->lt($openRecord->effective_start)) {
-                $passStart = $openRecord->effective_start;
-            }
-            $pass = Pass::create([
-                'employee_id' => $employee->id,
-                'type' => $type,
-                'reason' => '',
-                'start_time' => $passStart,
-                'end_time' => null,
-                'approved_by' => null,
-                'status' => 'open',
-            ]);
-
-            $this->queuePassCreatedEmail($employee, $pass);
-
-            return [
-                'status' => 'pass-open',
-                'message' => $type === 'privatni' ? 'Izlaznica izdana' : 'Službena izlaznica izdana',
-                'pass' => $pass,
-            ];
+            return $this->issueNewPass($employee, $openRecord, $type, $now);
         });
     }
 
@@ -509,7 +492,11 @@ class AttendanceService
      */
     private function togglePassAtTime(Employee $employee, AttendanceRecord $openRecord, string $type, Carbon $moment, bool $preflightDone = false): array
     {
-        return DB::transaction(function () use ($employee, $openRecord, $type, $moment, $preflightDone) {
+        if ($preflightDone) {
+            return $this->issueNewPass($employee, $openRecord, $type, $moment, true);
+        }
+
+        return DB::transaction(function () use ($employee, $openRecord, $type, $moment) {
             $openPass = Pass::where('employee_id', $employee->id)
                 ->where('status', 'open')
                 ->whereNull('end_time')
@@ -534,71 +521,86 @@ class AttendanceService
                 ];
             }
 
-            if (!$preflightDone) {
-                $recentlyClosed = $this->findRecentlyClosedPass($employee->id, $moment);
-                if ($recentlyClosed) {
-                    return [
-                        'status' => 'pass-closed',
-                        'message' => $type === 'privatni' ? 'Izlaznica zatvorena (offline)' : 'Službena izlaznica zatvorena (offline)',
-                        'pass' => $recentlyClosed,
-                    ];
-                }
+            $recentlyClosed = $this->findRecentlyClosedPass($employee->id, $moment);
+            if ($recentlyClosed) {
+                return [
+                    'status' => 'pass-closed',
+                    'message' => $type === 'privatni' ? 'Izlaznica zatvorena (offline)' : 'Službena izlaznica zatvorena (offline)',
+                    'pass' => $recentlyClosed,
+                ];
             }
 
-            $passStart = $moment;
-            if ($openRecord->effective_start && $passStart->lt($openRecord->effective_start)) {
-                $passStart = $openRecord->effective_start;
-            }
-            $pass = Pass::create([
-                'employee_id' => $employee->id,
-                'type' => $type,
-                'reason' => '',
-                'start_time' => $passStart,
-                'end_time' => null,
-                'approved_by' => null,
-                'status' => 'open',
-            ]);
-
-            $this->queuePassCreatedEmail($employee, $pass);
-
-            return [
-                'status' => 'pass-open',
-                'message' => $type === 'privatni' ? 'Izlaznica izdana (offline)' : 'Službena izlaznica izdana (offline)',
-                'pass' => $pass,
-            ];
+            return $this->issueNewPass($employee, $openRecord, $type, $moment, true);
         });
     }
 
-    private function queuePassCreatedEmail(Employee $employee, Pass $pass): void
+    private function issueNewPass(
+        Employee $employee,
+        AttendanceRecord $openRecord,
+        string $type,
+        Carbon $moment,
+        bool $offline = false,
+    ): array {
+        $passStart = $moment;
+        if ($openRecord->effective_start && $passStart->lt($openRecord->effective_start)) {
+            $passStart = $openRecord->effective_start;
+        }
+
+        $pass = Pass::create([
+            'employee_id' => $employee->id,
+            'type' => $type,
+            'reason' => '',
+            'start_time' => $passStart,
+            'end_time' => null,
+            'approved_by' => null,
+            'status' => 'open',
+        ]);
+
+        $this->deferPassCreatedEmail($employee->id, $pass->id);
+
+        if ($offline) {
+            $message = $type === 'privatni' ? 'Izlaznica izdana (offline)' : 'Službena izlaznica izdana (offline)';
+        } else {
+            $message = $type === 'privatni' ? 'Izlaznica izdana' : 'Službena izlaznica izdana';
+        }
+
+        return [
+            'status' => 'pass-open',
+            'message' => $message,
+            'pass' => $pass,
+        ];
+    }
+
+    private function deferPassCreatedEmail(int $employeeId, int $passId): void
     {
-        $employeeId = $employee->id;
-        $passId = $pass->id;
+        SendPassCreatedEmailJob::dispatch($employeeId, $passId)->afterResponse();
+    }
 
-        DB::afterCommit(function () use ($employeeId, $passId) {
-            try {
-                $employee = Employee::query()
-                    ->select(['id', 'firstName', 'lastName', 'pass_approvers'])
-                    ->find($employeeId);
-                $pass = Pass::query()->find($passId);
+    public function deliverPassCreatedEmail(int $employeeId, int $passId): void
+    {
+        try {
+            $employee = Employee::query()
+                ->select(['id', 'firstName', 'lastName', 'pass_approvers'])
+                ->find($employeeId);
+            $pass = Pass::query()->find($passId);
 
-                if (!$employee || !$pass) {
-                    return;
-                }
-
-                $emails = $this->resolvePassApproverEmails($employee);
-                if (empty($emails)) {
-                    return;
-                }
-
-                Mail::to($emails)->queue(new PassCreatedMail($pass, $employee));
-            } catch (\Throwable $e) {
-                Log::warning('Failed to queue pass created email', [
-                    'employee_id' => $employeeId,
-                    'pass_id' => $passId,
-                    'error' => $e->getMessage(),
-                ]);
+            if (!$employee || !$pass) {
+                return;
             }
-        });
+
+            $emails = $this->resolvePassApproverEmails($employee);
+            if (empty($emails)) {
+                return;
+            }
+
+            Mail::to($emails)->queue(new PassCreatedMail($pass, $employee));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to queue pass created email', [
+                'employee_id' => $employeeId,
+                'pass_id' => $passId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

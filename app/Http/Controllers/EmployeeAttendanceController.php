@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Employee;
 use App\Services\AttendanceService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class EmployeeAttendanceController extends Controller
 {
@@ -86,25 +85,6 @@ class EmployeeAttendanceController extends Controller
         };
     }
 
-    private function logScanResult(array $result, string $context): void
-    {
-        $passId = null;
-        if (isset($result['pass'])) {
-            $pass = $result['pass'];
-            if (is_object($pass) && isset($pass->id)) {
-                $passId = $pass->id;
-            } elseif (is_array($pass) && isset($pass['id'])) {
-                $passId = $pass['id'];
-            }
-        }
-
-        Log::debug($context, [
-            'status' => $result['status'] ?? null,
-            'employee_id' => $result['employee_id'] ?? null,
-            'pass_id' => $passId,
-        ]);
-    }
-
     /**
      * Scan endpoint - za prijavu/odjavu radnika preko RFID terminala
      * Prima rfid_code i automatski detektuje da li je prijava ili odjava
@@ -119,22 +99,10 @@ class EmployeeAttendanceController extends Controller
         $result = $service->processScan($data['rfid_code'], $data['terminal_id'] ?? null);
         $result = $this->appendFullNameToRecord($result);
 
-        // Add localized (app timezone) representations of timestamps for client clarity
-        $tz = config('app.timezone');
-        $timestampFields = ['entry_time', 'exit_time', 'effective_start', 'created_at', 'updated_at'];
-
-        // Top-level timestamp fields (if any)
-        foreach ($timestampFields as $field) {
-            if (isset($result[$field]) && !empty($result[$field])) {
-                try {
-                    $dt = \Carbon\Carbon::parse($result[$field])->setTimezone($tz);
-                    $result[$field . '_local'] = $dt->format('Y-m-d H:i:s');
-                } catch (\Throwable $e) {}
-            }
-        }
-
-        // Nested record timestamps
         if (isset($result['record']) && is_array($result['record'])) {
+            $tz = config('app.timezone');
+            $timestampFields = ['entry_time', 'exit_time', 'effective_start', 'created_at', 'updated_at'];
+
             foreach ($timestampFields as $field) {
                 if (isset($result['record'][$field]) && !empty($result['record'][$field])) {
                     try {
@@ -144,8 +112,6 @@ class EmployeeAttendanceController extends Controller
                 }
             }
         }
-
-        $this->logScanResult($result, 'RFID Scan Result');
 
         return response()->json($result, $this->resolveScanHttpStatus($result));
     }
@@ -164,8 +130,6 @@ class EmployeeAttendanceController extends Controller
 
         $result = $service->processOfflineScan($data['rfid_code'], $data['terminal_id'], $data['timestamp']);
         $result = $this->appendFullNameToRecord($result);
-
-        $this->logScanResult($result, 'Offline Scan Result');
 
         return response()->json($result, 201);
     }
