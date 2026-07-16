@@ -1,10 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { Head, Link, usePage } from '@inertiajs/vue3'
-import { computed } from 'vue'
-
-const page = usePage()
-const userName = computed(() => page.props.auth?.user?.name || 'Korisnik')
+import { Head, Link } from '@inertiajs/vue3'
 
 const sections = [
   {
@@ -77,17 +73,6 @@ const toneClasses = {
       </div>
 
       <div class="relative mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
-        <!-- Compact hero -->
-        <section class="relative mb-4 overflow-hidden rounded-2xl bg-slate-900 px-5 py-4 text-white shadow-lg sm:px-6 sm:py-5">
-          <div class="relative flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-teal-200/90">Pravna služba · Connect</p>
-              <h1 class="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">HR komandni centar</h1>
-              <p class="mt-0.5 text-xs text-slate-300 sm:text-sm">Dobrodošli, {{ userName }}</p>
-            </div>
-          </div>
-        </section>
-
         <!-- All modules in one viewport grid -->
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           <section
