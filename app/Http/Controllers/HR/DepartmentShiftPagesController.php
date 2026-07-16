@@ -4,7 +4,9 @@ namespace App\Http\Controllers\HR;
 
 use App\Http\Controllers\Controller;
 use App\Models\Department;
+use App\Models\Employee;
 use App\Models\Shift;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -13,6 +15,8 @@ use Inertia\Response;
 
 class DepartmentShiftPagesController extends Controller
 {
+    private const DELETE_PIN = '0000';
+
     public function index(): Response
     {
         $departments = Department::query()
@@ -100,6 +104,51 @@ class DepartmentShiftPagesController extends Controller
         $shift->save();
 
         return redirect()->route('hr.smjene.dodjela');
+    }
+
+    public function destroyDepartment(Request $request, Department $department): RedirectResponse
+    {
+        $this->validateDeletePin($request);
+
+        $name = $department->name;
+
+        DB::transaction(function () use ($department) {
+            Employee::query()
+                ->where('dept', $department->id)
+                ->update(['dept' => null]);
+
+            Shift::query()
+                ->where('department_id', $department->id)
+                ->update(['department_id' => null]);
+
+            $department->delete();
+        });
+
+        return redirect()
+            ->route('hr.smjene.dodjela')
+            ->banner('Odjel "' . $name . '" je obrisan.');
+    }
+
+    public function destroyShift(Request $request, Shift $shift): RedirectResponse
+    {
+        $this->validateDeletePin($request);
+
+        $name = $shift->name;
+        $shift->delete();
+
+        return redirect()
+            ->route('hr.smjene.dodjela')
+            ->banner('Smjena "' . $name . '" je obrisana.');
+    }
+
+    private function validateDeletePin(Request $request): void
+    {
+        $request->validate([
+            'pin' => ['required', 'string', Rule::in([self::DELETE_PIN])],
+        ], [
+            'pin.required' => 'Unesite šifru za brisanje.',
+            'pin.in' => 'Pogrešna šifra za brisanje.',
+        ]);
     }
 
     private function validateDepartment(Request $request, ?Department $department = null): array

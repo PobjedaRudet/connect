@@ -747,7 +747,9 @@ Route::middleware('auth', 'adminOrFunkcije:HR,Šef HR,IT,Radnik, Šef PPZ')->gro
             Route::get('/hr/dodjela-smjene', [DepartmentShiftPagesController::class, 'index'])->name('hr.smjene.dodjela');
             Route::post('/hr/dodjela-smjene', [DepartmentShiftPagesController::class, 'store'])->name('hr.smjene.dodjela.store');
             Route::post('/hr/dodjela-smjene/smjena', [DepartmentShiftPagesController::class, 'storeShift'])->name('hr.smjene.store');
+            Route::delete('/hr/dodjela-smjene/smjena/{shift}', [DepartmentShiftPagesController::class, 'destroyShift'])->name('hr.smjene.destroy');
             Route::put('/hr/dodjela-smjene/{department}', [DepartmentShiftPagesController::class, 'update'])->name('hr.smjene.dodjela.update');
+            Route::delete('/hr/dodjela-smjene/{department}', [DepartmentShiftPagesController::class, 'destroyDepartment'])->name('hr.smjene.dodjela.destroy');
         });
 
         // Uposlenici

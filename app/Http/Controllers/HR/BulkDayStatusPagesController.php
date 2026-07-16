@@ -4,12 +4,12 @@ namespace App\Http\Controllers\HR;
 
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceDayStatus;
-use App\Models\Employee;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -48,6 +48,7 @@ class BulkDayStatusPagesController extends Controller
 
         return Inertia::render('HR/MasovnaDodjelaStatusa', [
             'recentRows' => $recentRows,
+            'departments' => $this->departmentFilterOptions(),
             'allowedStatuses' => [
                 ['code' => 'P', 'label' => 'P - Praznik'],
                 ['code' => 'GO', 'label' => 'GO - Godisnji odmor'],
@@ -78,6 +79,13 @@ class BulkDayStatusPagesController extends Controller
             'from' => ['required', 'date'],
             'to' => ['required', 'date', 'after_or_equal:from'],
             'note' => ['nullable', 'string', 'max:255'],
+            'scope' => ['required', 'in:all,departments'],
+            'department_ids' => [
+                Rule::requiredIf(fn () => $request->input('scope') === 'departments'),
+                'nullable',
+                'array',
+            ],
+            'department_ids.*' => ['integer', 'exists:departments,id'],
         ]);
 
         $from = Carbon::parse($validated['from'])->startOfDay();
@@ -90,7 +98,25 @@ class BulkDayStatusPagesController extends Controller
             ]);
         }
 
-        $employeeIds = $this->scopedEmployeeQuery($request->user())
+        $departmentIds = collect($validated['department_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $employeesQuery = $this->scopedEmployeeQuery($request->user());
+
+        if (($validated['scope'] ?? 'all') === 'departments') {
+            if (empty($departmentIds)) {
+                return back()->withErrors([
+                    'department_ids' => 'Odaberite najmanje jedan odjel.',
+                ]);
+            }
+
+            $employeesQuery->whereIn('dept', $departmentIds);
+        }
+
+        $employeeIds = $employeesQuery
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->values()
@@ -98,7 +124,9 @@ class BulkDayStatusPagesController extends Controller
 
         if (empty($employeeIds)) {
             return back()->withErrors([
-                'status_code' => 'Nema aktivnih radnika za dodjelu statusa.',
+                'status_code' => ($validated['scope'] ?? 'all') === 'departments'
+                    ? 'Nema aktivnih radnika u odabranim odjelima.'
+                    : 'Nema aktivnih radnika za dodjelu statusa.',
             ]);
         }
 
