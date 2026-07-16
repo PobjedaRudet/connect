@@ -10,15 +10,29 @@ const props = defineProps({
   employees: { type: Array, default: () => [] },
   overtime: { type: Object, default: () => ({}) },
   totals: { type: Object, default: () => ({}) },
+  canFilterByDepartment: { type: Boolean, default: false },
+  departments: { type: Array, default: () => [] },
+  filters: {
+    type: Object,
+    default: () => ({ department_id: '' }),
+  },
 })
 
 const selectedMonth = ref(props.month)
+const selectedDepartmentId = ref(props.filters?.department_id || '')
 const search = ref('')
 
 watch(
   () => props.month,
   (value) => {
     selectedMonth.value = value
+  }
+)
+
+watch(
+  () => props.filters?.department_id,
+  (val) => {
+    selectedDepartmentId.value = val || ''
   }
 )
 
@@ -31,8 +45,20 @@ const filteredEmployees = computed(() => {
   )
 })
 
+const overtimeQuery = () => {
+  const params = { month: selectedMonth.value }
+  if (props.canFilterByDepartment) {
+    params.department_id = selectedDepartmentId.value || 'all'
+  }
+  return params
+}
+
 const onMonthChange = () => {
-  router.get(route('hr.prekovremeni-sati'), { month: selectedMonth.value }, { preserveScroll: true, preserveState: true })
+  router.get(route('hr.prekovremeni-sati'), overtimeQuery(), { preserveScroll: true, preserveState: true })
+}
+
+const onDepartmentChange = () => {
+  router.get(route('hr.prekovremeni-sati'), overtimeQuery(), { preserveScroll: true, preserveState: true })
 }
 
 const cell = (employeeId, dateStr) => {
@@ -112,6 +138,18 @@ const usageTitle = (entry) => {
               class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
               @change="onMonthChange"
             />
+          </div>
+
+          <div v-if="canFilterByDepartment">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Odjel</label>
+            <select
+              v-model="selectedDepartmentId"
+              class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 min-w-[12rem]"
+              @change="onDepartmentChange"
+            >
+              <option value="">Svi odjeli</option>
+              <option v-for="d in departments" :key="d.id" :value="String(d.id)">{{ d.name }}</option>
+            </select>
           </div>
 
           <div>

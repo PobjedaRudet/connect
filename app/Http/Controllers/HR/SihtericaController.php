@@ -5,8 +5,8 @@ namespace App\Http\Controllers\HR;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceDayStatus;
 use App\Models\AttendanceRecord;
-use App\Models\Employee;
 use App\Models\Shift;
+use App\Services\SihtericaAuditLogger;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -15,6 +15,10 @@ use Inertia\Inertia;
 class SihtericaController extends Controller
 {
     use Concerns\ScopesEmployeesByUser;
+
+    public function __construct(private readonly SihtericaAuditLogger $auditLogger)
+    {
+    }
 
     public function index(Request $request)
     {
@@ -49,32 +53,52 @@ class SihtericaController extends Controller
             ];
         }
 
-        $employees = $this->scopedEmployeeQuery($request->user())
-            ->get(['id', 'empID', 'firstName', 'lastName']);
+        $user = $request->user();
+        $canFilterByDepartment = $this->canFilterEmployeesByDepartment($user);
+
+        $departmentId = null;
+        if ($canFilterByDepartment) {
+            $departmentId = $this->resolveAdminDepartmentFilter($request);
+        }
+
+        $employeesQuery = $this->scopedEmployeeQuery($user);
+
+        if ($canFilterByDepartment && $departmentId !== null) {
+            $employeesQuery->where('dept', $departmentId);
+        }
+
+        $employees = $employeesQuery->get(['id', 'empID', 'firstName', 'lastName', 'dept']);
 
         $employeeIds = $employees->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
 
-        $records = AttendanceRecord::query()
+        $recordsQuery = AttendanceRecord::query()
             ->with(['shift:id,name,start_time,end_time,attendance_credit_code'])
             ->whereBetween('entry_time', [
                 $monthStart->copy()->startOfDay(),
                 $monthEnd->copy()->endOfDay(),
             ])
             ->orderBy('employee_id')
-            ->orderBy('entry_time')
-            ->get([
-                'id',
-                'employee_id',
-                'shift_id',
-                'entry_time',
-                'effective_start',
-                'exit_time',
-                'duration_minutes',
-                'late_flag',
-                'status',
-                'terminal_in',
-                'terminal_out',
-            ]);
+            ->orderBy('entry_time');
+
+        if (!empty($employeeIds)) {
+            $recordsQuery->whereIn('employee_id', $employeeIds);
+        } else {
+            $recordsQuery->whereRaw('1 = 0');
+        }
+
+        $records = $recordsQuery->get([
+            'id',
+            'employee_id',
+            'shift_id',
+            'entry_time',
+            'effective_start',
+            'exit_time',
+            'duration_minutes',
+            'late_flag',
+            'status',
+            'terminal_in',
+            'terminal_out',
+        ]);
 
         $attendance = [];
         foreach ($records as $record) {
@@ -85,29 +109,21 @@ class SihtericaController extends Controller
             $employeeId = (int) $record->employee_id;
             $dateKey = $record->entry_time->toDateString();
 
-            $existing = $attendance[$employeeId][$dateKey] ?? null;
-            if ($existing && !empty($existing['entry_time_raw'])) {
-                $existingTs = (int) $existing['entry_time_raw'];
-                $currentTs = (int) $record->entry_time->getTimestamp();
-                if ($currentTs >= $existingTs) {
-                    continue;
-                }
+            if (!isset($attendance[$employeeId][$dateKey])) {
+                $attendance[$employeeId][$dateKey] = [
+                    'records' => [],
+                    'manual_status' => false,
+                    'manual_note' => null,
+                ];
             }
 
-            $attendance[$employeeId][$dateKey] = [
-                'record_id' => (int) $record->id,
-                'entry_time' => $record->entry_time?->timezone(config('app.timezone'))->format('H:i'),
-                'exit_time' => $record->exit_time?->timezone(config('app.timezone'))->format('H:i'),
-                'duration_minutes' => $record->duration_minutes,
-                'duration_display' => $this->resolveDurationDisplay($record),
-                'late_flag' => $record->late_flag,
-                'status' => $record->status,
-                'terminal_in' => $record->terminal_in,
-                'terminal_out' => $record->terminal_out,
-                'manual_status' => false,
-                'manual_note' => null,
-                'entry_time_raw' => $record->entry_time?->getTimestamp(),
-            ];
+            $attendance[$employeeId][$dateKey]['records'][] = $this->serializeRecord($record);
+        }
+
+        foreach ($attendance as $employeeId => $byDate) {
+            foreach ($byDate as $dateKey => $payload) {
+                $attendance[$employeeId][$dateKey] = $this->buildDayCell($payload['records'], false, null);
+            }
         }
 
         if (!empty($employeeIds) && Schema::hasTable('attendance_day_statuses')) {
@@ -132,31 +148,21 @@ class SihtericaController extends Controller
                     continue;
                 }
 
-                $attendance[$employeeId][$dateKey] = [
-                    'record_id' => null,
-                    'entry_time' => null,
-                    'exit_time' => null,
-                    'duration_minutes' => null,
-                    'duration_display' => strtoupper((string) $manualStatus->status_code),
-                    'late_flag' => null,
-                    'status' => null,
-                    'terminal_in' => null,
-                    'terminal_out' => null,
-                    'manual_status' => true,
-                    'manual_note' => $manualStatus->note,
-                    'entry_time_raw' => null,
-                ];
-            }
-        }
-
-        // Strip raw timestamps from the response payload
-        foreach ($attendance as $employeeId => $byDate) {
-            foreach ($byDate as $dateKey => $payload) {
-                unset($attendance[$employeeId][$dateKey]['entry_time_raw']);
+                $attendance[$employeeId][$dateKey] = $this->buildDayCell(
+                    [],
+                    true,
+                    strtoupper((string) $manualStatus->status_code),
+                    $manualStatus->note
+                );
             }
         }
 
         $shifts = Shift::orderBy('name')->get(['id', 'name', 'start_time', 'end_time']);
+
+        $departments = [];
+        if ($canFilterByDepartment) {
+            $departments = $this->departmentFilterOptions();
+        }
 
         return Inertia::render('HR/Sihterica', [
             'month' => $monthParam,
@@ -165,9 +171,15 @@ class SihtericaController extends Controller
                 'id' => (int) $e->id,
                 'empID' => (int) $e->empID,
                 'full_name' => trim((string) $e->lastName . ' ' . (string) $e->firstName),
+                'department_id' => $e->dept !== null ? (int) $e->dept : null,
             ])->values()->all(),
             'attendance' => $attendance,
             'shifts' => $shifts,
+            'canFilterByDepartment' => $canFilterByDepartment,
+            'departments' => $departments,
+            'filters' => [
+                'department_id' => $departmentId !== null ? (string) $departmentId : '',
+            ],
         ]);
     }
 
@@ -200,20 +212,179 @@ class SihtericaController extends Controller
             return back()->withErrors(['employee_id' => 'Nemate pristup odabranom radniku.']);
         }
 
-        AttendanceRecord::create([
+        $record = AttendanceRecord::create([
             'employee_id' => $validated['employee_id'],
             'shift_id'    => $validated['shift_id'] ?: null,
             'entry_time'  => $entryTime,
+            'effective_start' => $entryTime,
             'exit_time'   => $exitTime,
             'status'      => $status,
             'terminal_in' => 'MANUAL',
             'terminal_out' => $exitTime ? 'MANUAL' : null,
         ]);
 
+        $this->auditLogger->logCreated($request->user(), $record, $request);
+
         $month = Carbon::parse($date)->format('Y-m');
 
         return redirect()->route('hr.sihterica', ['month' => $month])
             ->with('success', 'Smjena uspješno unesena.');
+    }
+
+    public function update(Request $request, AttendanceRecord $record)
+    {
+        if (!$this->canAccessEmployee($request->user(), (int) $record->employee_id)) {
+            return back()->withErrors(['entry_time' => 'Nemate pristup odabranom radniku.']);
+        }
+
+        $validated = $request->validate([
+            'date' => 'required|date',
+            'entry_time' => 'required|date_format:H:i',
+            'exit_time' => 'nullable|date_format:H:i',
+            'shift_id' => 'nullable|exists:shifts,id',
+        ]);
+
+        $tz = config('app.timezone');
+        $date = $validated['date'];
+
+        $entryTime = Carbon::parse($date . ' ' . $validated['entry_time'], $tz);
+
+        $exitTime = null;
+        $status = 'working';
+        if (!empty($validated['exit_time'])) {
+            $exitTime = Carbon::parse($date . ' ' . $validated['exit_time'], $tz);
+            if ($exitTime->lessThanOrEqualTo($entryTime)) {
+                $exitTime->addDay();
+            }
+            $status = 'left';
+        }
+
+        $before = $this->auditLogger->snapshot($record);
+
+        $payload = [
+            'entry_time' => $entryTime,
+            'effective_start' => $entryTime,
+            'exit_time' => $exitTime,
+            'status' => $status,
+            'late_flag' => null,
+        ];
+
+        if (array_key_exists('shift_id', $validated)) {
+            $payload['shift_id'] = $validated['shift_id'] ?: null;
+        }
+
+        // Mark as manually corrected when HR edits punched times.
+        $payload['terminal_in'] = $this->markTerminalEdited($record->terminal_in);
+        $payload['terminal_out'] = $exitTime
+            ? $this->markTerminalEdited($record->terminal_out)
+            : null;
+
+        $record->update($payload);
+
+        $this->auditLogger->logUpdated($request->user(), $record->fresh(), $before, $request);
+
+        $month = Carbon::parse($date)->format('Y-m');
+
+        return redirect()->route('hr.sihterica', ['month' => $month])
+            ->with('success', 'Vrijeme prijave/odjave uspješno ažurirano.');
+    }
+
+    public function destroy(Request $request, AttendanceRecord $record)
+    {
+        if (!$this->canAccessEmployee($request->user(), (int) $record->employee_id)) {
+            return back()->withErrors(['record' => 'Nemate pristup odabranom radniku.']);
+        }
+
+        $month = $record->entry_time
+            ? Carbon::parse($record->entry_time)->timezone(config('app.timezone'))->format('Y-m')
+            : Carbon::now(config('app.timezone'))->format('Y-m');
+
+        $before = $this->auditLogger->snapshot($record);
+        $this->auditLogger->logDeleted($request->user(), $record, $before, $request);
+
+        $record->delete();
+
+        return redirect()->route('hr.sihterica', ['month' => $month])
+            ->with('success', 'Zapis prijave/odjave obrisan.');
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $records
+     * @return array<string, mixed>
+     */
+    private function buildDayCell(array $records, bool $manualStatus = false, ?string $manualCode = null, ?string $manualNote = null): array
+    {
+        $primary = $records[0] ?? null;
+        $totalMinutes = 0;
+        $hasMinutes = false;
+        $lateFlag = null;
+
+        foreach ($records as $item) {
+            if ($item['duration_minutes'] !== null) {
+                $totalMinutes += (int) $item['duration_minutes'];
+                $hasMinutes = true;
+            }
+            if ($lateFlag === null && !empty($item['late_flag'])) {
+                $lateFlag = $item['late_flag'];
+            } elseif ($item['late_flag'] === 'major') {
+                $lateFlag = 'major';
+            }
+        }
+
+        return [
+            'record_id' => $primary['record_id'] ?? null,
+            'entry_time' => $primary['entry_time'] ?? null,
+            'exit_time' => $primary['exit_time'] ?? null,
+            'duration_minutes' => $hasMinutes ? $totalMinutes : null,
+            'duration_display' => $manualStatus
+                ? $manualCode
+                : (count($records) === 1 ? ($primary['duration_display'] ?? null) : null),
+            'late_flag' => $lateFlag,
+            'status' => $primary['status'] ?? null,
+            'terminal_in' => $primary['terminal_in'] ?? null,
+            'terminal_out' => $primary['terminal_out'] ?? null,
+            'manual_status' => $manualStatus,
+            'manual_note' => $manualNote,
+            'records_count' => count($records),
+            'records' => $records,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeRecord(AttendanceRecord $record): array
+    {
+        $tz = config('app.timezone');
+
+        return [
+            'record_id' => (int) $record->id,
+            'shift_id' => $record->shift_id ? (int) $record->shift_id : null,
+            'entry_time' => $record->entry_time?->timezone($tz)->format('H:i'),
+            'exit_time' => $record->exit_time?->timezone($tz)->format('H:i'),
+            'entry_date' => $record->entry_time?->timezone($tz)->toDateString(),
+            'duration_minutes' => $record->duration_minutes,
+            'duration_display' => $this->resolveDurationDisplay($record),
+            'late_flag' => $record->late_flag,
+            'status' => $record->status,
+            'terminal_in' => $record->terminal_in,
+            'terminal_out' => $record->terminal_out,
+        ];
+    }
+
+    private function markTerminalEdited(?string $terminal): string
+    {
+        $terminal = trim((string) $terminal);
+
+        if ($terminal === '' || $terminal === 'MANUAL') {
+            return 'MANUAL';
+        }
+
+        if (str_starts_with($terminal, 'EDITED:')) {
+            return $terminal;
+        }
+
+        return 'EDITED:' . $terminal;
     }
 
     private function resolveDurationDisplay(AttendanceRecord $record): ?string

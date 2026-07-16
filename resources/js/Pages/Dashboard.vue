@@ -6,6 +6,8 @@ const page = usePage();
 const userName = computed(() => page.props?.auth?.user?.name || '');
 const userEmail = computed(() => page.props?.auth?.user?.email || '');
 const showMenu = ref(false);
+const wipNotice = ref('');
+let wipNoticeTimer = null;
 
 const redirect = ref('');
 
@@ -13,6 +15,14 @@ onMounted(() => {
     const params = new URLSearchParams(window.location.search);
     redirect.value = params.get('redirect') || '';
 });
+
+const showWipNotice = () => {
+    wipNotice.value = 'Izrada u toku';
+    if (wipNoticeTimer) clearTimeout(wipNoticeTimer);
+    wipNoticeTimer = setTimeout(() => {
+        wipNotice.value = '';
+    }, 4000);
+};
 
 // SVG ikone za sektore
 const baseSectors = [
@@ -26,13 +36,13 @@ const baseSectors = [
         name: 'IT služba',
         description: 'IT služba održava svu tehničku infrastrukturu.',
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 014-4h3m4 4v2a4 4 0 01-4 4H7a4 4 0 01-4-4v-2a4 4 0 004-4h3m4-4V7a4 4 0 00-4-4H7a4 4 0 00-4 4v2a4 4 0 004 4h3" /></svg>`,
-        link: '/sector/it'
+        wip: true,
     },
     {
         name: 'Finansije',
         description: 'Finansije se bave budžetiranjem i računovodstvom kompanije.',
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 4v4m0 4v4" /></svg>`,
-        link: '/sector/finance'
+        wip: true,
     },
     {
         name: 'PPZ i ZNR',
@@ -51,7 +61,7 @@ const baseSectors = [
         name: 'Proizvodnja',
         description: 'Proizvodnja nadgleda proizvodnju i operacije.',
         icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 014-4h3m4 4v2a4 4 0 01-4 4H7a4 4 0 01-4-4v-2a4 4 0 014-4h3" /></svg>`,
-        link: '/sector/production'
+        wip: true,
     },
 ];
 
@@ -99,15 +109,32 @@ const sectors = computed(() => [...baseSectors, kapijaSector, adminSector]);
             </div>
         </header>
         <!-- Centered grid with sectors -->
-       <main class="flex-1 flex items-center justify-center">
+       <main class="flex-1 flex flex-col items-center justify-center px-4 py-8">
+    <div
+        v-if="wipNotice"
+        class="mb-6 w-full max-w-md rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-800"
+        role="status"
+    >
+        {{ wipNotice }}
+    </div>
     <div class="grid gap-8 lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1">
         <div v-for="sector in sectors" :key="sector.name"
             class="bg-white dark:bg-gray-900 rounded shadow p-8 flex flex-col items-center hover:shadow-lg transition">
-            <Link :href="sector.link" class="flex flex-col items-center group">
+            <Link v-if="!sector.wip" :href="sector.link" class="flex flex-col items-center group">
                 <span v-html="sector.icon"></span>
                 <span class="mt-4 text-lg font-semibold group-hover:text-[#FF2D20] transition">{{ sector.name }}</span>
                 <span class="mt-2 text-sm text-gray-500 dark:text-gray-400 text-center">{{ sector.description }}</span>
             </Link>
+            <button
+                v-else
+                type="button"
+                class="flex flex-col items-center group"
+                @click="showWipNotice"
+            >
+                <span v-html="sector.icon"></span>
+                <span class="mt-4 text-lg font-semibold group-hover:text-[#FF2D20] transition">{{ sector.name }}</span>
+                <span class="mt-2 text-sm text-gray-500 dark:text-gray-400 text-center">{{ sector.description }}</span>
+            </button>
         </div>
     </div>
 </main>

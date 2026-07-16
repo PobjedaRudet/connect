@@ -2,13 +2,21 @@
 import AppLayout from '@/Layouts/AppLayout.vue'
 import HrNav from '@/Components/HrNav.vue'
 import { Head, Link, router } from '@inertiajs/vue3'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import axios from 'axios'
 
 const props = defineProps({
   employees: {
     type: Object,
-    default: () => ({ data: [], links: [], current_page: 1, last_page: 1, prev_page_url: null, next_page_url: null }),
+    default: () => ({
+      data: [],
+      links: [],
+      current_page: 1,
+      last_page: 1,
+      next_page_url: null,
+      prev_page_url: null,
+      total: 0,
+    }),
   },
   search: { type: String, default: '' },
   radnaMjesta: { type: Array, default: () => [] },
@@ -17,6 +25,125 @@ const props = defineProps({
 const search = ref(props.search || '')
 const updatingId = ref(null)
 const updateError = ref(null)
+
+const items = ref([...(props.employees?.data ?? [])])
+const currentPage = ref(props.employees?.current_page ?? 1)
+const lastPage = ref(props.employees?.last_page ?? 1)
+const total = ref(props.employees?.total ?? 0)
+const loadingMore = ref(false)
+const resetting = ref(false)
+
+const scrollRoot = ref(null)
+const sentinel = ref(null)
+let observer = null
+let searchTimer = null
+
+const hasMore = computed(() => currentPage.value < lastPage.value)
+
+const formatStatus = (value) => {
+  if (value === 1 || value === '1') return 'Neodređeno'
+  if (value === 2 || value === '2') return 'Određeno'
+  return value || '—'
+}
+
+const syncFromPaginator = (paginator, { append = false } = {}) => {
+  const rows = paginator?.data ?? []
+  if (append) {
+    const existingIds = new Set(items.value.map((e) => e.id))
+    items.value.push(...rows.filter((e) => !existingIds.has(e.id)))
+  } else {
+    items.value = [...rows]
+  }
+  currentPage.value = paginator?.current_page ?? 1
+  lastPage.value = paginator?.last_page ?? 1
+  total.value = paginator?.total ?? items.value.length
+}
+
+const loadMore = () => {
+  if (loadingMore.value || resetting.value || !hasMore.value) return
+
+  loadingMore.value = true
+  router.get(
+    route('hr.uposlenici.pregled'),
+    {
+      search: search.value || undefined,
+      page: currentPage.value + 1,
+    },
+    {
+      preserveState: true,
+      preserveScroll: true,
+      replace: true,
+      only: ['employees'],
+      onSuccess: (page) => {
+        syncFromPaginator(page.props.employees, { append: true })
+      },
+      onFinish: () => {
+        loadingMore.value = false
+      },
+    }
+  )
+}
+
+const resetAndSearch = (term) => {
+  resetting.value = true
+  router.get(
+    route('hr.uposlenici.pregled'),
+    { search: term || undefined },
+    {
+      preserveState: true,
+      preserveScroll: true,
+      replace: true,
+      only: ['employees'],
+      onSuccess: (page) => {
+        syncFromPaginator(page.props.employees, { append: false })
+        if (scrollRoot.value) scrollRoot.value.scrollTop = 0
+      },
+      onFinish: () => {
+        resetting.value = false
+      },
+    }
+  )
+}
+
+watch(search, (val) => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    resetAndSearch(val)
+  }, 300)
+})
+
+const setupObserver = async () => {
+  await nextTick()
+  if (observer) observer.disconnect()
+  if (!sentinel.value || !scrollRoot.value) return
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        loadMore()
+      }
+    },
+    {
+      root: scrollRoot.value,
+      rootMargin: '120px',
+      threshold: 0,
+    }
+  )
+  observer.observe(sentinel.value)
+}
+
+onMounted(() => {
+  setupObserver()
+})
+
+onBeforeUnmount(() => {
+  if (observer) observer.disconnect()
+  if (searchTimer) clearTimeout(searchTimer)
+})
+
+watch(sentinel, () => {
+  setupObserver()
+})
 
 const updateRadnoMjesto = async (employee, newValue) => {
   const val = newValue || null
@@ -35,31 +162,6 @@ const updateRadnoMjesto = async (employee, newValue) => {
     updatingId.value = null
   }
 }
-
-const employeesData = computed(() => props.employees?.data ?? [])
-
-const formatStatus = (value) => {
-  if (value === 1 || value === '1') return 'Neodređeno'
-  if (value === 2 || value === '2') return 'Određeno'
-  return value || '—'
-}
-
-const goTo = (url) => {
-  if (!url) return
-  router.get(url, { preserveState: true, preserveScroll: true })
-}
-
-let searchTimer = null
-watch(search, (val) => {
-  if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => {
-    router.get(route('hr.uposlenici.pregled'), { search: val || undefined }, {
-      preserveState: true,
-      preserveScroll: true,
-      replace: true,
-    })
-  }, 300)
-})
 </script>
 
 <template>
@@ -71,7 +173,9 @@ watch(search, (val) => {
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 class="text-2xl font-semibold text-gray-800">Pregled uposlenika</h1>
-          <p class="text-sm text-gray-500">Pretraga, pregled i brzi odlazak na izmjenu podataka. Radno mjesto možete mijenjati direktno iz liste.</p>
+          <p class="text-sm text-gray-500">
+            Skrolaj listu — novi uposlenici se učitavaju automatski.
+          </p>
         </div>
         <div class="flex gap-2">
           <input
@@ -94,9 +198,9 @@ watch(search, (val) => {
       </div>
 
       <div class="bg-white shadow rounded-lg border border-gray-200 overflow-hidden">
-        <div class="overflow-x-auto">
+        <div ref="scrollRoot" class="max-h-[65vh] overflow-auto">
           <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+            <thead class="bg-gray-50 sticky top-0 z-10">
               <tr class="text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 <th class="px-4 py-3">SAP ID</th>
                 <th class="px-4 py-3">Ime i prezime</th>
@@ -107,7 +211,7 @@ watch(search, (val) => {
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
-              <tr v-for="e in employeesData" :key="e.id" class="hover:bg-gray-50">
+              <tr v-for="e in items" :key="e.id" class="hover:bg-gray-50">
                 <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ e.empID || '—' }}</td>
                 <td class="px-4 py-3 text-sm text-gray-800 font-medium whitespace-nowrap">{{ e.full_name }}</td>
                 <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{{ e.department_name || '—' }}</td>
@@ -129,29 +233,16 @@ watch(search, (val) => {
                   </Link>
                 </td>
               </tr>
-              <tr v-if="employeesData.length === 0">
+              <tr v-if="items.length === 0 && !resetting">
                 <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">Nema uposlenika za prikaz.</td>
               </tr>
             </tbody>
           </table>
-        </div>
-        <div class="px-4 py-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between text-sm text-gray-600">
-          <div>Stranica {{ props.employees.current_page ?? 1 }} / {{ props.employees.last_page ?? 1 }}</div>
-          <div class="space-x-2">
-            <button
-              class="px-3 py-1 border border-gray-300 rounded-md bg-white hover:bg-gray-100 disabled:opacity-50"
-              :disabled="!props.employees.prev_page_url"
-              @click="goTo(props.employees.prev_page_url)"
-            >
-              Prethodna
-            </button>
-            <button
-              class="px-3 py-1 border border-gray-300 rounded-md bg-white hover:bg-gray-100 disabled:opacity-50"
-              :disabled="!props.employees.next_page_url"
-              @click="goTo(props.employees.next_page_url)"
-            >
-              Sljedeća
-            </button>
+
+          <div ref="sentinel" class="px-4 py-4 text-center text-sm text-gray-500">
+            <span v-if="loadingMore || resetting">Učitavanje…</span>
+            <span v-else-if="hasMore">Skrolaj za još uposlenika…</span>
+            <span v-else-if="items.length > 0">Prikazano {{ items.length }} od {{ total }}</span>
           </div>
         </div>
       </div>

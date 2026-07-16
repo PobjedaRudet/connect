@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\Admin\SihtericaAuditController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\HR\AnnualLeaveDecisionPagesController;
@@ -77,9 +78,14 @@ Route::middleware(['auth'])->group(function () {
 // ║  2. ADMIN                                                          ║
 // ╚═══════════════════════════════════════════════════════════════════════╝
 
-Route::get('/admin', function () {
-    return Inertia::render('Admin/Dashboard');
-})->middleware(['auth', 'adminOnly'])->name('admin.dashboard');
+Route::middleware(['auth', 'adminOnly'])->prefix('admin')->group(function () {
+    Route::get('/', function () {
+        return Inertia::render('Admin/Dashboard');
+    })->name('admin.dashboard');
+
+    Route::get('/sihterica-audit', [SihtericaAuditController::class, 'index'])
+        ->name('admin.sihterica-audit');
+});
 
 // ╔═══════════════════════════════════════════════════════════════════════╗
 // ║  3. PPZ / ZNR                                                      ║
@@ -717,6 +723,8 @@ Route::middleware('auth', 'adminOrFunkcije:HR,Šef HR,IT,Radnik, Šef PPZ')->gro
         // Šihterica
         Route::get('/hr/sihterica', [SihtericaController::class, 'index'])->name('hr.sihterica');
         Route::post('/hr/sihterica/manual', [SihtericaController::class, 'manualStore'])->name('hr.sihterica.manual');
+        Route::put('/hr/sihterica/{record}', [SihtericaController::class, 'update'])->name('hr.sihterica.update');
+        Route::delete('/hr/sihterica/{record}', [SihtericaController::class, 'destroy'])->name('hr.sihterica.destroy');
 
         // Masovna dodjela statusa — samo admin ili Šef HR
         Route::middleware('adminOrFunkcije:Šef HR')->group(function () {

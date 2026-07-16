@@ -208,7 +208,7 @@ class EmployeePagesController extends Controller
         }
 
         $employees = $employeesQuery
-            ->paginate(20)
+            ->paginate(30)
             ->through(function ($e) use ($departments) {
                 return [
                     'id' => (int) $e->id,

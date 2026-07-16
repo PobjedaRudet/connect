@@ -41,6 +41,15 @@ const isHrArea = computed(() => {
         || url.startsWith('/attendances')
         || url.startsWith('/leaves');
 });
+const isAdminArea = computed(() => ((page?.url ?? '').toString().startsWith('/admin')));
+const showOrdersNav = computed(() =>
+    !!userFunkcija.value
+    && userFunkcija.value !== 'Radnik'
+    && !isPpzFunkcija.value
+    && !isPpzArea.value
+    && !isHrArea.value
+    && !isAdminArea.value
+);
 </script>
 
 <template>
@@ -66,10 +75,10 @@ const isHrArea = computed(() => {
                                     PPZ
                                 </NavLink>
                                 <!-- Approvals/Orders navigation for approvers (e.g., Šef Komercijale) -->
-                                <NavLink v-if="userFunkcija && userFunkcija!=='Radnik' && !isPpzFunkcija && !isPpzArea && !isHrArea" :href="route('approvals.mine')" :active="route().current('approvals.mine')">
+                                <NavLink v-if="showOrdersNav" :href="route('approvals.mine')" :active="route().current('approvals.mine')">
                                     Odobrenja
                                 </NavLink>
-                                <NavLink v-if="userFunkcija && userFunkcija!=='Radnik' && !isPpzFunkcija && !isPpzArea && !isHrArea" :href="route('orders.status')" :active="route().current('orders.status')">
+                                <NavLink v-if="showOrdersNav" :href="route('orders.status')" :active="route().current('orders.status')">
                                     Status naloga
                                 </NavLink>
                                <!--  <NavLink href="/ppz/godisnji-odmori">
@@ -230,10 +239,10 @@ const isHrArea = computed(() => {
                         <ResponsiveNavLink v-if="isAdmin" :href="route('ppz.dashboard')" :active="route().current('ppz.*') || route().current('pregledi.*')">
                             PPZ
                         </ResponsiveNavLink>
-                        <ResponsiveNavLink v-if="userFunkcija && userFunkcija!=='Radnik' && !isPpzFunkcija && !isPpzArea && !isHrArea" :href="route('approvals.mine')" :active="route().current('approvals.mine')">
+                        <ResponsiveNavLink v-if="showOrdersNav" :href="route('approvals.mine')" :active="route().current('approvals.mine')">
                             Odobrenja
                         </ResponsiveNavLink>
-                        <ResponsiveNavLink v-if="userFunkcija && userFunkcija!=='Radnik' && !isPpzFunkcija && !isPpzArea && !isHrArea" :href="route('orders.status')" :active="route().current('orders.status')">
+                        <ResponsiveNavLink v-if="showOrdersNav" :href="route('orders.status')" :active="route().current('orders.status')">
                             Status naloga
                         </ResponsiveNavLink>
                     </div>
