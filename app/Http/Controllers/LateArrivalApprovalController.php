@@ -36,7 +36,7 @@ class LateArrivalApprovalController extends Controller
 
             return response(view('emails.late_arrival_result', [
                 'success'  => true,
-                'message'  => "Izlaznica #{$pass->id} ({$fullName}) je već odobrena kao „{$pass->type}".",
+                'message'  => "Izlaznica #{$pass->id} ({$fullName}) je vec odobrena kao \"{$pass->type}\".",
                 'pass'     => $pass,
                 'employee' => $employee,
             ]));
@@ -63,7 +63,7 @@ class LateArrivalApprovalController extends Controller
 
         return response(view('emails.late_arrival_result', [
             'success'   => true,
-            'message'   => "Izlaznica #{$pass->id} za radnika {$fullName} ({$context}) je odobrena kao „{$typeLabel}".",
+            'message'   => "Izlaznica #{$pass->id} za radnika {$fullName} ({$context}) je odobrena kao \"{$typeLabel}\".",
             'pass'      => $pass,
             'employee'  => $employee,
             'typeLabel' => $typeLabel,
