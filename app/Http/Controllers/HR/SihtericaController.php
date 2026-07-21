@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\HR;
 
 use App\Http\Controllers\Controller;
+use App\Models\AnnualLeaveDecision;
 use App\Models\AttendanceDayStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Shift;
+use App\Models\SickLeave;
 use App\Services\SihtericaAuditLogger;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -157,6 +159,200 @@ class SihtericaController extends Controller
             }
         }
 
+        $goDays = [];
+        $boDays = [];
+        $monthStartDate = $monthStart->toDateString();
+        $monthEndDate = $monthEnd->toDateString();
+
+        if (!empty($employeeIds) && Schema::hasTable('annual_leave_decisions')) {
+            $decisions = AnnualLeaveDecision::query()
+                ->whereIn('employee_id', $employeeIds)
+                ->whereNotNull('valid_from')
+                ->whereNotNull('valid_to')
+                ->where('valid_from', '<=', $monthEndDate)
+                ->where('valid_to', '>=', $monthStartDate)
+                ->get([
+                    'id',
+                    'employee_id',
+                    'year',
+                    'part',
+                    'decision_number',
+                    'valid_from',
+                    'valid_to',
+                    'granted_days',
+                    'note',
+                ]);
+
+            foreach ($decisions as $decision) {
+                $employeeId = (int) $decision->employee_id;
+
+                $partLabel = match ((string) $decision->part) {
+                    'ljetni' => 'Ljetni',
+                    'zimski' => 'Zimski',
+                    'jednodnevni' => 'Jednodnevni',
+                    'ostalo' => 'Ostalo',
+                    default => (string) $decision->part,
+                };
+
+                $decisionLabel = trim(implode(' · ', array_filter([
+                    $decision->decision_number ? ('Br. ' . $decision->decision_number) : null,
+                    $partLabel !== '' ? $partLabel : null,
+                    $decision->year ? ((string) $decision->year . '.') : null,
+                ])));
+
+                $noteParts = array_filter([
+                    $decisionLabel !== '' ? ('Rješenje: ' . $decisionLabel) : 'Rješenje godišnjeg odmora',
+                    $decision->note ? ('Napomena: ' . $decision->note) : null,
+                ]);
+                $note = implode(' | ', $noteParts);
+
+                foreach ($this->workingDatesInRange(
+                    $decision->valid_from,
+                    $decision->valid_to,
+                    $monthStart,
+                    $monthEnd
+                ) as $dateKey) {
+                    $goDays[$employeeId][$dateKey] = $note;
+                }
+            }
+        }
+
+        if (!empty($employeeIds) && Schema::hasTable('sick_leaves')) {
+            $sickLeaves = SickLeave::query()
+                ->whereIn('employee_id', $employeeIds)
+                ->whereNotNull('from')
+                ->whereNotNull('to')
+                ->where('from', '<=', $monthEndDate)
+                ->where('to', '>=', $monthStartDate)
+                ->get([
+                    'id',
+                    'employee_id',
+                    'from',
+                    'to',
+                    'days',
+                    'document_number',
+                    'status',
+                    'note',
+                ]);
+
+            foreach ($sickLeaves as $sickLeave) {
+                $employeeId = (int) $sickLeave->employee_id;
+
+                $statusLabel = match ((string) $sickLeave->status) {
+                    'otvoreno' => 'Otvoreno',
+                    'zatvoreno' => 'Zatvoreno',
+                    default => $sickLeave->status ? (string) $sickLeave->status : null,
+                };
+
+                $noteParts = array_filter([
+                    $sickLeave->document_number
+                        ? ('Bolovanje br. ' . $sickLeave->document_number)
+                        : 'Bolovanje',
+                    $statusLabel ? ('Status: ' . $statusLabel) : null,
+                    $sickLeave->days !== null ? ('Dani: ' . (int) $sickLeave->days) : null,
+                    $sickLeave->note ? ('Napomena: ' . $sickLeave->note) : null,
+                ]);
+                $note = implode(' | ', $noteParts);
+
+                foreach ($this->workingDatesInRange(
+                    $sickLeave->from,
+                    $sickLeave->to,
+                    $monthStart,
+                    $monthEnd
+                ) as $dateKey) {
+                    $boDays[$employeeId][$dateKey] = $note;
+                }
+            }
+        }
+
+        $employeeNames = $employees->mapWithKeys(fn ($e) => [
+            (int) $e->id => trim((string) $e->lastName . ' ' . (string) $e->firstName),
+        ]);
+
+        $leaveOverlaps = [];
+        foreach ($goDays as $employeeId => $dates) {
+            foreach ($dates as $dateKey => $goNote) {
+                if (!isset($boDays[$employeeId][$dateKey])) {
+                    continue;
+                }
+
+                $boNote = $boDays[$employeeId][$dateKey];
+                $leaveOverlaps[] = [
+                    'employee_id' => (int) $employeeId,
+                    'employee_name' => $employeeNames[(int) $employeeId] ?? ('#' . $employeeId),
+                    'date' => $dateKey,
+                    'go_note' => $goNote,
+                    'bo_note' => $boNote,
+                ];
+
+                if (isset($attendance[$employeeId][$dateKey])) {
+                    $existing = $attendance[$employeeId][$dateKey];
+                    $existing['leave_overlap'] = true;
+                    $existing['overlap_note'] = 'Preklapanje: godišnji odmor i bolovanje istog dana.';
+                    $attendance[$employeeId][$dateKey] = $existing;
+                    continue;
+                }
+
+                $attendance[$employeeId][$dateKey] = $this->buildDayCell(
+                    [],
+                    true,
+                    'GO/BO',
+                    trim($goNote . ' || ' . $boNote),
+                    true,
+                    true,
+                    true
+                );
+            }
+        }
+
+        foreach ($goDays as $employeeId => $dates) {
+            foreach ($dates as $dateKey => $note) {
+                if (isset($boDays[$employeeId][$dateKey])) {
+                    continue;
+                }
+                if (isset($attendance[$employeeId][$dateKey])) {
+                    continue;
+                }
+
+                $attendance[$employeeId][$dateKey] = $this->buildDayCell(
+                    [],
+                    true,
+                    'GO',
+                    $note,
+                    true
+                );
+            }
+        }
+
+        foreach ($boDays as $employeeId => $dates) {
+            foreach ($dates as $dateKey => $note) {
+                if (isset($goDays[$employeeId][$dateKey])) {
+                    continue;
+                }
+                if (isset($attendance[$employeeId][$dateKey])) {
+                    continue;
+                }
+
+                $attendance[$employeeId][$dateKey] = $this->buildDayCell(
+                    [],
+                    true,
+                    'BO',
+                    $note,
+                    false,
+                    true
+                );
+            }
+        }
+
+        usort($leaveOverlaps, function (array $a, array $b): int {
+            $byName = strcmp((string) $a['employee_name'], (string) $b['employee_name']);
+            if ($byName !== 0) {
+                return $byName;
+            }
+
+            return strcmp((string) $a['date'], (string) $b['date']);
+        });
+
         $shifts = Shift::orderBy('name')->get(['id', 'name', 'start_time', 'end_time']);
 
         $departments = [];
@@ -174,6 +370,7 @@ class SihtericaController extends Controller
                 'department_id' => $e->dept !== null ? (int) $e->dept : null,
             ])->values()->all(),
             'attendance' => $attendance,
+            'leaveOverlaps' => $leaveOverlaps,
             'shifts' => $shifts,
             'canFilterByDepartment' => $canFilterByDepartment,
             'departments' => $departments,
@@ -312,8 +509,45 @@ class SihtericaController extends Controller
      * @param  array<int, array<string, mixed>>  $records
      * @return array<string, mixed>
      */
-    private function buildDayCell(array $records, bool $manualStatus = false, ?string $manualCode = null, ?string $manualNote = null): array
-    {
+    /**
+     * @return list<string>
+     */
+    private function workingDatesInRange(
+        mixed $from,
+        mixed $to,
+        Carbon $monthStart,
+        Carbon $monthEnd
+    ): array {
+        $rangeStart = Carbon::parse($from)->startOfDay();
+        $rangeEnd = Carbon::parse($to)->startOfDay();
+
+        if ($rangeStart->lessThan($monthStart->copy()->startOfDay())) {
+            $rangeStart = $monthStart->copy()->startOfDay();
+        }
+        if ($rangeEnd->greaterThan($monthEnd->copy()->startOfDay())) {
+            $rangeEnd = $monthEnd->copy()->startOfDay();
+        }
+
+        $dates = [];
+        for ($day = $rangeStart->copy(); $day->lessThanOrEqualTo($rangeEnd); $day->addDay()) {
+            if ($day->isWeekend()) {
+                continue;
+            }
+            $dates[] = $day->toDateString();
+        }
+
+        return $dates;
+    }
+
+    private function buildDayCell(
+        array $records,
+        bool $manualStatus = false,
+        ?string $manualCode = null,
+        ?string $manualNote = null,
+        bool $fromAnnualLeaveDecision = false,
+        bool $fromSickLeave = false,
+        bool $leaveOverlap = false
+    ): array {
         $primary = $records[0] ?? null;
         $totalMinutes = 0;
         $hasMinutes = false;
@@ -345,6 +579,12 @@ class SihtericaController extends Controller
             'terminal_out' => $primary['terminal_out'] ?? null,
             'manual_status' => $manualStatus,
             'manual_note' => $manualNote,
+            'from_annual_leave_decision' => $fromAnnualLeaveDecision,
+            'from_sick_leave' => $fromSickLeave,
+            'leave_overlap' => $leaveOverlap,
+            'overlap_note' => $leaveOverlap
+                ? 'Preklapanje: godišnji odmor i bolovanje istog dana.'
+                : null,
             'records_count' => count($records),
             'records' => $records,
         ];

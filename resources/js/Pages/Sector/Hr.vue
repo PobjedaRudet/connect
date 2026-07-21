@@ -40,6 +40,7 @@ const sections = [
     items: [
       { title: 'Saldo', href: route('hr.godisnji.saldo') },
       { title: 'Unos rješenja', href: route('hr.godisnji.rjesenja') },
+      { title: 'Lista rješenja', href: route('hr.godisnji.rjesenja.lista') },
       { title: 'Iskorišteni', href: route('hr.godisnji.iskoristenje') },
     ],
   },

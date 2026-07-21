@@ -30,7 +30,8 @@ const groups = [
     label: 'Godišnji',
     links: [
       { label: 'Saldo', href: route('hr.godisnji.saldo'), route: 'hr.godisnji.saldo' },
-      { label: 'Rješenja', href: route('hr.godisnji.rjesenja'), route: 'hr.godisnji.rjesenja' },
+      { label: 'Unos', href: route('hr.godisnji.rjesenja'), route: 'hr.godisnji.rjesenja' },
+      { label: 'Lista', href: route('hr.godisnji.rjesenja.lista'), route: 'hr.godisnji.rjesenja.lista' },
       { label: 'Iskorišteni', href: route('hr.godisnji.iskoristenje'), route: 'hr.godisnji.iskoristenje' },
     ],
   },

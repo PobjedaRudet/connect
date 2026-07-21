@@ -47,26 +47,41 @@ const form = useForm({
   note: '',
 })
 
+const resetForm = () => {
+  form.clearErrors()
+  form.reset()
+  form.year = String(props.defaultYear ?? new Date().getFullYear())
+  form.part = 'ljetni'
+  employeeSearch.value = ''
+}
+
 const submit = () => {
   form.post(route('hr.godisnji.rjesenja.store'), {
     preserveScroll: true,
     onSuccess: () => {
-      form.reset('decision_number', 'decision_date', 'valid_from', 'valid_to', 'granted_days', 'note')
-      form.part = 'ljetni'
+      resetForm()
     },
   })
 }
 </script>
 
 <template>
-  <AppLayout title="Rješenja godišnjeg">
-    <Head title="Rješenja godišnjeg" />
+  <AppLayout title="Unos rješenja godišnjeg">
+    <Head title="Unos rješenja godišnjeg" />
     <HrNav />
 
     <div class="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
-      <div>
-        <h1 class="text-2xl font-semibold text-gray-800">Unos rješenja za godišnji odmor</h1>
-        <p class="text-sm text-gray-500">Kreiranje rješenja (ljetni / zimski / jednodnevni) po radniku.</p>
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 class="text-2xl font-semibold text-gray-800">Unos rješenja za godišnji odmor</h1>
+          <p class="text-sm text-gray-500">Kreiranje rješenja (ljetni / zimski / jednodnevni) po radniku.</p>
+        </div>
+        <Link
+          :href="route('hr.godisnji.rjesenja.lista')"
+          class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+        >
+          Lista rješenja
+        </Link>
       </div>
 
       <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
@@ -157,13 +172,12 @@ const submit = () => {
 
           <div class="flex items-center gap-3">
             <PrimaryButton type="submit" :disabled="form.processing">
-              Sačuvaj
+              {{ form.processing ? 'Spremam...' : 'Sačuvaj' }}
             </PrimaryButton>
-
             <button
               type="button"
               class="text-sm text-gray-600 hover:text-gray-800"
-              @click="form.reset()"
+              @click="resetForm"
             >
               Reset
             </button>

@@ -9,6 +9,7 @@ const props = defineProps({
   days: { type: Array, default: () => [] },
   employees: { type: Array, default: () => [] },
   attendance: { type: Object, default: () => ({}) },
+  leaveOverlaps: { type: Array, default: () => [] },
   shifts: { type: Array, default: () => [] },
   canFilterByDepartment: { type: Boolean, default: false },
   departments: { type: Array, default: () => [] },
@@ -76,7 +77,20 @@ const cellClasses = (dayMeta, entry) => {
   if (!entry) return base.join(' ')
 
   if (entry.manual_status) {
-    base.push('text-indigo-700', 'font-semibold', 'bg-indigo-50')
+    if (entry.leave_overlap) {
+      base.push('text-amber-900', 'font-semibold', 'bg-amber-100', 'ring-1', 'ring-amber-400')
+    } else if (entry.from_sick_leave) {
+      base.push('text-rose-800', 'font-semibold', 'bg-rose-50')
+    } else if (entry.from_annual_leave_decision) {
+      base.push('text-teal-800', 'font-semibold', 'bg-teal-50')
+    } else {
+      base.push('text-indigo-700', 'font-semibold', 'bg-indigo-50')
+    }
+    return base.join(' ')
+  }
+
+  if (entry.leave_overlap) {
+    base.push('text-amber-900', 'font-semibold', 'bg-amber-100', 'ring-1', 'ring-amber-400')
     return base.join(' ')
   }
 
@@ -106,8 +120,20 @@ const cellTitle = (entry) => {
 
   const lines = ['Kliknite za uređivanje']
 
+  if (entry.leave_overlap) {
+    lines.push('Upozorenje: preklapaju se dani godišnjeg odmora i bolovanja')
+  }
+
   if (entry.manual_status && entry.duration_display) {
-    lines.push(`Ručni status: ${entry.duration_display}`)
+    if (entry.leave_overlap) {
+      lines.push(`Konflikt statusa: ${entry.duration_display}`)
+    } else if (entry.from_sick_leave) {
+      lines.push(`Bolovanje: ${entry.duration_display}`)
+    } else if (entry.from_annual_leave_decision) {
+      lines.push(`Godišnji odmor (rješenje): ${entry.duration_display}`)
+    } else {
+      lines.push(`Ručni status: ${entry.duration_display}`)
+    }
   }
 
   const records = entry.records || []
@@ -128,7 +154,15 @@ const cellTitle = (entry) => {
   }
 
   if (entry.manual_status && entry.manual_note) {
-    lines.push(`Napomena: ${entry.manual_note}`)
+    if (entry.from_annual_leave_decision || entry.from_sick_leave || entry.leave_overlap) {
+      lines.push(entry.manual_note)
+    } else {
+      lines.push(`Napomena: ${entry.manual_note}`)
+    }
+  }
+
+  if (entry.overlap_note) {
+    lines.push(entry.overlap_note)
   }
 
   return lines.join('\n')
@@ -181,6 +215,11 @@ const dayModal = ref({
   empID: null,
   date: '',
   records: [],
+  fromAnnualLeaveDecision: false,
+  fromSickLeave: false,
+  leaveOverlap: false,
+  leaveNote: '',
+  overlapNote: '',
 })
 const editingId = ref(null)
 const editForm = useForm({
@@ -199,6 +238,13 @@ const openDayModal = (employee, dateStr) => {
     empID: employee.empID,
     date: dateStr,
     records: entry?.records ? [...entry.records] : [],
+    fromAnnualLeaveDecision: !!entry?.from_annual_leave_decision,
+    fromSickLeave: !!entry?.from_sick_leave,
+    leaveOverlap: !!entry?.leave_overlap,
+    leaveNote: (entry?.from_annual_leave_decision || entry?.from_sick_leave || entry?.leave_overlap)
+      ? (entry.manual_note || '')
+      : '',
+    overlapNote: entry?.overlap_note || '',
   }
   editingId.value = null
   editForm.reset()
@@ -288,6 +334,27 @@ const formatDateLabel = (dateStr) => {
     return dateStr
   }
 }
+
+const formatDateShort = (dateStr) => {
+  if (!dateStr) return ''
+  try {
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('hr-BA', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
+  } catch {
+    return dateStr
+  }
+}
+
+const visibleLeaveOverlaps = computed(() => {
+  const overlaps = props.leaveOverlaps || []
+  if (!overlaps.length) return []
+
+  const visibleIds = new Set((filteredEmployees.value || []).map((e) => Number(e.id)))
+  return overlaps.filter((row) => visibleIds.has(Number(row.employee_id)))
+})
 </script>
 
 <template>
@@ -345,6 +412,22 @@ const formatDateLabel = (dateStr) => {
             />
           </div>
         </div>
+      </div>
+
+      <div
+        v-if="visibleLeaveOverlaps.length"
+        class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+      >
+        <div class="font-semibold">
+          Upozorenje: preklapaju se dani godišnjeg odmora i bolovanja
+          ({{ visibleLeaveOverlaps.length }})
+        </div>
+        <ul class="mt-2 space-y-1 text-amber-900/90">
+          <li v-for="(row, idx) in visibleLeaveOverlaps" :key="`${row.employee_id}-${row.date}-${idx}`">
+            <span class="font-medium">{{ row.employee_name }}</span>
+            — {{ formatDateShort(row.date) }}
+          </li>
+        </ul>
       </div>
 
       <div class="bg-white shadow rounded-lg border border-gray-200 overflow-hidden">
@@ -419,6 +502,9 @@ const formatDateLabel = (dateStr) => {
           ručni statusi: <span class="font-semibold text-indigo-700">P</span>,
           <span class="font-semibold text-indigo-700">GO</span>,
           <span class="font-semibold text-indigo-700">BO</span>…
+          <span class="font-semibold text-teal-800">GO</span> iz rješenja godišnjeg,
+          <span class="font-semibold text-rose-800">BO</span> iz evidencije bolovanja,
+          <span class="font-semibold text-amber-900">GO/BO</span> = preklapanje.
           Klik na ćeliju = korekcija vremena. oznaka <span class="font-semibold text-indigo-600">2×</span> = više prijava istog dana.
         </div>
       </div>
@@ -444,8 +530,40 @@ const formatDateLabel = (dateStr) => {
           </div>
 
           <div class="px-6 py-4 space-y-4">
+            <div
+              v-if="dayModal.leaveOverlap"
+              class="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+            >
+              <div class="font-semibold">Upozorenje: preklapanje GO i BO</div>
+              <p class="mt-1">
+                {{ dayModal.overlapNote || 'Za ovaj dan postoji i godišnji odmor i bolovanje.' }}
+              </p>
+              <p v-if="dayModal.leaveNote" class="mt-1 text-amber-900/90">{{ dayModal.leaveNote }}</p>
+            </div>
+
+            <div
+              v-else-if="dayModal.fromAnnualLeaveDecision"
+              class="rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-900"
+            >
+              <div class="font-semibold">Godišnji odmor (GO) — iz rješenja</div>
+              <p v-if="dayModal.leaveNote" class="mt-1 text-teal-800/90">{{ dayModal.leaveNote }}</p>
+            </div>
+
+            <div
+              v-else-if="dayModal.fromSickLeave"
+              class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900"
+            >
+              <div class="font-semibold">Bolovanje (BO)</div>
+              <p v-if="dayModal.leaveNote" class="mt-1 text-rose-800/90">{{ dayModal.leaveNote }}</p>
+            </div>
+
             <div v-if="!dayModal.records.length" class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-8 text-center">
-              <p class="text-sm text-gray-600 mb-3">Nema prijave za ovaj dan.</p>
+              <p class="text-sm text-gray-600 mb-3">
+                <template v-if="dayModal.leaveOverlap">Nema prijave za ovaj dan (preklapanje godišnjeg i bolovanja).</template>
+                <template v-else-if="dayModal.fromAnnualLeaveDecision">Nema prijave za ovaj dan (označeno rješenjem godišnjeg).</template>
+                <template v-else-if="dayModal.fromSickLeave">Nema prijave za ovaj dan (označeno bolovanjem).</template>
+                <template v-else>Nema prijave za ovaj dan.</template>
+              </p>
               <button
                 type="button"
                 class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition"
