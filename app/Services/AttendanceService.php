@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Jobs\SendEarlyDepartureApprovalEmailJob;
 use App\Jobs\SendLateArrivalApprovalEmailJob;
 use App\Jobs\SendPassCreatedEmailJob;
+use App\Mail\EarlyDepartureApprovalMail;
 use App\Mail\LateArrivalApprovalMail;
 use App\Mail\PassCreatedMail;
 use App\Models\AttendanceRecord;
@@ -331,6 +333,11 @@ class AttendanceService
             'terminal_out' => $terminalId ?? $record->terminal_out,
         ]);
 
+        $shiftEnd = $this->resolveShiftEndForRecord($record, $exitTime);
+        if ($shiftEnd && $exitTime->lessThan($shiftEnd)) {
+            $this->createEarlyDeparturePass($employee, $exitTime, $shiftEnd);
+        }
+
         return [
             'status' => 'checkout',
             'message' => 'Odjava',
@@ -639,6 +646,113 @@ class AttendanceService
             Mail::to($emails)->queue(new LateArrivalApprovalMail($pass, $employee));
         } catch (\Throwable $e) {
             Log::warning('Failed to queue late arrival approval email', [
+                'employee_id' => $employeeId,
+                'pass_id'     => $passId,
+                'error'       => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Resolves the scheduled shift-end Carbon moment for a record.
+     * Mirrors the logic in AttendanceRecord::resolveShiftEndMoment().
+     */
+    private function resolveShiftEndForRecord(AttendanceRecord $record, Carbon $workStart): ?Carbon
+    {
+        if (!$record->shift_id) {
+            return null;
+        }
+
+        $shift = $record->shift()->first();
+        if (!$shift || !$shift->start_time || !$shift->end_time) {
+            return null;
+        }
+
+        $tz          = config('app.timezone');
+        $workDate    = $workStart->copy()->timezone($tz)->toDateString();
+        $startTimeStr = $shift->start_time instanceof Carbon
+            ? $shift->start_time->format('H:i:s')
+            : (string) $shift->start_time;
+        $endTimeStr = $shift->end_time instanceof Carbon
+            ? $shift->end_time->format('H:i:s')
+            : (string) $shift->end_time;
+
+        try {
+            $shiftStart = Carbon::parse($workDate . ' ' . $startTimeStr, $tz);
+            $shiftEnd   = Carbon::parse($workDate . ' ' . $endTimeStr, $tz);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if ($shiftEnd->lessThanOrEqualTo($shiftStart)) {
+            $shiftEnd->addDay();
+        }
+
+        return $shiftEnd;
+    }
+
+    /**
+     * Creates a retroactive izlaznica for the early-departure period and defers approval email.
+     * start_time = actual exit, end_time = scheduled shift end, type defaults to 'privatni'.
+     */
+    private function createEarlyDeparturePass(Employee $employee, Carbon $exitTime, Carbon $shiftEnd): void
+    {
+        $minutesEarly = (int) $exitTime->diffInMinutes($shiftEnd, false);
+        if ($minutesEarly <= 0) {
+            return;
+        }
+
+        try {
+            $pass = Pass::create([
+                'employee_id'     => $employee->id,
+                'type'            => 'privatni',
+                'reason'          => "Automatski kreirana izlaznica za prijevremeni odlazak od {$minutesEarly} min",
+                'start_time'      => $exitTime,
+                'end_time'        => $shiftEnd,
+                'status'          => 'closed',
+                'approved'        => false,
+                'early_departure' => true,
+                'early_minutes'   => $minutesEarly,
+                'duration_minutes' => $minutesEarly,
+            ]);
+
+            SendEarlyDepartureApprovalEmailJob::dispatch($employee->id, $pass->id)->afterResponse();
+        } catch (\Throwable $e) {
+            Log::warning('Failed to create early departure pass or dispatch approval email', [
+                'employee_id' => $employee->id,
+                'error'       => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Sends the early-departure approval email to the employee's pass approvers.
+     * Called by SendEarlyDepartureApprovalEmailJob.
+     */
+    public function deliverEarlyDepartureApprovalEmail(int $employeeId, int $passId): void
+    {
+        try {
+            $employee = Employee::query()
+                ->select(['id', 'firstName', 'lastName', 'pass_approvers'])
+                ->find($employeeId);
+            $pass = Pass::query()->find($passId);
+
+            if (!$employee || !$pass) {
+                return;
+            }
+
+            $emails = $this->resolvePassApproverEmails($employee);
+            if (empty($emails)) {
+                Log::info('Early departure approval: no approver emails found for employee', [
+                    'employee_id' => $employeeId,
+                    'pass_id'     => $passId,
+                ]);
+                return;
+            }
+
+            Mail::to($emails)->queue(new EarlyDepartureApprovalMail($pass, $employee));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to queue early departure approval email', [
                 'employee_id' => $employeeId,
                 'pass_id'     => $passId,
                 'error'       => $e->getMessage(),

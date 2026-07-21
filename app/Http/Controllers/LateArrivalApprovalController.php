@@ -22,10 +22,10 @@ class LateArrivalApprovalController extends Controller
             ]), 403);
         }
 
-        if (!$pass->late_pass) {
+        if (!$pass->late_pass && !$pass->early_departure) {
             return response(view('emails.late_arrival_result', [
                 'success' => false,
-                'message' => 'Ova izlaznica nije vezana za kašnjenje.',
+                'message' => 'Ova izlaznica nije automatski kreirana (nije za kašnjenje ni prijevremeni odlazak).',
                 'pass'    => $pass,
             ]), 400);
         }
@@ -52,17 +52,18 @@ class LateArrivalApprovalController extends Controller
         }
 
         $pass->update([
-            'type'    => $type,
+            'type'     => $type,
             'approved' => true,
         ]);
 
-        $employee = $pass->employee()->select(['id', 'firstName', 'lastName'])->first();
+        $employee  = $pass->employee()->select(['id', 'firstName', 'lastName'])->first();
         $fullName  = trim(($employee->firstName ?? '') . ' ' . ($employee->lastName ?? ''));
         $typeLabel = $type === 'privatni' ? 'Privatna izlaznica' : 'Službena izlaznica';
+        $context   = $pass->early_departure ? 'prijevremeni odlazak' : 'kašnjenje';
 
         return response(view('emails.late_arrival_result', [
             'success'   => true,
-            'message'   => "Izlaznica #{$pass->id} za radnika {$fullName} je odobrena kao „{$typeLabel}".",
+            'message'   => "Izlaznica #{$pass->id} za radnika {$fullName} ({$context}) je odobrena kao „{$typeLabel}".",
             'pass'      => $pass,
             'employee'  => $employee,
             'typeLabel' => $typeLabel,
