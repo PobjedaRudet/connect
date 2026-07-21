@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Jobs\SendLateArrivalApprovalEmailJob;
 use App\Jobs\SendPassCreatedEmailJob;
+use App\Mail\LateArrivalApprovalMail;
 use App\Mail\PassCreatedMail;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
@@ -264,6 +266,11 @@ class AttendanceService
             'late_flag' => $lateFlag === 'none' ? null : $lateFlag,
             'terminal_in' => $terminalId,
         ]);
+
+        if ($lateFlag !== 'none' && $shift && !empty($closest['start'])) {
+            $this->createLatePass($employee, $closest['start'], $moment);
+        }
+
         return [
             'status' => 'checkin',
             'message' => 'Prijava (offline)',
@@ -298,6 +305,10 @@ class AttendanceService
             'late_flag' => $lateFlag === 'none' ? null : $lateFlag,
             'terminal_in' => $terminalId,
         ]);
+
+        if ($lateFlag !== 'none' && $shift && !empty($closest['start'])) {
+            $this->createLatePass($employee, $closest['start'], $entryTime);
+        }
 
         return [
             'status' => 'checkin',
@@ -420,18 +431,12 @@ class AttendanceService
 
         $minutesLate = $shiftStart->diffInMinutes($entryTime);
 
-        if ($minutesLate <= 14) {
-            // zaokruži na 15 min blok
-            return [$shiftStart->copy()->addMinutes(15), 'minor15'];
+        // Stvarno kašnjenje — effective_start = stvarno ulazno vrijeme (bez zaokruživanja)
+        if ($minutesLate <= 29) {
+            return [$entryTime, 'minor'];
         }
-        elseif ($minutesLate <= 29) {
-            // zaokruži na puni sat
-            return [$shiftStart->copy()->addMinutes(30), 'minor30'];
-        }
-        else {
-            // znatno kašnjenje: effective_start = stvarno vrijeme ulaska
-            return [$entryTime, 'major'];
-        }
+
+        return [$entryTime, 'major'];
     }
 
     /**
@@ -569,6 +574,76 @@ class AttendanceService
             'message' => $message,
             'pass' => $pass,
         ];
+    }
+
+    /**
+     * Creates a retroactive izlaznica (pass) for the late period and defers the approval email.
+     * start_time = scheduled shift start, end_time = actual entry, type defaults to 'privatni'.
+     * The supervisor receives an email with two signed links to reclassify as privatna/službena.
+     */
+    private function createLatePass(Employee $employee, Carbon $shiftStart, Carbon $entryTime): void
+    {
+        $minutesLate = (int) $shiftStart->diffInMinutes($entryTime, false);
+        if ($minutesLate <= 0) {
+            return;
+        }
+
+        try {
+            $pass = Pass::create([
+                'employee_id'    => $employee->id,
+                'type'           => 'privatni', // default; supervisor may change via email link
+                'reason'         => "Automatski kreirana izlaznica za kašnjenje od {$minutesLate} min",
+                'start_time'     => $shiftStart,
+                'end_time'       => $entryTime,
+                'status'         => 'closed', // the late period has already passed
+                'approved'       => false,
+                'late_pass'      => true,
+                'late_minutes'   => $minutesLate,
+                'duration_minutes' => $minutesLate,
+            ]);
+
+            SendLateArrivalApprovalEmailJob::dispatch($employee->id, $pass->id)->afterResponse();
+        } catch (\Throwable $e) {
+            Log::warning('Failed to create late pass or dispatch approval email', [
+                'employee_id' => $employee->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Sends the late-arrival approval email to the employee's pass approvers.
+     * Called by SendLateArrivalApprovalEmailJob.
+     */
+    public function deliverLateArrivalApprovalEmail(int $employeeId, int $passId): void
+    {
+        try {
+            $employee = Employee::query()
+                ->select(['id', 'firstName', 'lastName', 'pass_approvers'])
+                ->find($employeeId);
+            $pass = Pass::query()->find($passId);
+
+            if (!$employee || !$pass) {
+                return;
+            }
+
+            $emails = $this->resolvePassApproverEmails($employee);
+            if (empty($emails)) {
+                Log::info('Late arrival approval: no approver emails found for employee', [
+                    'employee_id' => $employeeId,
+                    'pass_id'     => $passId,
+                ]);
+                return;
+            }
+
+            Mail::to($emails)->queue(new LateArrivalApprovalMail($pass, $employee));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to queue late arrival approval email', [
+                'employee_id' => $employeeId,
+                'pass_id'     => $passId,
+                'error'       => $e->getMessage(),
+            ]);
+        }
     }
 
     private function deferPassCreatedEmail(int $employeeId, int $passId): void

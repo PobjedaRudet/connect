@@ -21,6 +21,8 @@ class Pass extends Model
         'status', // open | closed
         'duration_minutes', // total minutes outside when closed
         'approved',
+        'late_pass',    // true when auto-created from a late check-in
+        'late_minutes', // actual minutes the employee was late
     ];
 
     protected $casts = [
@@ -28,6 +30,8 @@ class Pass extends Model
         'end_time' => 'datetime',
         'duration_minutes' => 'integer',
         'approved' => 'boolean',
+        'late_pass' => 'boolean',
+        'late_minutes' => 'integer',
     ];
 
     public function employee(): BelongsTo

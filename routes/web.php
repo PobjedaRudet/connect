@@ -364,3 +364,8 @@ Route::get('/approvals/email/direct', [ApprovalController::class, 'emailDirectAp
 Route::get('/approvals/email/open', [ApprovalController::class, 'emailOpenPending'])
     ->middleware('signed')
     ->name('approvals.email.open');
+
+// Late-arrival pass approval — nadređeni bira tip izlaznice iz emaila (signed URL, bez login-a)
+Route::get('/late-arrival-approval/{pass}', [\App\Http\Controllers\LateArrivalApprovalController::class, 'choose'])
+    ->name('late.arrival.approval')
+    ->middleware('signed');
