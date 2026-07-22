@@ -611,9 +611,10 @@ class AttendanceService
 
             SendLateArrivalApprovalEmailJob::dispatch($employee->id, $pass->id)->afterResponse();
         } catch (\Throwable $e) {
-            Log::warning('Failed to create late pass or dispatch approval email', [
+            Log::error('Failed to create late pass or dispatch approval email', [
                 'employee_id' => $employee->id,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
         }
     }
@@ -636,16 +637,22 @@ class AttendanceService
 
             $emails = $this->resolvePassApproverEmails($employee);
             if (empty($emails)) {
-                Log::info('Late arrival approval: no approver emails found for employee', [
+                Log::warning('Late arrival approval: no approver emails found for employee', [
                     'employee_id' => $employeeId,
                     'pass_id'     => $passId,
+                    'pass_approvers' => $employee->pass_approvers,
                 ]);
                 return;
             }
 
-            Mail::to($emails)->queue(new LateArrivalApprovalMail($pass, $employee));
+            Mail::to($emails)->send(new LateArrivalApprovalMail($pass, $employee));
+            Log::info('Late arrival approval email sent', [
+                'employee_id' => $employeeId,
+                'pass_id'     => $passId,
+                'to'          => $emails,
+            ]);
         } catch (\Throwable $e) {
-            Log::warning('Failed to queue late arrival approval email', [
+            Log::error('Failed to send late arrival approval email', [
                 'employee_id' => $employeeId,
                 'pass_id'     => $passId,
                 'error'       => $e->getMessage(),
@@ -718,9 +725,10 @@ class AttendanceService
 
             SendEarlyDepartureApprovalEmailJob::dispatch($employee->id, $pass->id)->afterResponse();
         } catch (\Throwable $e) {
-            Log::warning('Failed to create early departure pass or dispatch approval email', [
+            Log::error('Failed to create early departure pass or dispatch approval email', [
                 'employee_id' => $employee->id,
                 'error'       => $e->getMessage(),
+                'trace'       => $e->getTraceAsString(),
             ]);
         }
     }
@@ -743,16 +751,22 @@ class AttendanceService
 
             $emails = $this->resolvePassApproverEmails($employee);
             if (empty($emails)) {
-                Log::info('Early departure approval: no approver emails found for employee', [
+                Log::warning('Early departure approval: no approver emails found for employee', [
                     'employee_id' => $employeeId,
                     'pass_id'     => $passId,
+                    'pass_approvers' => $employee->pass_approvers,
                 ]);
                 return;
             }
 
-            Mail::to($emails)->queue(new EarlyDepartureApprovalMail($pass, $employee));
+            Mail::to($emails)->send(new EarlyDepartureApprovalMail($pass, $employee));
+            Log::info('Early departure approval email sent', [
+                'employee_id' => $employeeId,
+                'pass_id'     => $passId,
+                'to'          => $emails,
+            ]);
         } catch (\Throwable $e) {
-            Log::warning('Failed to queue early departure approval email', [
+            Log::error('Failed to send early departure approval email', [
                 'employee_id' => $employeeId,
                 'pass_id'     => $passId,
                 'error'       => $e->getMessage(),

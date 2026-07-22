@@ -1,7 +1,8 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import DialogModal from '@/Components/DialogModal.vue'
 import HrNav from '@/Components/HrNav.vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import { Head, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
@@ -9,6 +10,8 @@ const props = defineProps({
   availableMonths: { type: Array, default: () => [] },
   summary: { type: Array, default: () => [] },
   totals: { type: Object, default: () => ({}) },
+  selectedEmployee: { type: Object, default: null },
+  employeePasses: { type: Array, default: () => [] },
 })
 
 const month = ref(props.selectedMonth)
@@ -21,12 +24,37 @@ watch(
   }
 )
 
+const showEmployeeModal = computed(() => !!props.selectedEmployee)
+
 const formatMonthLabel = (value) => {
   if (!value) return '—'
   return new Intl.DateTimeFormat('bs-BA', {
     month: 'long',
     year: 'numeric',
   }).format(new Date(`${value}-01T00:00:00`))
+}
+
+const formatDateTime = (value) => {
+  if (!value) return '—'
+  const date = new Date(value.replace(' ', 'T'))
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('bs-BA', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+    hour12: false,
+  }).format(date)
+}
+
+const typeLabel = (type) => {
+  if (type === 'privatni') return 'Privatna'
+  if (type === 'službeni' || type === 'sluzbeni') return 'Službena'
+  return type || '—'
+}
+
+const typeBadgeClass = (type) => {
+  if (type === 'privatni') return 'bg-amber-100 text-amber-800'
+  if (type === 'službeni' || type === 'sluzbeni') return 'bg-sky-100 text-sky-800'
+  return 'bg-gray-100 text-gray-700'
 }
 
 const filteredSummary = computed(() => {
@@ -46,6 +74,27 @@ const onMonthChange = (event) => {
     replace: true,
   })
 }
+
+const openEmployeePasses = (row) => {
+  router.get(route('hr.izlaznice.sumarno'), {
+    month: month.value || props.selectedMonth,
+    employee_id: row.employee_id,
+  }, {
+    preserveScroll: true,
+    preserveState: true,
+    replace: true,
+  })
+}
+
+const closeEmployeeModal = () => {
+  router.get(route('hr.izlaznice.sumarno'), {
+    month: month.value || props.selectedMonth,
+  }, {
+    preserveScroll: true,
+    preserveState: true,
+    replace: true,
+  })
+}
 </script>
 
 <template>
@@ -56,7 +105,10 @@ const onMonthChange = (event) => {
     <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
       <div>
         <h1 class="text-2xl font-semibold text-gray-800">Izlaznice sumarno po mjesecu</h1>
-        <p class="text-sm text-gray-500">Zbir trajanja privatnih i službenih izlaznica po radniku za {{ formatMonthLabel(selectedMonth) }}.</p>
+        <p class="text-sm text-gray-500">
+          Zbir trajanja privatnih i službenih izlaznica po radniku za {{ formatMonthLabel(selectedMonth) }}.
+          Kliknite na radnika da vidite pojedinačne izlaznice.
+        </p>
       </div>
 
       <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -122,9 +174,15 @@ const onMonthChange = (event) => {
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200">
-            <tr v-for="row in filteredSummary" :key="row.employee_id" class="hover:bg-gray-50">
+            <tr
+              v-for="row in filteredSummary"
+              :key="row.employee_id"
+              class="hover:bg-indigo-50/60 cursor-pointer transition-colors"
+              title="Kliknite za detalje izlaznica"
+              @click="openEmployeePasses(row)"
+            >
               <td class="px-4 py-3 text-sm text-gray-800">
-                <div class="font-medium">{{ row.full_name }}</div>
+                <div class="font-medium text-indigo-700 hover:underline">{{ row.full_name }}</div>
                 <div class="text-xs text-gray-500">#{{ row.empID }}</div>
               </td>
               <td class="px-4 py-3 text-sm text-amber-900">
@@ -144,5 +202,76 @@ const onMonthChange = (event) => {
         </table>
       </div>
     </div>
+
+    <DialogModal :show="showEmployeeModal" max-width="4xl" @close="closeEmployeeModal">
+      <template #title>
+        Izlaznice — {{ selectedEmployee?.full_name || 'Radnik' }}
+        <span class="ml-2 text-sm font-normal text-gray-500">
+          (#{{ selectedEmployee?.empID }}) · {{ formatMonthLabel(selectedMonth) }}
+        </span>
+      </template>
+
+      <template #content>
+        <div class="overflow-x-auto -mx-1">
+          <table class="min-w-full divide-y divide-gray-200 text-sm">
+            <thead class="bg-gray-50">
+              <tr class="text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <th class="px-3 py-2">Datum / vrijeme</th>
+                <th class="px-3 py-2">Tip</th>
+                <th class="px-3 py-2">Trajanje</th>
+                <th class="px-3 py-2">Napomena</th>
+                <th class="px-3 py-2">Razlog</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="pass in employeePasses" :key="pass.id" class="hover:bg-gray-50">
+                <td class="px-3 py-2 text-gray-800 whitespace-nowrap">
+                  <div>{{ formatDateTime(pass.start_time) }}</div>
+                  <div class="text-xs text-gray-500">do {{ formatDateTime(pass.end_time) }}</div>
+                </td>
+                <td class="px-3 py-2">
+                  <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold" :class="typeBadgeClass(pass.type)">
+                    {{ typeLabel(pass.type) }}
+                  </span>
+                </td>
+                <td class="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">
+                  {{ pass.duration_display }}
+                </td>
+                <td class="px-3 py-2 text-xs text-gray-600">
+                  <span v-if="pass.late_pass" class="inline-flex rounded bg-violet-100 text-violet-800 px-1.5 py-0.5 font-medium">
+                    Kašnjenje{{ pass.late_minutes != null ? ` ${pass.late_minutes} min` : '' }}
+                  </span>
+                  <span v-else-if="pass.early_departure" class="inline-flex rounded bg-cyan-100 text-cyan-800 px-1.5 py-0.5 font-medium">
+                    Prijevremeni odlazak{{ pass.early_minutes != null ? ` ${pass.early_minutes} min` : '' }}
+                  </span>
+                  <span v-else class="text-gray-400">—</span>
+                </td>
+                <td class="px-3 py-2 text-gray-600 max-w-xs">
+                  {{ pass.reason || '—' }}
+                </td>
+              </tr>
+              <tr v-if="!employeePasses.length">
+                <td colspan="5" class="px-3 py-6 text-center text-gray-500">
+                  Nema izlaznica za ovog radnika u odabranom mjesecu.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-3 text-xs text-gray-500">
+          Prikazano: {{ employeePasses.length }} izlaznica (odobrenih i zatvorenih)
+        </div>
+      </template>
+
+      <template #footer>
+        <button
+          type="button"
+          class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+          @click="closeEmployeeModal"
+        >
+          Zatvori
+        </button>
+      </template>
+    </DialogModal>
   </AppLayout>
 </template>

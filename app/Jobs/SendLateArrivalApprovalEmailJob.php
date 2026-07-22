@@ -3,15 +3,17 @@
 namespace App\Jobs;
 
 use App\Services\AttendanceService;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class SendLateArrivalApprovalEmailJob implements ShouldQueue
+/**
+ * Runs after the HTTP response (dispatch()->afterResponse()).
+ * Intentionally NOT queued — QUEUE_CONNECTION=database would otherwise leave
+ * the email sitting in `jobs` until a queue worker picks it up.
+ */
+class SendLateArrivalApprovalEmailJob
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, SerializesModels;
 
     public function __construct(
         public int $employeeId,

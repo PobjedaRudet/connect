@@ -4,15 +4,13 @@ namespace App\Mail;
 
 use App\Models\Employee;
 use App\Models\Pass;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\URL;
 
-class LateArrivalApprovalMail extends Mailable implements ShouldQueue
+class LateArrivalApprovalMail extends Mailable
 {
-    use Queueable, SerializesModels;
+    use SerializesModels;
 
     public Pass $pass;
     public Employee $employee;

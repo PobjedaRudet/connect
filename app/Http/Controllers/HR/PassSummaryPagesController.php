@@ -87,11 +87,71 @@ class PassSummaryPagesController extends Controller
         $availableMonths = collect(range(0, 11))
             ->map(fn (int $offset) => Carbon::now(config('app.timezone'))->startOfMonth()->subMonths($offset)->format('Y-m'));
 
+        $selectedEmployeeId = (int) $request->query('employee_id', 0);
+        $employeePasses = [];
+        $selectedEmployee = null;
+
+        if ($selectedEmployeeId > 0 && $employees->has($selectedEmployeeId)) {
+            $employee = $employees->get($selectedEmployeeId);
+            $selectedEmployee = [
+                'employee_id' => $selectedEmployeeId,
+                'empID' => (int) ($employee->empID ?? 0),
+                'full_name' => trim((string) ($employee->lastName ?? '') . ' ' . (string) ($employee->firstName ?? '')),
+            ];
+
+            $tz = config('app.timezone');
+
+            $select = [
+                'id',
+                'type',
+                'reason',
+                'start_time',
+                'end_time',
+                'duration_minutes',
+            ];
+            foreach (['late_pass', 'late_minutes', 'early_departure', 'early_minutes'] as $optionalCol) {
+                if (\Illuminate\Support\Facades\Schema::hasColumn('passes', $optionalCol)) {
+                    $select[] = $optionalCol;
+                }
+            }
+
+            $employeePasses = Pass::query()
+                ->where('employee_id', $selectedEmployeeId)
+                ->where('approved', true)
+                ->where('status', 'closed')
+                ->whereNotNull('duration_minutes')
+                ->whereBetween('start_time', [
+                    $monthStart->copy()->startOfDay(),
+                    $monthEnd->copy()->endOfDay(),
+                ])
+                ->orderByDesc('start_time')
+                ->get($select)
+                ->map(function (Pass $pass) use ($tz) {
+                    return [
+                        'id' => $pass->id,
+                        'type' => $pass->type,
+                        'reason' => $pass->reason,
+                        'start_time' => optional($pass->start_time)->timezone($tz)->format('Y-m-d H:i:s'),
+                        'end_time' => optional($pass->end_time)->timezone($tz)->format('Y-m-d H:i:s'),
+                        'duration_minutes' => (int) ($pass->duration_minutes ?? 0),
+                        'duration_display' => $this->formatMinutes((int) ($pass->duration_minutes ?? 0)),
+                        'late_pass' => (bool) ($pass->late_pass ?? false),
+                        'late_minutes' => isset($pass->late_minutes) && $pass->late_minutes !== null ? (int) $pass->late_minutes : null,
+                        'early_departure' => (bool) ($pass->early_departure ?? false),
+                        'early_minutes' => isset($pass->early_minutes) && $pass->early_minutes !== null ? (int) $pass->early_minutes : null,
+                    ];
+                })
+                ->values()
+                ->all();
+        }
+
         return Inertia::render('HR/IzlazniceSumarnoPoMjesecu', [
             'selectedMonth' => $monthParam,
             'availableMonths' => $availableMonths,
             'summary' => $summary,
             'totals' => $totals,
+            'selectedEmployee' => $selectedEmployee,
+            'employeePasses' => $employeePasses,
         ]);
     }
 
