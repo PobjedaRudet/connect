@@ -25,8 +25,14 @@ const form = useForm({
 
 const selectedDepartmentCount = computed(() => form.department_ids.length)
 
+const sortedDepartments = computed(() =>
+  [...(props.departments || [])].sort((a, b) =>
+    (a.name || '').localeCompare(b.name || '', 'bs', { sensitivity: 'base' })
+  )
+)
+
 const allDepartmentsSelected = computed(() => {
-  const total = props.departments?.length || 0
+  const total = sortedDepartments.value.length
   return total > 0 && form.department_ids.length === total
 })
 
@@ -52,7 +58,7 @@ const toggleAllDepartments = () => {
     return
   }
 
-  form.department_ids = (props.departments || []).map((d) => Number(d.id))
+  form.department_ids = (sortedDepartments.value || []).map((d) => Number(d.id))
 }
 
 const onScopeChange = () => {
@@ -172,7 +178,7 @@ const submit = () => {
 
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-2 gap-y-0 max-h-64 overflow-y-auto rounded-md border border-gray-200 bg-white p-2">
                 <label
-                  v-for="department in props.departments"
+                  v-for="department in sortedDepartments"
                   :key="department.id"
                   class="inline-flex items-center gap-2 rounded px-1.5 py-0.5 text-sm text-gray-800 hover:bg-gray-50 cursor-pointer"
                 >
@@ -185,7 +191,7 @@ const submit = () => {
                   <span>{{ department.name }}</span>
                 </label>
 
-                <p v-if="props.departments.length === 0" class="col-span-full text-sm text-gray-500 px-2 py-2">
+                <p v-if="sortedDepartments.length === 0" class="col-span-full text-sm text-gray-500 px-2 py-2">
                   Nema definisanih odjela.
                 </p>
               </div>
