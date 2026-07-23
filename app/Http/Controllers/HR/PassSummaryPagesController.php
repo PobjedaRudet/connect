@@ -155,6 +155,79 @@ class PassSummaryPagesController extends Controller
         ]);
     }
 
+    public function today(Request $request): Response
+    {
+        $tz = config('app.timezone');
+        $todayStart = Carbon::now($tz)->startOfDay();
+        $todayEnd   = Carbon::now($tz)->endOfDay();
+
+        $employees = $this->scopedEmployeeQuery($request->user())
+            ->with(['department:id,name'])
+            ->get(['id', 'empID', 'firstName', 'lastName', 'dept'])
+            ->keyBy('id');
+
+        $employeeIds = $employees->keys();
+
+        // Columns that may or may not exist yet
+        $optionalCols = collect(['late_pass', 'late_minutes', 'early_departure', 'early_minutes'])
+            ->filter(fn ($c) => \Illuminate\Support\Facades\Schema::hasColumn('passes', $c))
+            ->values()
+            ->all();
+
+        $baseSelect = ['id', 'employee_id', 'type', 'reason', 'start_time', 'end_time',
+                       'duration_minutes', 'status', 'approved', 'approved_by_user_id'];
+
+        $passes = Pass::query()
+            ->whereBetween('start_time', [$todayStart, $todayEnd])
+            ->when($employeeIds->isNotEmpty(), fn ($q) => $q->whereIn('employee_id', $employeeIds->all()),
+                                               fn ($q) => $q->whereRaw('1 = 0'))
+            ->with('approverUser:id,name')
+            ->orderBy('start_time')
+            ->get(array_merge($baseSelect, $optionalCols))
+            ->map(function (Pass $pass) use ($employees, $tz) {
+                $emp = $employees->get((int) $pass->employee_id);
+
+                return [
+                    'id'               => $pass->id,
+                    'employee_id'      => (int) $pass->employee_id,
+                    'empID'            => (int) ($emp?->empID ?? 0),
+                    'full_name'        => trim(($emp?->lastName ?? '') . ' ' . ($emp?->firstName ?? '')),
+                    'department'       => $emp?->department?->name ?? '—',
+                    'type'             => $pass->type,
+                    'reason'           => $pass->reason,
+                    'start_time'       => optional($pass->start_time)->timezone($tz)->format('Y-m-d H:i:s'),
+                    'end_time'         => optional($pass->end_time)?->timezone($tz)->format('Y-m-d H:i:s'),
+                    'duration_minutes' => $pass->duration_minutes !== null ? (int) $pass->duration_minutes : null,
+                    'duration_display' => $pass->duration_minutes !== null
+                        ? $this->formatMinutes((int) $pass->duration_minutes)
+                        : null,
+                    'status'           => $pass->status,
+                    'approved'         => (bool) $pass->approved,
+                    'approved_by_name' => $pass->approverUser?->name,
+                    'late_pass'        => (bool) ($pass->late_pass ?? false),
+                    'late_minutes'     => isset($pass->late_minutes) ? (int) $pass->late_minutes : null,
+                    'early_departure'  => (bool) ($pass->early_departure ?? false),
+                    'early_minutes'    => isset($pass->early_minutes) ? (int) $pass->early_minutes : null,
+                ];
+            })
+            ->values();
+
+        $summary = [
+            'total'    => $passes->count(),
+            'open'     => $passes->where('status', 'open')->count(),
+            'closed'   => $passes->where('status', 'closed')->count(),
+            'approved' => $passes->where('approved', true)->count(),
+            'private'  => $passes->where('type', 'privatni')->count(),
+            'business' => $passes->where('type', 'službeni')->count(),
+        ];
+
+        return Inertia::render('HR/IzlazniceDanas', [
+            'passes'  => $passes,
+            'summary' => $summary,
+            'today'   => Carbon::now($tz)->toDateString(),
+        ]);
+    }
+
     private function formatMinutes(int $minutes): string
     {
         $hours = intdiv(max($minutes, 0), 60);

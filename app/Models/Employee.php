@@ -70,4 +70,9 @@ class Employee extends Model
     {
         return $this->belongsTo(RadnoMjesto::class, 'radno_mjesto', 'radno_mjesto');
     }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class, 'dept');
+    }
 }

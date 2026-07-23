@@ -139,6 +139,19 @@
                                 <tr>
                                     {{-- Privatna --}}
                                     <td style="padding-right:12px;">
+                                        <!--[if mso]>
+                                        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml"
+                                            xmlns:w="urn:schemas-microsoft-com:office:word"
+                                            href="{{ $privatnaUrl }}"
+                                            style="height:44px;v-text-anchor:middle;width:200px;"
+                                            arcsize="14%" strokecolor="#dc2626" fillcolor="#dc2626">
+                                            <w:anchorlock/>
+                                            <center style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;
+                                                           font-size:14px;font-weight:700;">
+                                                Privatna izlaznica
+                                            </center>
+                                        </v:roundrect>
+                                        <![endif]-->
                                         <!--[if !mso]><!-- -->
                                         <a href="{{ $privatnaUrl }}"
                                            style="background-color:#dc2626; border:1px solid #dc2626;
@@ -153,6 +166,19 @@
 
                                     {{-- Službena --}}
                                     <td>
+                                        <!--[if mso]>
+                                        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml"
+                                            xmlns:w="urn:schemas-microsoft-com:office:word"
+                                            href="{{ $sluzbenaUrl }}"
+                                            style="height:44px;v-text-anchor:middle;width:200px;"
+                                            arcsize="14%" strokecolor="#2563eb" fillcolor="#2563eb">
+                                            <w:anchorlock/>
+                                            <center style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;
+                                                           font-size:14px;font-weight:700;">
+                                                Službena izlaznica
+                                            </center>
+                                        </v:roundrect>
+                                        <![endif]-->
                                         <!--[if !mso]><!-- -->
                                         <a href="{{ $sluzbenaUrl }}"
                                            style="background-color:#2563eb; border:1px solid #2563eb;
@@ -169,7 +195,7 @@
 
                             <div style="font-family:Arial,Helvetica,sans-serif; font-size:12px;
                                         line-height:18px; color:#64748b; margin-top:14px; text-align:center;">
-                                Linkovi su važeći 7 dana.<br>
+                                Linkovi su važeći 7 dana. Ako dugmad ne rade, kopirajte sljedeće linkove:<br>
                                 <strong>Privatna:</strong>
                                 <a href="{{ $privatnaUrl }}" style="color:#dc2626; word-break:break-all;">
                                     {{ $privatnaUrl }}

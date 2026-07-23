@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Collection;
 
 class AttendanceService
@@ -954,13 +955,23 @@ class AttendanceService
     {
         $threshold = $moment->copy()->subSeconds(self::PASS_TOGGLE_DEBOUNCE_SECONDS);
 
-        return Pass::query()
+        $query = Pass::query()
             ->where('employee_id', $employeeId)
             ->where('status', 'closed')
             ->whereNotNull('end_time')
-            ->where('end_time', '>=', $threshold)
-            ->latest('end_time')
-            ->first();
+            ->where('end_time', '>=', $threshold);
+
+        // Isključi automatski kreirane retroaktivne izlaznice (kašnjenje / prijevremeni odlazak).
+        // One se snimaju kao 'closed' u trenutku prijave/odjave, pa ih ovaj debounce guard
+        // ne smije protumačiti kao "upravo ručno zatvorenu izlaznicu" i time blokirati odjavu.
+        if (Schema::hasColumn('passes', 'late_pass')) {
+            $query->where(fn ($q) => $q->where('late_pass', false)->orWhereNull('late_pass'));
+        }
+        if (Schema::hasColumn('passes', 'early_departure')) {
+            $query->where(fn ($q) => $q->where('early_departure', false)->orWhereNull('early_departure'));
+        }
+
+        return $query->latest('end_time')->first();
     }
 
     private function resolveWorkdayEnd(Carbon $start): Carbon

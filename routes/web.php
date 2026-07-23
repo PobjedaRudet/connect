@@ -240,6 +240,8 @@ Route::middleware('auth', 'adminOrFunkcije:HR,Šef HR,IT,Radnik, Šef PPZ,Šef f
         ->name('passes.active');
     Route::get('/passes/approved', [PassController::class, 'approved'])
         ->name('passes.approved');
+    Route::get('/hr/izlaznice-danas', [PassSummaryPagesController::class, 'today'])
+        ->name('hr.izlaznice.danas');
     Route::get('/hr/izlaznice-sumarno', [PassSummaryPagesController::class, 'index'])
         ->name('hr.izlaznice.sumarno');
     Route::patch('/passes/{pass}/type', [PassController::class, 'updateType'])->name('passes.updateType');
@@ -370,71 +372,4 @@ Route::get('/late-arrival-approval/{pass}', [\App\Http\Controllers\LateArrivalAp
     ->name('late.arrival.approval')
     ->middleware('signed');
 
-/**
- * PRIVREMENA ruta za migracije sa web servera (browser).
- * Primjer: https://tvoj-domen.com/run-migrations?key=connect-migrate-2026
- *
- * Sigurno dodaje samo NEDOSTAJUCE kolone (ne puca ako neke vec postoje).
- * OBRISI ovu rutu nakon sto migracije prodju!
- */
-Route::get('/run-migrations', function (\Illuminate\Http\Request $request) {
-    $expectedKey = 'connect-migrate-2026';
-    if ($request->query('key') !== $expectedKey) {
-        abort(403, 'Neispravan ključ.');
-    }
 
-    $lines = [];
-    $lines[] = 'Ispravka / dopuna kolona u tabeli passes…';
-    $lines[] = '';
-
-    $addColumn = function (string $column, callable $definition) use (&$lines): void {
-        if (\Illuminate\Support\Facades\Schema::hasColumn('passes', $column)) {
-            $lines[] = "VEĆ POSTOJI: {$column}";
-            return;
-        }
-
-        try {
-            \Illuminate\Support\Facades\Schema::table('passes', $definition);
-            $lines[] = "DODANO: {$column}";
-        } catch (\Throwable $e) {
-            $lines[] = "GREŠKA ({$column}): " . $e->getMessage();
-        }
-    };
-
-    $addColumn('late_pass', function (\Illuminate\Database\Schema\Blueprint $table) {
-        $table->boolean('late_pass')->default(false)->after('approved_by_user_id');
-    });
-
-    $addColumn('late_minutes', function (\Illuminate\Database\Schema\Blueprint $table) {
-        $after = \Illuminate\Support\Facades\Schema::hasColumn('passes', 'late_pass') ? 'late_pass' : 'approved_by_user_id';
-        $table->unsignedSmallInteger('late_minutes')->nullable()->after($after);
-    });
-
-    $addColumn('early_departure', function (\Illuminate\Database\Schema\Blueprint $table) {
-        $after = \Illuminate\Support\Facades\Schema::hasColumn('passes', 'late_minutes')
-            ? 'late_minutes'
-            : (\Illuminate\Support\Facades\Schema::hasColumn('passes', 'late_pass') ? 'late_pass' : 'approved_by_user_id');
-        $table->boolean('early_departure')->default(false)->after($after);
-    });
-
-    $addColumn('early_minutes', function (\Illuminate\Database\Schema\Blueprint $table) {
-        $after = \Illuminate\Support\Facades\Schema::hasColumn('passes', 'early_departure')
-            ? 'early_departure'
-            : (\Illuminate\Support\Facades\Schema::hasColumn('passes', 'late_minutes') ? 'late_minutes' : 'approved_by_user_id');
-        $table->unsignedSmallInteger('early_minutes')->nullable()->after($after);
-    });
-
-    $lines[] = '';
-    $lines[] = 'Provjera kolona u tabeli passes:';
-    $lines[] = '  late_pass = ' . (\Illuminate\Support\Facades\Schema::hasColumn('passes', 'late_pass') ? 'OK' : 'NEMA');
-    $lines[] = '  late_minutes = ' . (\Illuminate\Support\Facades\Schema::hasColumn('passes', 'late_minutes') ? 'OK' : 'NEMA');
-    $lines[] = '  early_departure = ' . (\Illuminate\Support\Facades\Schema::hasColumn('passes', 'early_departure') ? 'OK' : 'NEMA');
-    $lines[] = '  early_minutes = ' . (\Illuminate\Support\Facades\Schema::hasColumn('passes', 'early_minutes') ? 'OK' : 'NEMA');
-    $lines[] = '';
-    $lines[] = 'Gotovo. Obriši rutu /run-migrations iz routes/web.php nakon uspjeha.';
-
-    return response('<pre style="font-family:Consolas,monospace;font-size:14px;padding:16px;">'
-        . e(implode("\n", $lines))
-        . '</pre>', 200)
-        ->header('Content-Type', 'text/html; charset=UTF-8');
-})->name('run.migrations');
