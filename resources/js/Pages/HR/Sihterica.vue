@@ -84,7 +84,7 @@ const cellClasses = (dayMeta, entry) => {
     } else if (entry.from_annual_leave_decision) {
       base.push('text-teal-800', 'font-semibold', 'bg-teal-50')
     } else if (entry.from_annual_leave_usage) {
-      base.push('text-emerald-800', 'font-semibold', 'bg-emerald-50')
+      base.push('text-blue-700', 'font-semibold', 'bg-blue-50')
     } else {
       base.push('text-indigo-700', 'font-semibold', 'bg-indigo-50')
     }
@@ -509,7 +509,7 @@ const visibleLeaveOverlaps = computed(() => {
           <span class="font-semibold text-indigo-700">GO</span>,
           <span class="font-semibold text-indigo-700">BO</span>…
           <span class="font-semibold text-teal-800">GO</span> iz rješenja godišnjeg,
-          <span class="font-semibold text-emerald-800">P</span> iz iskorištenja GO (kao radni dan),
+          <span class="font-semibold text-blue-700">8</span> iz iskorištenja GO (kao radni dan),
           <span class="font-semibold text-rose-800">BO</span> iz evidencije bolovanja,
           <span class="font-semibold text-amber-900">GO/BO</span> = preklapanje.
           Klik na ćeliju = korekcija vremena. oznaka <span class="font-semibold text-indigo-600">2×</span> = više prijava istog dana.
@@ -550,10 +550,10 @@ const visibleLeaveOverlaps = computed(() => {
 
             <div
               v-else-if="dayModal.fromAnnualLeaveUsage"
-              class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+              class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900"
             >
-              <div class="font-semibold">Iskorištenje GO — prikazano kao radni dan (P)</div>
-              <p v-if="dayModal.leaveNote" class="mt-1 text-emerald-800/90">{{ dayModal.leaveNote }}</p>
+              <div class="font-semibold">Iskorištenje GO — prikazano kao radni dan (8)</div>
+              <p v-if="dayModal.leaveNote" class="mt-1 text-blue-800/90">{{ dayModal.leaveNote }}</p>
             </div>
 
             <div
@@ -578,7 +578,7 @@ const visibleLeaveOverlaps = computed(() => {
             <div v-if="!dayModal.records.length" class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-8 text-center">
               <p class="text-sm text-gray-600 mb-3">
                 <template v-if="dayModal.leaveOverlap">Nema prijave za ovaj dan (preklapanje godišnjeg i bolovanja).</template>
-                <template v-else-if="dayModal.fromAnnualLeaveUsage">Nema stvarne prijave — dan je označen iskorištenjem GO kao radni (P).</template>
+                <template v-else-if="dayModal.fromAnnualLeaveUsage">Nema stvarne prijave — dan je označen iskorištenjem GO kao radni (8).</template>
                 <template v-else-if="dayModal.fromAnnualLeaveDecision">Nema prijave za ovaj dan (označeno rješenjem godišnjeg).</template>
                 <template v-else-if="dayModal.fromSickLeave">Nema prijave za ovaj dan (označeno bolovanjem).</template>
                 <template v-else>Nema prijave za ovaj dan.</template>

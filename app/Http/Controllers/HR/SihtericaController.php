@@ -304,8 +304,8 @@ class SihtericaController extends Controller
             (int) $e->id => trim((string) $e->lastName . ' ' . (string) $e->firstName),
         ]);
 
-        // Priority (high → low): manual > GO∩BO > iskorištenje(P/rad) > rješenje(GO) > attendance > BO
-        // Iskorištenje je iznad rješenja da bi uneseni dani GO bili prikazani kao rad (P),
+        // Priority (high → low): manual > GO∩BO > iskorištenje(8/rad) > rješenje(GO) > attendance > BO
+        // Iskorištenje je iznad rješenja da bi uneseni dani GO bili prikazani kao rad (8),
         // dok rješenje i dalje ima prioritet nad stvarnom prijavom/odjavom.
         $locked = [];
 
@@ -372,7 +372,7 @@ class SihtericaController extends Controller
                 $attendance[$employeeId][$dateKey] = $this->buildDayCell(
                     $existingRecords((int) $employeeId, $dateKey),
                     true,
-                    'P',
+                    '8',
                     $note,
                     false,
                     false,
