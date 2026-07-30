@@ -8,6 +8,7 @@ const groups = [
     links: [
       { label: 'Aktivne', href: route('passes.active'), route: 'passes.active' },
       { label: 'Danas', href: route('hr.izlaznice.danas'), route: 'hr.izlaznice.danas' },
+      { label: 'Odobravanje', href: route('hr.izlaznice.auto'), route: 'hr.izlaznice.auto' },
       { label: 'Sumarno', href: route('hr.izlaznice.sumarno'), route: 'hr.izlaznice.sumarno' },
     ],
   },

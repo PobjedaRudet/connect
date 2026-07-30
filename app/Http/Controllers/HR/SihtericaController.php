@@ -4,6 +4,7 @@ namespace App\Http\Controllers\HR;
 
 use App\Http\Controllers\Controller;
 use App\Models\AnnualLeaveDecision;
+use App\Models\AnnualLeaveUsage;
 use App\Models\AttendanceDayStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Shift;
@@ -128,12 +129,19 @@ class SihtericaController extends Controller
             }
         }
 
+        $manualDays = [];
+        $goDays = [];
+        $usageDays = [];
+        $boDays = [];
+        $monthStartDate = $monthStart->toDateString();
+        $monthEndDate = $monthEnd->toDateString();
+
         if (!empty($employeeIds) && Schema::hasTable('attendance_day_statuses')) {
             $manualStatuses = AttendanceDayStatus::query()
                 ->whereIn('employee_id', $employeeIds)
                 ->whereBetween('work_date', [
-                    $monthStart->copy()->toDateString(),
-                    $monthEnd->copy()->toDateString(),
+                    $monthStartDate,
+                    $monthEndDate,
                 ])
                 ->orderBy('work_date')
                 ->get(['employee_id', 'work_date', 'status_code', 'note']);
@@ -146,23 +154,12 @@ class SihtericaController extends Controller
                     continue;
                 }
 
-                if (isset($attendance[$employeeId][$dateKey])) {
-                    continue;
-                }
-
-                $attendance[$employeeId][$dateKey] = $this->buildDayCell(
-                    [],
-                    true,
-                    strtoupper((string) $manualStatus->status_code),
-                    $manualStatus->note
-                );
+                $manualDays[$employeeId][$dateKey] = [
+                    'code' => strtoupper((string) $manualStatus->status_code),
+                    'note' => $manualStatus->note,
+                ];
             }
         }
-
-        $goDays = [];
-        $boDays = [];
-        $monthStartDate = $monthStart->toDateString();
-        $monthEndDate = $monthEnd->toDateString();
 
         if (!empty($employeeIds) && Schema::hasTable('annual_leave_decisions')) {
             $decisions = AnnualLeaveDecision::query()
@@ -213,6 +210,44 @@ class SihtericaController extends Controller
                     $monthEnd
                 ) as $dateKey) {
                     $goDays[$employeeId][$dateKey] = $note;
+                }
+            }
+        }
+
+        if (!empty($employeeIds) && Schema::hasTable('annual_leave_usages')) {
+            $usages = AnnualLeaveUsage::query()
+                ->whereIn('employee_id', $employeeIds)
+                ->whereNotNull('date_from')
+                ->whereNotNull('date_to')
+                ->where('date_from', '<=', $monthEndDate)
+                ->where('date_to', '>=', $monthStartDate)
+                ->get([
+                    'id',
+                    'employee_id',
+                    'annual_leave_decision_id',
+                    'date_from',
+                    'date_to',
+                    'days',
+                    'note',
+                ]);
+
+            foreach ($usages as $usage) {
+                $employeeId = (int) $usage->employee_id;
+
+                $noteParts = array_filter([
+                    'Iskorištenje godišnjeg odmora (prikazano kao radni dan)',
+                    $usage->days !== null ? ('Dani: ' . (float) $usage->days) : null,
+                    $usage->note ? ('Napomena: ' . $usage->note) : null,
+                ]);
+                $note = implode(' | ', $noteParts);
+
+                foreach ($this->workingDatesInRange(
+                    $usage->date_from,
+                    $usage->date_to,
+                    $monthStart,
+                    $monthEnd
+                ) as $dateKey) {
+                    $usageDays[$employeeId][$dateKey] = $note;
                 }
             }
         }
@@ -269,6 +304,15 @@ class SihtericaController extends Controller
             (int) $e->id => trim((string) $e->lastName . ' ' . (string) $e->firstName),
         ]);
 
+        // Priority (high → low): manual > GO∩BO > iskorištenje(P/rad) > rješenje(GO) > attendance > BO
+        // Iskorištenje je iznad rješenja da bi uneseni dani GO bili prikazani kao rad (P),
+        // dok rješenje i dalje ima prioritet nad stvarnom prijavom/odjavom.
+        $locked = [];
+
+        $existingRecords = function (int $employeeId, string $dateKey) use (&$attendance): array {
+            return $attendance[$employeeId][$dateKey]['records'] ?? [];
+        };
+
         $leaveOverlaps = [];
         foreach ($goDays as $employeeId => $dates) {
             foreach ($dates as $dateKey => $goNote) {
@@ -284,48 +328,86 @@ class SihtericaController extends Controller
                     'go_note' => $goNote,
                     'bo_note' => $boNote,
                 ];
+            }
+        }
 
-                if (isset($attendance[$employeeId][$dateKey])) {
-                    $existing = $attendance[$employeeId][$dateKey];
-                    $existing['leave_overlap'] = true;
-                    $existing['overlap_note'] = 'Preklapanje: godišnji odmor i bolovanje istog dana.';
-                    $attendance[$employeeId][$dateKey] = $existing;
+        foreach ($manualDays as $employeeId => $dates) {
+            foreach ($dates as $dateKey => $manual) {
+                $attendance[$employeeId][$dateKey] = $this->buildDayCell(
+                    $existingRecords((int) $employeeId, $dateKey),
+                    true,
+                    $manual['code'],
+                    $manual['note']
+                );
+                $locked[$employeeId][$dateKey] = true;
+            }
+        }
+
+        foreach ($leaveOverlaps as $overlap) {
+            $employeeId = (int) $overlap['employee_id'];
+            $dateKey = (string) $overlap['date'];
+
+            if (!empty($locked[$employeeId][$dateKey])) {
+                continue;
+            }
+
+            $attendance[$employeeId][$dateKey] = $this->buildDayCell(
+                $existingRecords($employeeId, $dateKey),
+                true,
+                'GO/BO',
+                trim($overlap['go_note'] . ' || ' . $overlap['bo_note']),
+                true,
+                true,
+                true
+            );
+            $locked[$employeeId][$dateKey] = true;
+        }
+
+        foreach ($usageDays as $employeeId => $dates) {
+            foreach ($dates as $dateKey => $note) {
+                if (!empty($locked[$employeeId][$dateKey])) {
                     continue;
                 }
 
                 $attendance[$employeeId][$dateKey] = $this->buildDayCell(
-                    [],
+                    $existingRecords((int) $employeeId, $dateKey),
                     true,
-                    'GO/BO',
-                    trim($goNote . ' || ' . $boNote),
-                    true,
-                    true,
+                    'P',
+                    $note,
+                    false,
+                    false,
+                    false,
                     true
                 );
+                $locked[$employeeId][$dateKey] = true;
             }
         }
 
         foreach ($goDays as $employeeId => $dates) {
             foreach ($dates as $dateKey => $note) {
-                if (isset($boDays[$employeeId][$dateKey])) {
+                if (!empty($locked[$employeeId][$dateKey])) {
                     continue;
                 }
-                if (isset($attendance[$employeeId][$dateKey])) {
+                if (isset($boDays[$employeeId][$dateKey])) {
                     continue;
                 }
 
                 $attendance[$employeeId][$dateKey] = $this->buildDayCell(
-                    [],
+                    $existingRecords((int) $employeeId, $dateKey),
                     true,
                     'GO',
                     $note,
                     true
                 );
+                $locked[$employeeId][$dateKey] = true;
             }
         }
 
         foreach ($boDays as $employeeId => $dates) {
             foreach ($dates as $dateKey => $note) {
+                if (!empty($locked[$employeeId][$dateKey])) {
+                    continue;
+                }
                 if (isset($goDays[$employeeId][$dateKey])) {
                     continue;
                 }
@@ -341,6 +423,7 @@ class SihtericaController extends Controller
                     false,
                     true
                 );
+                $locked[$employeeId][$dateKey] = true;
             }
         }
 
@@ -546,7 +629,8 @@ class SihtericaController extends Controller
         ?string $manualNote = null,
         bool $fromAnnualLeaveDecision = false,
         bool $fromSickLeave = false,
-        bool $leaveOverlap = false
+        bool $leaveOverlap = false,
+        bool $fromAnnualLeaveUsage = false
     ): array {
         $primary = $records[0] ?? null;
         $totalMinutes = 0;
@@ -580,6 +664,7 @@ class SihtericaController extends Controller
             'manual_status' => $manualStatus,
             'manual_note' => $manualNote,
             'from_annual_leave_decision' => $fromAnnualLeaveDecision,
+            'from_annual_leave_usage' => $fromAnnualLeaveUsage,
             'from_sick_leave' => $fromSickLeave,
             'leave_overlap' => $leaveOverlap,
             'overlap_note' => $leaveOverlap

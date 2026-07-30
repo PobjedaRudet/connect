@@ -9,6 +9,7 @@ use App\Http\Controllers\HR\AnnualLeaveApiController;
 use App\Http\Controllers\HR\AnnualLeaveDecisionPagesController;
 use App\Http\Controllers\KapijaController;
 use App\Http\Controllers\HR\AnnualLeaveUsagePagesController;
+use App\Http\Controllers\HR\AutoPassApprovalPagesController;
 use App\Http\Controllers\HR\BulkDayStatusPagesController;
 use App\Http\Controllers\HR\DepartmentShiftPagesController;
 use App\Http\Controllers\HR\EmployeePagesController;
@@ -242,6 +243,10 @@ Route::middleware('auth', 'adminOrFunkcije:HR,Šef HR,IT,Radnik, Šef PPZ,Šef f
         ->name('passes.approved');
     Route::get('/hr/izlaznice-danas', [PassSummaryPagesController::class, 'today'])
         ->name('hr.izlaznice.danas');
+    Route::get('/hr/auto-izlaznice', [AutoPassApprovalPagesController::class, 'index'])
+        ->name('hr.izlaznice.auto');
+    Route::post('/hr/auto-izlaznice/{pass}/odobri', [AutoPassApprovalPagesController::class, 'approve'])
+        ->name('hr.izlaznice.auto.approve');
     Route::get('/hr/izlaznice-sumarno', [PassSummaryPagesController::class, 'index'])
         ->name('hr.izlaznice.sumarno');
     Route::patch('/passes/{pass}/type', [PassController::class, 'updateType'])->name('passes.updateType');
