@@ -4,6 +4,7 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\Api\AuthController as ApiAuthController;
 use App\Http\Controllers\Api\OrdersApiController;
 use App\Http\Controllers\ApprovalController;
+use App\Http\Controllers\Api\GateScanController;
 use App\Http\Controllers\ProductionOrderController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeAttendanceController;
@@ -109,6 +110,12 @@ Route::prefix('v1')->group(function () {
 Route::middleware('throttle:api')->group(function () {
     Route::post('/scan', [EmployeeAttendanceController::class, 'scan']);
     Route::post('/offline-scan', [EmployeeAttendanceController::class, 'offlineScan']);
+});
+
+// Gate (kapija / okretna vrata) terminal endpoint - odvojeno od terminala kod objekta.
+// Ne utice na obracun radnog vremena; samo evidencija ulaza/izlaza radi kontrole.
+Route::middleware('throttle:api')->group(function () {
+    Route::post('/gate-scan', [GateScanController::class, 'scan']);
 });
 // dodaj api get za provjeri da li api server radi
 Route::get('/status', function() {

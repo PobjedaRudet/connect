@@ -72,6 +72,9 @@ Route::middleware(['auth'])->group(function () {
     ->middleware(['adminOrFunkcije:HR, Šef HR, Kapija, Šef PPZ'])
     ->name('kapija');
     Route::get('/kapija/data', [KapijaController::class, 'data'])->name('kapija.data');
+    Route::get('/kapija/poredjenje', [KapijaController::class, 'poredjenje'])
+    ->middleware(['adminOrFunkcije:HR, Šef HR, Kapija, Šef PPZ'])
+    ->name('kapija.poredjenje');
 });
 
 // ╔═══════════════════════════════════════════════════════════════════════╗

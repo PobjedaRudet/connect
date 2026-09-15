@@ -59,10 +59,16 @@ const progressColor = computed(() => {
                 <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Kapija — Pregled</h1>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Praćenje prijava, odjava i izlaznica u realnom vremenu</p>
             </div>
-            <a href="/" class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline dark:text-blue-400">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-                Početna
-            </a>
+            <div class="flex items-center gap-4">
+                <a href="/kapija/poredjenje" class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline dark:text-blue-400">
+                    Poređenje ulaza/izlaza
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </a>
+                <a href="/" class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline dark:text-blue-400">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    Početna
+                </a>
+            </div>
         </div>
 
         <div class="max-w-7xl mx-auto space-y-6">

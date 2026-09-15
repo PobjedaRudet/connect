@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\Pass;
+use App\Services\GateComparisonService;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class KapijaController extends Controller
@@ -82,5 +84,20 @@ class KapijaController extends Controller
             'recentRecords' => $recentRecords,
             'passes'        => $passes,
         ]);
+    }
+
+    /**
+     * Dnevni izvjestaj poredjenja kapije (okretna vrata na ulazu) naspram
+     * terminala kod objekta -- za rucnu kontrolu da niko ne provlaci karticu
+     * za drugog radnika. Vidi GateComparisonService.
+     */
+    public function poredjenje(Request $request, GateComparisonService $service)
+    {
+        $date = (string) ($request->query('date') ?: Carbon::now(config('app.timezone'))->toDateString());
+        $tolerance = (int) ($request->query('tolerance') ?: GateComparisonService::DEFAULT_TOLERANCE_MINUTES);
+
+        $report = $service->buildDailyReport($date, $tolerance);
+
+        return Inertia::render('Kapija/Poredjenje', $report);
     }
 }
