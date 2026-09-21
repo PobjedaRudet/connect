@@ -48,8 +48,8 @@ class GateService
         return [
             'status' => $direction === 'in' ? 'gate-in' : 'gate-out',
             'message' => $direction === 'in'
-                ? "Ulaz registrovan — {$fullName}"
-                : "Izlaz registrovan — {$fullName}",
+                ? "Ulaz registrovan"
+                : "Izlaz registrovan",
             'employee_id' => $employee->id,
             'employee_full_name' => $fullName,
             'direction' => $direction,

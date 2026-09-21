@@ -19,24 +19,47 @@ class GateComparisonService
 {
     public const DEFAULT_TOLERANCE_MINUTES = 15;
 
-    public function buildDailyReport(string $date, int $toleranceMinutes = self::DEFAULT_TOLERANCE_MINUTES): array
-    {
+    /**
+     * @param  iterable<int|string>|null  $employeeIds  null = svi radnici; prazna lista = prazan izvještaj
+     */
+    public function buildDailyReport(
+        string $date,
+        int $toleranceMinutes = self::DEFAULT_TOLERANCE_MINUTES,
+        ?iterable $employeeIds = null,
+    ): array {
         $tz = config('app.timezone');
         $day = Carbon::parse($date, $tz)->startOfDay();
         $dayEnd = $day->copy()->endOfDay();
 
-        $gateLogsByEmployee = GateLog::whereBetween('scanned_at', [$day, $dayEnd])
-            ->orderBy('scanned_at')
-            ->get()
-            ->groupBy('employee_id');
+        $allowedIds = $employeeIds === null
+            ? null
+            : collect($employeeIds)->map(fn ($id) => (int) $id)->unique()->values();
 
-        $attendanceByEmployee = AttendanceRecord::where(function ($q) use ($day, $dayEnd) {
+        if ($allowedIds !== null && $allowedIds->isEmpty()) {
+            return [
+                'date' => $day->toDateString(),
+                'tolerance_minutes' => $toleranceMinutes,
+                'rows' => [],
+                'summary' => ['total' => 0, 'flagged' => 0, 'ok' => 0],
+            ];
+        }
+
+        $gateLogsQuery = GateLog::whereBetween('scanned_at', [$day, $dayEnd])
+            ->orderBy('scanned_at');
+        if ($allowedIds !== null) {
+            $gateLogsQuery->whereIn('employee_id', $allowedIds->all());
+        }
+        $gateLogsByEmployee = $gateLogsQuery->get()->groupBy('employee_id');
+
+        $attendanceQuery = AttendanceRecord::where(function ($q) use ($day, $dayEnd) {
                 $q->whereBetween('entry_time', [$day, $dayEnd])
                     ->orWhereBetween('exit_time', [$day, $dayEnd]);
             })
-            ->orderBy('entry_time')
-            ->get()
-            ->groupBy('employee_id');
+            ->orderBy('entry_time');
+        if ($allowedIds !== null) {
+            $attendanceQuery->whereIn('employee_id', $allowedIds->all());
+        }
+        $attendanceByEmployee = $attendanceQuery->get()->groupBy('employee_id');
 
         $employeeIds = $gateLogsByEmployee->keys()
             ->merge($attendanceByEmployee->keys())

@@ -8,6 +8,7 @@ const props = defineProps({
   tolerance_minutes: { type: Number, default: 15 },
   rows: { type: Array, default: () => [] },
   summary: { type: Object, default: () => ({ total: 0, flagged: 0, ok: 0 }) },
+  from_hr: { type: Boolean, default: false },
 })
 
 const date = ref(props.date)
@@ -24,7 +25,7 @@ const formatLabel = (value) => {
 }
 
 const reload = () => {
-  router.get(route('kapija.poredjenje'), {
+  router.get(route(props.from_hr ? 'hr.poredjenje' : 'kapija.poredjenje'), {
     date: date.value,
     tolerance: tolerance.value,
   }, {
@@ -58,9 +59,12 @@ const filteredRows = computed(() => {
             {{ formatLabel(date) }}. Samo za ručni pregled — ništa se automatski ne blokira niti šalje.
           </p>
         </div>
-        <a href="/kapija" class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline">
+        <a
+          :href="from_hr ? '/sector/hr' : '/kapija'"
+          class="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
+        >
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-          Kapija — pregled uživo
+          {{ from_hr ? 'HR sektor' : 'Kapija — pregled uživo' }}
         </a>
       </div>
 

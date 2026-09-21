@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\HR\Concerns\ScopesEmployeesByUser;
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\Pass;
@@ -12,6 +13,8 @@ use Inertia\Inertia;
 
 class KapijaController extends Controller
 {
+    use ScopesEmployeesByUser;
+
     public function index()
     {
         return Inertia::render('Kapija');
@@ -99,5 +102,22 @@ class KapijaController extends Controller
         $report = $service->buildDailyReport($date, $tolerance);
 
         return Inertia::render('Kapija/Poredjenje', $report);
+    }
+
+    /**
+     * Isti izvještaj kao poredjenje(), ali samo za radnike nadređenog
+     * (admin / Šef HR vide sve). Vidi ScopesEmployeesByUser.
+     */
+    public function poredjenjeHr(Request $request, GateComparisonService $service)
+    {
+        $date = (string) ($request->query('date') ?: Carbon::now(config('app.timezone'))->toDateString());
+        $tolerance = (int) ($request->query('tolerance') ?: GateComparisonService::DEFAULT_TOLERANCE_MINUTES);
+
+        $employeeIds = $this->scopedEmployeeQuery($request->user())->pluck('id');
+        $report = $service->buildDailyReport($date, $tolerance, $employeeIds);
+
+        return Inertia::render('Kapija/Poredjenje', array_merge($report, [
+            'from_hr' => true,
+        ]));
     }
 }

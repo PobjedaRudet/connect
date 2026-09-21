@@ -266,6 +266,9 @@ Route::middleware('auth', 'adminOrFunkcije:HR,Šef HR,IT,Radnik, Šef PPZ,Šef f
             return Inertia::render('Sector/Hr');
         })->name('sector.hr');
 
+        Route::get('/hr/poredjenje-kapije', [KapijaController::class, 'poredjenjeHr'])
+            ->name('hr.poredjenje');
+
         // Godišnji odmori
         Route::get('/hr/godisnji-saldo', function () {
             return Inertia::render('HR/GodisnjiSaldo');
