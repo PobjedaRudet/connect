@@ -36,13 +36,10 @@ const formatMonthLabel = (value) => {
 
 const formatDateTime = (value) => {
   if (!value) return '—'
-  const date = new Date(value.replace(' ', 'T'))
+  const date = new Date(String(value).trim().replace(' ', 'T'))
   if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('bs-BA', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-    hour12: false,
-  }).format(date)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 const typeLabel = (type) => {
