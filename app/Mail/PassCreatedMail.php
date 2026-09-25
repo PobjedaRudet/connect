@@ -8,6 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\URL;
 
 class PassCreatedMail extends Mailable implements ShouldQueue
 {
@@ -16,12 +17,24 @@ class PassCreatedMail extends Mailable implements ShouldQueue
     public Pass $pass;
     public Employee $employee;
     public string $passesUrl;
+    public string $privatnaUrl;
+    public string $sluzbenaUrl;
 
     public function __construct(Pass $pass, Employee $employee)
     {
         $this->pass = $pass;
         $this->employee = $employee;
         $this->passesUrl = route('passes.active');
+
+        $expires = now()->addDays(7);
+        $this->privatnaUrl = URL::temporarySignedRoute('pass.email.approval', $expires, [
+            'pass' => $pass->id,
+            'type' => 'privatni',
+        ]);
+        $this->sluzbenaUrl = URL::temporarySignedRoute('pass.email.approval', $expires, [
+            'pass' => $pass->id,
+            'type' => 'službeni',
+        ]);
     }
 
     public function build()
@@ -36,6 +49,8 @@ class PassCreatedMail extends Mailable implements ShouldQueue
                 'pass' => $this->pass,
                 'employee' => $this->employee,
                 'passesUrl' => $this->passesUrl,
+                'privatnaUrl' => $this->privatnaUrl,
+                'sluzbenaUrl' => $this->sluzbenaUrl,
             ]);
     }
 }

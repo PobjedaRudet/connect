@@ -73,19 +73,24 @@
                             </div>
                         </div>
                     @endif
-                    @if($shiftStart)
+                    @if(($pass?->late_pass || $pass?->early_departure) && $shiftStart)
                         <div class="meta-row">
                             <div class="meta-label">Početak smjene</div>
                             <div class="meta-value">{{ $shiftStart }}</div>
                         </div>
+                    @elseif($shiftStart)
+                        <div class="meta-row">
+                            <div class="meta-label">Vrijeme izlaska</div>
+                            <div class="meta-value">{{ $shiftStart }}</div>
+                        </div>
                     @endif
-                    @if($arrival)
+                    @if(($pass?->late_pass || $pass?->early_departure) && $arrival)
                         <div class="meta-row">
                             <div class="meta-label">Stvarni dolazak</div>
                             <div class="meta-value">{{ $arrival }}</div>
                         </div>
                     @endif
-                    @if($lateMin !== null)
+                    @if(($pass?->late_pass || $pass?->early_departure) && $lateMin !== null)
                         <div class="meta-row">
                             <div class="meta-label">Kašnjenje</div>
                             <div class="meta-value">{{ $lateMin }} min</div>

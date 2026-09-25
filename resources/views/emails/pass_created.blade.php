@@ -117,6 +117,51 @@
                             <div style="font-family:Arial, Helvetica, sans-serif; font-size:12px; line-height:18px; color:#64748b; margin-top:10px;">
                                 Ako dugme ne radi, otvorite link: <a href="{{ $passesUrl }}" style="color:#2563eb; text-decoration:underline;">{{ $passesUrl }}</a>
                             </div>
+
+                            <p style="font-family:Arial, Helvetica, sans-serif; font-size:13px; color:#475569; margin:18px 0 12px 0;">
+                                Ili odmah odaberite tip izlaznice:
+                            </p>
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td style="padding-right:12px;">
+                                        <!--[if mso]>
+                                        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{ $privatnaUrl }}" style="height:44px;v-text-anchor:middle;width:200px;" arcsize="14%" strokecolor="#dc2626" fillcolor="#dc2626">
+                                            <w:anchorlock/>
+                                            <center style="color:#ffffff;font-family:Arial, Helvetica, sans-serif;font-size:14px;font-weight:700;">
+                                                Privatna izlaznica
+                                            </center>
+                                        </v:roundrect>
+                                        <![endif]-->
+                                        <!--[if !mso]><!-- -->
+                                        <a href="{{ $privatnaUrl }}"
+                                           style="background-color:#dc2626; border:1px solid #dc2626; border-radius:10px; color:#ffffff; display:inline-block; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:700; line-height:44px; text-align:center; text-decoration:none; width:200px; -webkit-text-size-adjust:none;">
+                                            Privatna izlaznica
+                                        </a>
+                                        <!--<![endif]-->
+                                    </td>
+                                    <td>
+                                        <!--[if mso]>
+                                        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{ $sluzbenaUrl }}" style="height:44px;v-text-anchor:middle;width:200px;" arcsize="14%" strokecolor="#2563eb" fillcolor="#2563eb">
+                                            <w:anchorlock/>
+                                            <center style="color:#ffffff;font-family:Arial, Helvetica, sans-serif;font-size:14px;font-weight:700;">
+                                                Službena izlaznica
+                                            </center>
+                                        </v:roundrect>
+                                        <![endif]-->
+                                        <!--[if !mso]><!-- -->
+                                        <a href="{{ $sluzbenaUrl }}"
+                                           style="background-color:#2563eb; border:1px solid #2563eb; border-radius:10px; color:#ffffff; display:inline-block; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:700; line-height:44px; text-align:center; text-decoration:none; width:200px; -webkit-text-size-adjust:none;">
+                                            Službena izlaznica
+                                        </a>
+                                        <!--<![endif]-->
+                                    </td>
+                                </tr>
+                            </table>
+                            <div style="font-family:Arial, Helvetica, sans-serif; font-size:12px; line-height:18px; color:#64748b; margin-top:14px;">
+                                Linkovi su važeći 7 dana i ne traže prijavu.<br>
+                                <strong>Privatna:</strong> <a href="{{ $privatnaUrl }}" style="color:#dc2626; word-break:break-all;">{{ $privatnaUrl }}</a><br>
+                                <strong>Službena:</strong> <a href="{{ $sluzbenaUrl }}" style="color:#2563eb; word-break:break-all;">{{ $sluzbenaUrl }}</a>
+                            </div>
                         </td>
                     </tr>
 

@@ -69,4 +69,55 @@ class LateArrivalApprovalController extends Controller
             'typeLabel' => $typeLabel,
         ]));
     }
+
+    /**
+     * Nadređeni iz maila o novoj izlaznici bira privatnu ili službenu.
+     * Link je privremeno potpisan (7 dana) i ne traži prijavu.
+     */
+    public function chooseFromEmail(Request $request, Pass $pass): Response
+    {
+        if (! $request->hasValidSignature()) {
+            return response(view('emails.late_arrival_result', [
+                'success' => false,
+                'message' => 'Link je nevažeći ili je istekao. Kontaktirajte administratora.',
+                'pass' => null,
+            ]), 403);
+        }
+
+        $employee = $pass->employee()->select(['id', 'firstName', 'lastName'])->first();
+        $fullName = trim(($employee->firstName ?? '').' '.($employee->lastName ?? ''));
+
+        if ($pass->approved) {
+            return response(view('emails.late_arrival_result', [
+                'success' => true,
+                'message' => "Izlaznica #{$pass->id} ({$fullName}) je već odobrena kao \"{$pass->type}\".",
+                'pass' => $pass,
+                'employee' => $employee,
+            ]));
+        }
+
+        $type = $request->query('type');
+        if (! in_array($type, ['privatni', 'službeni'], true)) {
+            return response(view('emails.late_arrival_result', [
+                'success' => false,
+                'message' => 'Nepoznat tip izlaznice.',
+                'pass' => $pass,
+            ]), 400);
+        }
+
+        $pass->update([
+            'type' => $type,
+            'approved' => true,
+        ]);
+
+        $typeLabel = $type === 'privatni' ? 'Privatna izlaznica' : 'Službena izlaznica';
+
+        return response(view('emails.late_arrival_result', [
+            'success' => true,
+            'message' => "Izlaznica #{$pass->id} za radnika {$fullName} je odobrena kao \"{$typeLabel}\".",
+            'pass' => $pass->fresh(),
+            'employee' => $employee,
+            'typeLabel' => $typeLabel,
+        ]));
+    }
 }

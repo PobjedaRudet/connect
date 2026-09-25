@@ -383,6 +383,10 @@ Route::get('/late-arrival-approval/{pass}', [\App\Http\Controllers\LateArrivalAp
     ->name('late.arrival.approval')
     ->middleware('signed');
 
+Route::get('/pass-email-approval/{pass}', [\App\Http\Controllers\LateArrivalApprovalController::class, 'chooseFromEmail'])
+    ->name('pass.email.approval')
+    ->middleware('signed');
+
 
 
 
