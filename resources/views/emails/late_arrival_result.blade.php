@@ -39,8 +39,8 @@
         $tz        = config('app.timezone');
         $typeLabel = $typeLabel ?? ($pass?->type ?? '');
         $lateMin   = $pass?->late_minutes ?? $pass?->duration_minutes ?? null;
-        $shiftStart = optional($pass?->start_time)->timezone($tz)->format('d.m.Y H:i');
-        $arrival    = optional($pass?->end_time)->timezone($tz)->format('H:i');
+        $shiftStart = $pass?->start_time?->timezone($tz)->format('d.m.Y H:i');
+        $arrival    = $pass?->end_time?->timezone($tz)->format('H:i');
         $fullName   = trim(($employee->firstName ?? '') . ' ' . ($employee->lastName ?? ''));
     @endphp
 
