@@ -226,8 +226,8 @@ Route::middleware('auth')->group(function () {
 // ║  6. RESURSI, IZLAZNICE, HR                                        ║
 // ╚═══════════════════════════════════════════════════════════════════════╝
 
-Route::middleware('auth', 'adminOrFunkcije:HR,Šef HR,IT,Radnik, Šef PPZ,Šef finansija,Šef službe za SZOI,Šef Komercijale
-')->group(function () {
+Route::middleware('auth', 'adminOrFunkcije:HR,Šef HR,IT,Radnik, Šef PPZ,Šef finansija,Šef službe za SZOI,Direktor Komercijale
+,Šef Komercijale')->group(function () {
 
     // ── Profil ──
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
