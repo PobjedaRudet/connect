@@ -259,8 +259,8 @@ Route::middleware('auth', 'adminOrFunkcije:HR,Šef HR,IT,Radnik, Šef PPZ,Šef f
     // ┌───────────────────────────────────────────────────────────────────┐
     // │  HR — samo HR korisnik ili admin                                │
     // └───────────────────────────────────────────────────────────────────┘
-    Route::middleware('adminOrFunkcije:HR, Šef HR, IT, Šef PPZ,Šef finansija,Šef službe za SZOI,Šef Komercijale
-')->group(function () {
+    Route::middleware('adminOrFunkcije:HR, Šef HR, IT, Šef PPZ,Šef finansija,Šef službe za SZOI,Šef Komercijale, 
+    Direktor Komercijale')->group(function () {
 
         Route::get('/sector/hr', function () {
             return Inertia::render('Sector/Hr');
