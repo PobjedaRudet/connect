@@ -2,7 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue'
 import HrNav from '@/Components/HrNav.vue'
 import { Head, Link } from '@inertiajs/vue3'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const isLoading = ref(false)
 const error = ref(null)
@@ -56,6 +56,21 @@ function hidePopover() {
   hover.value = { employee_id: null, field: null }
 }
 
+const selected = ref(null)
+
+function openEmployee(row) {
+  selected.value = row
+  ensureDetails(row.employee_id)
+}
+
+function closeEmployee() {
+  selected.value = null
+}
+
+function onEscape(event) {
+  if (event.key === 'Escape') closeEmployee()
+}
+
 const activeDetails = computed(() => {
   const employeeId = hover.value.employee_id
   if (!employeeId) return null
@@ -76,6 +91,50 @@ const activeError = computed(() => {
   const key = cacheKey(employeeId)
   return detailsError.value[key] ?? null
 })
+
+const selectedDetails = computed(() => {
+  const employeeId = selected.value?.employee_id
+  if (!employeeId) return null
+  return detailsCache.value[cacheKey(employeeId)] ?? null
+})
+
+const selectedLoading = computed(() => {
+  const employeeId = selected.value?.employee_id
+  if (!employeeId) return false
+  return !!detailsLoading.value[cacheKey(employeeId)]
+})
+
+const selectedError = computed(() => {
+  const employeeId = selected.value?.employee_id
+  if (!employeeId) return null
+  return detailsError.value[cacheKey(employeeId)] ?? null
+})
+
+const usageGroups = computed(() => {
+  const list = [...(selectedDetails.value?.usages ?? [])]
+    .sort((a, b) => String(b?.date_from ?? '').localeCompare(String(a?.date_from ?? '')))
+
+  const groups = new Map()
+  for (const usage of list) {
+    const year = Number(usage?.year) || 0
+    if (!groups.has(year)) groups.set(year, [])
+    groups.get(year).push(usage)
+  }
+
+  return [...groups.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([year, items]) => ({
+      year,
+      items,
+      days: items.reduce((sum, item) => sum + Number(item?.days ?? 0), 0),
+    }))
+})
+
+function usageReason(usage) {
+  const note = String(usage?.note ?? '').trim()
+  if (note) return note
+  return fmtPart(usage?.part)
+}
 
 const filteredRows = computed(() => {
   const q = String(search.value ?? '').trim().toLowerCase()
@@ -112,6 +171,7 @@ async function load() {
     detailsLoading.value = {}
     detailsError.value = {}
     hidePopover()
+    closeEmployee()
   } catch (e) {
     error.value = e?.response?.data?.message ?? 'Greška pri učitavanju salda.'
   } finally {
@@ -159,7 +219,14 @@ function fmtRange(from, to) {
   return `${fmtDate(from) ?? '?'} – ${fmtDate(to) ?? '?'}`
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  window.addEventListener('keydown', onEscape)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onEscape)
+})
 </script>
 
 <template>
@@ -214,9 +281,15 @@ onMounted(load)
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in pagedRows" :key="row.employee_id" class="border-b">
+            <tr v-for="row in pagedRows" :key="row.employee_id" class="border-b" :class="selected?.employee_id === row.employee_id ? 'bg-sky-50' : ''">
               <td class="py-2 px-4 text-gray-800">
-                {{ row.lastName }} {{ row.firstName }}
+                <button
+                  type="button"
+                  class="text-left font-medium text-sky-800 hover:text-sky-950 hover:underline"
+                  @click="openEmployee(row)"
+                >
+                  {{ row.lastName }} {{ row.firstName }}
+                </button>
               </td>
               <td
                 class="py-2 px-4 text-gray-800 relative"
@@ -328,6 +401,82 @@ onMounted(load)
             >
               Sljedeća
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="selected"
+      class="fixed inset-0 z-40 flex items-start justify-center bg-slate-900/40 px-4 py-8 sm:py-12"
+      @click.self="closeEmployee"
+    >
+      <div class="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+        <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+          <div>
+            <div class="text-xs font-semibold uppercase tracking-wide text-sky-700">Iskorišteni godišnji</div>
+            <h2 class="mt-1 text-xl font-semibold text-slate-900">
+              {{ selected.lastName }} {{ selected.firstName }}
+            </h2>
+          </div>
+          <button
+            type="button"
+            class="rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            @click="closeEmployee"
+          >
+            Zatvori
+          </button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 border-b border-slate-200 bg-slate-50 px-6 py-4">
+          <div class="rounded-xl bg-white px-4 py-3 ring-1 ring-slate-200">
+            <div class="text-xs text-slate-500">Odobreno</div>
+            <div class="mt-1 text-lg font-semibold text-slate-900">{{ fmtDays(selected.total_days) }}</div>
+          </div>
+          <div class="rounded-xl bg-white px-4 py-3 ring-1 ring-slate-200">
+            <div class="text-xs text-slate-500">Iskorišteno</div>
+            <div class="mt-1 text-lg font-semibold text-slate-900">{{ fmtDays(selected.used_days) }}</div>
+          </div>
+          <div class="rounded-xl bg-white px-4 py-3 ring-1 ring-slate-200">
+            <div class="text-xs text-slate-500">Preostalo</div>
+            <div class="mt-1 text-lg font-semibold text-emerald-700">{{ fmtDays(selected.remaining_days) }}</div>
+          </div>
+        </div>
+
+        <div class="overflow-y-auto px-6 py-5">
+          <div v-if="selectedLoading" class="text-sm text-slate-500">Učitavanje iskorištenih dana...</div>
+          <div v-else-if="selectedError" class="text-sm text-red-600">{{ selectedError }}</div>
+          <div v-else-if="usageGroups.length === 0" class="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
+            Nema unesenih iskorištenja.
+          </div>
+          <div v-else class="space-y-6">
+            <section v-for="group in usageGroups" :key="group.year">
+              <div class="mb-2 flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-800">{{ group.year }}.</h3>
+                <span class="text-xs text-slate-500">{{ fmtDays(group.days) }} dana</span>
+              </div>
+              <div class="overflow-hidden rounded-xl border border-slate-200">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th class="px-4 py-2.5 font-medium">Datum</th>
+                      <th class="px-4 py-2.5 font-medium">Dani</th>
+                      <th class="px-4 py-2.5 font-medium">Razlog</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="usage in group.items" :key="usage.id" class="border-t border-slate-100">
+                      <td class="px-4 py-3 text-slate-800">{{ fmtRange(usage.date_from, usage.date_to) }}</td>
+                      <td class="px-4 py-3 text-slate-700">{{ fmtDays(usage.days) }}</td>
+                      <td class="px-4 py-3 text-slate-700">
+                        <div>{{ usageReason(usage) }}</div>
+                        <div v-if="String(usage.note ?? '').trim()" class="mt-0.5 text-xs text-slate-400">{{ fmtPart(usage.part) }}</div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </div>
         </div>
       </div>

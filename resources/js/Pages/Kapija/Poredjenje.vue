@@ -114,8 +114,8 @@ const filteredRows = computed(() => {
               <th class="px-4 py-3">Radnik</th>
               <th class="px-4 py-3">Ulaz — kapija</th>
               <th class="px-4 py-3">Ulaz — objekat</th>
-              <th class="px-4 py-3">Izlaz — kapija</th>
               <th class="px-4 py-3">Izlaz — objekat</th>
+              <th class="px-4 py-3">Izlaz — kapija</th>
               <th class="px-4 py-3">Napomena</th>
             </tr>
           </thead>
@@ -127,8 +127,8 @@ const filteredRows = computed(() => {
               </td>
               <td class="px-4 py-3 text-sm text-gray-700">{{ row.gate_in || '—' }}</td>
               <td class="px-4 py-3 text-sm text-gray-700">{{ row.building_in || '—' }}</td>
-              <td class="px-4 py-3 text-sm text-gray-700">{{ row.gate_out || '—' }}</td>
               <td class="px-4 py-3 text-sm text-gray-700">{{ row.building_out || '—' }}</td>
+              <td class="px-4 py-3 text-sm text-gray-700">{{ row.gate_out || '—' }}</td>
               <td class="px-4 py-3 text-sm">
                 <span v-if="!row.issues || !row.issues.length" class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-xs font-semibold">Uredno</span>
                 <div v-else class="flex flex-col gap-1">

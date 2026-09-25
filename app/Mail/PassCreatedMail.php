@@ -21,8 +21,7 @@ class PassCreatedMail extends Mailable implements ShouldQueue
     {
         $this->pass = $pass;
         $this->employee = $employee;
-        // Explicitly requested link
-        $this->passesUrl = 'http://127.0.0.1:8000/passes/active';
+        $this->passesUrl = route('passes.active');
     }
 
     public function build()

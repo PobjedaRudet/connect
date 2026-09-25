@@ -384,22 +384,5 @@ Route::get('/late-arrival-approval/{pass}', [\App\Http\Controllers\LateArrivalAp
     ->middleware('signed');
 
 
-// ╔═══════════════════════════════════════════════════════════════════════╗
-// ║  9. PRIVREMENO — pokretanje migracija preko browsera (bez SSH/cPanel   ║
-// ║     terminala). UKLONITI OVU RUTU ODMAH NAKON JEDNOKRATNE UPOTREBE!    ║
-// ╚═══════════════════════════════════════════════════════════════════════╝
-Route::get('/system/run-migrations/{token}', function (string $token) {
-    $expected = '1962c4563b44b4aec8fde0228043d3dc60aa2ea0a0c7345c798963313cd2b64f';
 
-    if (!hash_equals($expected, $token)) {
-        abort(404);
-    }
-
-    \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-    $output = \Illuminate\Support\Facades\Artisan::output();
-
-    return response('<pre style="font-family: monospace; white-space: pre-wrap; padding: 20px;">'
-        . e($output)
-        . '</pre>');
-});
 
