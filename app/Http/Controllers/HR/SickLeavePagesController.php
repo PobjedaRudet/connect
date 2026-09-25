@@ -24,8 +24,14 @@ class SickLeavePagesController extends Controller
             ])
             ->values();
 
-        $rows = SickLeave::query()
-            ->with(['employee:id,firstName,lastName'])
+        $rowsQuery = SickLeave::query()
+            ->with(['employee:id,firstName,lastName']);
+
+        if (! $this->hasGlobalEmployeeAccess($request->user())) {
+            $rowsQuery->whereIn('employee_id', $employees->pluck('id'));
+        }
+
+        $rows = $rowsQuery
             ->orderByDesc('from')
             ->limit(50)
             ->get()
