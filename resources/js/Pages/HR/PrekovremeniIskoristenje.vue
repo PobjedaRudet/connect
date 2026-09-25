@@ -14,6 +14,14 @@ const props = defineProps({
   usageTypes: { type: Array, required: true },
 })
 
+const formatDisplayDate = (value) => {
+  if (!value) return ''
+  const match = String(value).trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/)
+  if (!match) return value
+  const date = `${match[3]}-${match[2]}-${match[1]}`
+  return match[4] ? `${date} ${match[4]}:${match[5]}` : date
+}
+
 const employeeSearch = ref('')
 const availability = ref(null)
 const availabilityLoading = ref(false)
@@ -246,7 +254,7 @@ function submit() {
 
               <div v-if="availability.preview.allocations.length > 0" class="mt-3 space-y-2 text-sm text-gray-700">
                 <div v-for="allocation in availability.preview.allocations" :key="allocation.attendance_overtime_id" class="flex items-center justify-between gap-3">
-                  <span>{{ allocation.work_date }}</span>
+                  <span>{{ formatDisplayDate(allocation.work_date) }}</span>
                   <span class="font-medium">{{ allocation.allocated_display }}</span>
                 </div>
               </div>
@@ -260,7 +268,7 @@ function submit() {
               <div v-else class="space-y-2 max-h-72 overflow-auto pr-1">
                 <div v-for="slot in availability.slots" :key="slot.attendance_overtime_id" class="rounded-lg border border-gray-200 px-3 py-2 text-sm">
                   <div class="flex items-center justify-between gap-3 text-gray-800">
-                    <span class="font-medium">{{ slot.work_date }}</span>
+                    <span class="font-medium">{{ formatDisplayDate(slot.work_date) }}</span>
                     <span>{{ slot.remaining_display }}</span>
                   </div>
                   <div class="mt-1 text-xs text-gray-500">

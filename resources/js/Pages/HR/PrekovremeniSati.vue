@@ -98,6 +98,14 @@ const cellClasses = (dayMeta, entry) => {
   return base.join(' ')
 }
 
+const formatDisplayDate = (value) => {
+  if (!value) return ''
+  const match = String(value).trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/)
+  if (!match) return value
+  const date = `${match[3]}-${match[2]}-${match[1]}`
+  return match[4] ? `${date} ${match[4]}:${match[5]}` : date
+}
+
 const formatUsageType = (value) => {
   const raw = String(value || '').replaceAll('_', ' ')
   return raw.charAt(0).toUpperCase() + raw.slice(1)
@@ -109,7 +117,7 @@ const usageTitle = (entry) => {
   return entry.usages
     .map((usage) => {
       const note = usage.note ? ` | ${usage.note}` : ''
-      return `${usage.usage_date || 'datum?'} | ${formatUsageType(usage.usage_type)} | ${usage.allocated_display}${note}`
+      return `${formatDisplayDate(usage.usage_date) || 'datum?'} | ${formatUsageType(usage.usage_type)} | ${usage.allocated_display}${note}`
     })
     .join('\n')
 }

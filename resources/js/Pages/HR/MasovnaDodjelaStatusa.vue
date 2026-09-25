@@ -14,6 +14,14 @@ const props = defineProps({
   departments: { type: Array, default: () => [] },
 })
 
+const formatDisplayDate = (value) => {
+  if (!value) return ''
+  const match = String(value).trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/)
+  if (!match) return value
+  const date = `${match[3]}-${match[2]}-${match[1]}`
+  return match[4] ? `${date} ${match[4]}:${match[5]}` : date
+}
+
 const form = useForm({
   status_code: 'P',
   from: '',
@@ -238,11 +246,11 @@ const submit = () => {
           </thead>
           <tbody>
             <tr v-for="row in props.recentRows" :key="row.id" class="border-b">
-              <td class="py-2 px-4 text-gray-800">{{ row.work_date }}</td>
+              <td class="py-2 px-4 text-gray-800">{{ formatDisplayDate(row.work_date) }}</td>
               <td class="py-2 px-4 text-gray-800">{{ row.employee_name ?? ('#' + row.employee_id) }}</td>
               <td class="py-2 px-4 text-gray-800 font-semibold">{{ row.status_code }}</td>
               <td class="py-2 px-4 text-gray-800">{{ row.note ?? '' }}</td>
-              <td class="py-2 px-4 text-gray-800">{{ row.created_at ?? '' }}</td>
+              <td class="py-2 px-4 text-gray-800">{{ formatDisplayDate(row.created_at) }}</td>
             </tr>
 
             <tr v-if="props.recentRows.length === 0">

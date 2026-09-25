@@ -148,7 +148,7 @@
                   <div v-if="tooltip.order?.partner">{{ tooltip.order.partner.name }}</div>
                   <div v-if="!tooltip.order && tooltip.bar?.placeholder_label">Privremeni nalog: {{ tooltip.bar.placeholder_label }}</div>
                   <div>{{ tooltip.objekat }}</div>
-                  <div>{{ tooltip.start }} → {{ tooltip.end }}</div>
+                  <div>{{ formatDisplayDate(tooltip.start) }} → {{ formatDisplayDate(tooltip.end) }}</div>
                   <div v-if="tooltip.bar?.percent ?? tooltip.bar?.item?.percent ?? tooltip.bar?.plan?.percent">
                     <span>Planirano: {{ tooltip.bar?.percent ?? tooltip.bar?.item?.percent ?? tooltip.bar?.plan?.percent }}%</span>
                   </div>
@@ -223,7 +223,7 @@
             <div class="text-xs text-gray-500">
               <div><span class="font-semibold">Privremeni:</span> {{ linkContext.placeholder_label || '—' }}</div>
               <div><span class="font-semibold">Objekat:</span> {{ linkContext.objekat || '—' }}</div>
-              <div><span class="font-semibold">Raspon:</span> {{ linkContext.start }} → {{ linkContext.end }}</div>
+              <div><span class="font-semibold">Raspon:</span> {{ formatDisplayDate(linkContext.start) }} → {{ formatDisplayDate(linkContext.end) }}</div>
               <div v-if="linkContext.percent"><span class="font-semibold">Planirano:</span> {{ linkContext.percent }}%</div>
             </div>
             <div>
@@ -632,6 +632,14 @@ function reload() {
 
 // Tooltip & click handlers
 const containerRef = ref(null);
+const formatDisplayDate = (value) => {
+  if (!value) return ''
+  const match = String(value).trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/)
+  if (!match) return value
+  const date = `${match[3]}-${match[2]}-${match[1]}`
+  return match[4] ? `${date} ${match[4]}:${match[5]}` : date
+}
+
 const tooltip = ref({ visible: false, x: 0, y: 0, order: null, objekat: '', start: '', end: '' });
 function showTooltip(e, bar) {
   tooltip.value.visible = true;
