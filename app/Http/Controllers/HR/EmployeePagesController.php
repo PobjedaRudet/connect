@@ -191,7 +191,8 @@ class EmployeePagesController extends Controller
 
         $departments = Department::pluck('name', 'id');
 
-        $employeesQuery = $this->scopedEmployeeQuery($request->user());
+        $employeesQuery = $this->visibleEmployeeQuery($request->user());
+        $editableEmployeeIds = $this->editableEmployeeIds($request->user());
 
         if ($search !== '') {
             $employeesQuery->where(function ($q) use ($search) {
@@ -209,7 +210,7 @@ class EmployeePagesController extends Controller
 
         $employees = $employeesQuery
             ->paginate(30)
-            ->through(function ($e) use ($departments) {
+            ->through(function ($e) use ($departments, $editableEmployeeIds) {
                 return [
                     'id' => (int) $e->id,
                     'empID' => $e->empID,
@@ -223,6 +224,7 @@ class EmployeePagesController extends Controller
                     'phone' => null,
                     'status' => $e->status,
                     'active' => (bool) $e->Active,
+                    'can_edit' => $editableEmployeeIds === null || in_array((int) $e->id, $editableEmployeeIds, true),
                 ];
             })
             ->appends(['search' => $search]);

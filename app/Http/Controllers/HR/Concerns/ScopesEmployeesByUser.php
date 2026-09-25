@@ -100,11 +100,41 @@ trait ScopesEmployeesByUser
     }
 
     /**
-     * Return an Employee query scoped to the given user.
+     * Employees the user may edit.
      * - Admins / Šef HR: all active employees
-     * - Others (incl. HR): only employees whose nadlezne_osobe contains the user's ID
+     * - Others: only employees whose nadlezne_osobe contains the user's ID
      */
     protected function scopedEmployeeQuery(?User $user): Builder
+    {
+        return $this->employeeQueryForUser($user, false);
+    }
+
+    /**
+     * Employees the user may view.
+     * Same as edit scope, plus employees whose pass_approvers contains the user's ID.
+     */
+    protected function visibleEmployeeQuery(?User $user): Builder
+    {
+        return $this->employeeQueryForUser($user, true);
+    }
+
+    /**
+     * Check whether the given user may edit the specified employee.
+     */
+    protected function canAccessEmployee(?User $user, int $employeeId): bool
+    {
+        return $this->userMatchesEmployee($user, $employeeId, false);
+    }
+
+    /**
+     * Check whether the given user may view the specified employee.
+     */
+    protected function canViewEmployee(?User $user, int $employeeId): bool
+    {
+        return $this->userMatchesEmployee($user, $employeeId, true);
+    }
+
+    protected function employeeQueryForUser(?User $user, bool $includePassApprovers): Builder
     {
         $query = Employee::query()
             ->where(function ($q) {
@@ -118,20 +148,13 @@ trait ScopesEmployeesByUser
         }
 
         if ($user) {
-            $uid = $user->id;
-            $query->where(function ($q) use ($uid) {
-                $q->whereJsonContains('nadlezne_osobe', (int) $uid)
-                  ->orWhereJsonContains('nadlezne_osobe', (string) $uid);
-            });
+            $this->whereUserAssigned($query, $user, $includePassApprovers);
         }
 
         return $query;
     }
 
-    /**
-     * Check whether the given user may access the specified employee.
-     */
-    protected function canAccessEmployee(?User $user, int $employeeId): bool
+    protected function userMatchesEmployee(?User $user, int $employeeId, bool $includePassApprovers): bool
     {
         if (!$user) {
             return false;
@@ -141,11 +164,40 @@ trait ScopesEmployeesByUser
             return true;
         }
 
-        return Employee::where('id', $employeeId)
-            ->where(function ($q) use ($user) {
-                $q->whereJsonContains('nadlezne_osobe', (int) $user->id)
-                  ->orWhereJsonContains('nadlezne_osobe', (string) $user->id);
-            })
-            ->exists();
+        $query = Employee::query()->whereKey($employeeId);
+        $this->whereUserAssigned($query, $user, $includePassApprovers);
+
+        return $query->exists();
+    }
+
+    /**
+     * Employee ids the user may edit. Null means every employee.
+     *
+     * @return list<int>|null
+     */
+    protected function editableEmployeeIds(?User $user): ?array
+    {
+        if ($this->hasGlobalEmployeeAccess($user)) {
+            return null;
+        }
+
+        return $this->scopedEmployeeQuery($user)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    protected function whereUserAssigned(Builder $query, User $user, bool $includePassApprovers): void
+    {
+        $uid = $user->id;
+        $query->where(function ($q) use ($uid, $includePassApprovers) {
+            $q->whereJsonContains('nadlezne_osobe', (int) $uid)
+                ->orWhereJsonContains('nadlezne_osobe', (string) $uid);
+
+            if ($includePassApprovers) {
+                $q->orWhereJsonContains('pass_approvers', (int) $uid)
+                    ->orWhereJsonContains('pass_approvers', (string) $uid);
+            }
+        });
     }
 }

@@ -205,10 +205,12 @@ const submitManual = () => {
 }
 
 const employeeSearch = ref('')
+const editableEmployees = computed(() => (props.employees || []).filter((e) => e.can_edit !== false))
+
 const filteredModalEmployees = computed(() => {
   const term = employeeSearch.value.trim().toLowerCase()
-  if (!term) return props.employees
-  return props.employees.filter(e => (e.full_name || '').toLowerCase().includes(term))
+  if (!term) return editableEmployees.value
+  return editableEmployees.value.filter(e => (e.full_name || '').toLowerCase().includes(term))
 })
 
 // Day edit modal
@@ -251,6 +253,7 @@ const openDayModal = (employee, dateStr) => {
       ? (entry.manual_note || '')
       : '',
     overlapNote: entry?.overlap_note || '',
+    canEdit: employee.can_edit !== false,
   }
   editingId.value = null
   editForm.reset()
@@ -380,6 +383,7 @@ const visibleLeaveOverlaps = computed(() => {
 
         <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
           <button
+            v-if="editableEmployees.length"
             @click="openManualModal()"
             class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition shadow-sm whitespace-nowrap shrink-0"
           >
@@ -584,6 +588,7 @@ const visibleLeaveOverlaps = computed(() => {
                 <template v-else>Nema prijave za ovaj dan.</template>
               </p>
               <button
+                v-if="dayModal.canEdit"
                 type="button"
                 class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition"
                 @click="addRecordForDay"
@@ -604,7 +609,7 @@ const visibleLeaveOverlaps = computed(() => {
                     {{ record.terminal_in || '—' }} → {{ record.terminal_out || '—' }}
                   </span>
                 </div>
-                <div class="flex items-center gap-2" v-if="editingId !== record.record_id">
+                <div class="flex items-center gap-2" v-if="dayModal.canEdit && editingId !== record.record_id">
                   <button
                     type="button"
                     class="text-sm text-indigo-600 hover:text-indigo-800 font-medium"

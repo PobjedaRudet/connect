@@ -28,7 +28,7 @@ class SickLeavePagesController extends Controller
             ->with(['employee:id,firstName,lastName']);
 
         if (! $this->hasGlobalEmployeeAccess($request->user())) {
-            $rowsQuery->whereIn('employee_id', $employees->pluck('id'));
+            $rowsQuery->whereIn('employee_id', $this->visibleEmployeeQuery($request->user())->pluck('id'));
         }
 
         $rows = $rowsQuery

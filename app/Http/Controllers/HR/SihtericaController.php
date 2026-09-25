@@ -64,7 +64,8 @@ class SihtericaController extends Controller
             $departmentId = $this->resolveAdminDepartmentFilter($request);
         }
 
-        $employeesQuery = $this->scopedEmployeeQuery($user);
+        $employeesQuery = $this->visibleEmployeeQuery($user);
+        $editableEmployeeIds = $this->editableEmployeeIds($user);
 
         if ($canFilterByDepartment && $departmentId !== null) {
             $employeesQuery->where('dept', $departmentId);
@@ -451,6 +452,7 @@ class SihtericaController extends Controller
                 'empID' => (int) $e->empID,
                 'full_name' => trim((string) $e->lastName . ' ' . (string) $e->firstName),
                 'department_id' => $e->dept !== null ? (int) $e->dept : null,
+                'can_edit' => $editableEmployeeIds === null || in_array((int) $e->id, $editableEmployeeIds, true),
             ])->values()->all(),
             'attendance' => $attendance,
             'leaveOverlaps' => $leaveOverlaps,

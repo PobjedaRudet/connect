@@ -31,9 +31,10 @@ class AutoPassApprovalPagesController extends Controller
             ]);
         }
 
-        $employees = $this->scopedEmployeeQuery($request->user())
+        $employees = $this->visibleEmployeeQuery($request->user())
             ->get(['id', 'empID', 'firstName', 'lastName'])
             ->keyBy('id');
+        $editableEmployeeIds = $this->editableEmployeeIds($request->user());
 
         $employeeIds = $employees->keys();
 
@@ -64,7 +65,7 @@ class AutoPassApprovalPagesController extends Controller
             ->tap($autoPassFilter)
             ->orderByDesc('start_time')
             ->get($select)
-            ->map(fn (Pass $p) => $this->mapPass($p, $employees, $tz))
+            ->map(fn (Pass $p) => $this->mapPass($p, $employees, $tz, $editableEmployeeIds))
             ->values();
 
         // Odobrene u zadnjih 30 dana — istorija
@@ -77,7 +78,7 @@ class AutoPassApprovalPagesController extends Controller
             ->orderByDesc('start_time')
             ->limit(100)
             ->get($select)
-            ->map(fn (Pass $p) => $this->mapPass($p, $employees, $tz))
+            ->map(fn (Pass $p) => $this->mapPass($p, $employees, $tz, $editableEmployeeIds))
             ->values();
 
         return Inertia::render('HR/AutoIzlazniceOdobravanje', [
@@ -120,13 +121,15 @@ class AutoPassApprovalPagesController extends Controller
         return back()->banner('Izlaznica #' . $pass->id . ' odobrena kao ' . $label . '.');
     }
 
-    private function mapPass(Pass $pass, $employees, string $tz): array
+    private function mapPass(Pass $pass, $employees, string $tz, ?array $editableEmployeeIds = null): array
     {
         $emp = $employees->get((int) $pass->employee_id);
+        $employeeId = (int) $pass->employee_id;
 
         return [
             'id'               => $pass->id,
-            'employee_id'      => (int) $pass->employee_id,
+            'employee_id'      => $employeeId,
+            'can_edit'         => $editableEmployeeIds === null || in_array($employeeId, $editableEmployeeIds, true),
             'empID'            => (int) ($emp?->empID ?? 0),
             'full_name'        => trim(($emp?->lastName ?? '') . ' ' . ($emp?->firstName ?? '')),
             'type'             => $pass->type,

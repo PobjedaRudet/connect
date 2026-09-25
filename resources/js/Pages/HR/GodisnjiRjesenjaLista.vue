@@ -356,20 +356,22 @@ const linkLabel = (label) => String(label ?? '')
                 <td class="py-2 px-4 text-gray-800">{{ row.granted_days }}</td>
                 <td class="py-2 px-4 text-gray-800">{{ row.used_days }}</td>
                 <td class="py-2 px-4 text-right whitespace-nowrap">
-                  <button
-                    type="button"
-                    class="text-sm font-medium text-indigo-600 hover:text-indigo-800"
-                    @click="startEdit(row)"
-                  >
-                    Uredi
-                  </button>
-                  <button
-                    type="button"
-                    class="ml-3 text-sm font-medium text-red-600 hover:text-red-800"
-                    @click="openDeleteModal(row)"
-                  >
-                    Obriši
-                  </button>
+                  <template v-if="row.can_edit">
+                    <button
+                      type="button"
+                      class="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                      @click="startEdit(row)"
+                    >
+                      Uredi
+                    </button>
+                    <button
+                      type="button"
+                      class="ml-3 text-sm font-medium text-red-600 hover:text-red-800"
+                      @click="openDeleteModal(row)"
+                    >
+                      Obriši
+                    </button>
+                  </template>
                 </td>
               </tr>
 

@@ -111,7 +111,7 @@ const approve = (row, type) => {
                 {{ row.duration_minutes != null ? `${row.duration_minutes} min` : '—' }}
               </td>
               <td class="px-4 py-3 text-sm">
-                <div class="flex items-center justify-end gap-2">
+                <div v-if="row.can_edit" class="flex items-center justify-end gap-2">
                   <button
                     type="button"
                     :disabled="processingId === row.id"

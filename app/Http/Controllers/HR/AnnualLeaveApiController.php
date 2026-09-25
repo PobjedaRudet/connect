@@ -117,7 +117,7 @@ class AnnualLeaveApiController extends Controller
 
     private function denyUnlessCanAccess(Request $request, int $employeeId): ?JsonResponse
     {
-        if ($this->canAccessEmployee($request->user(), $employeeId)) {
+        if ($this->canViewEmployee($request->user(), $employeeId)) {
             return null;
         }
 
@@ -129,7 +129,7 @@ class AnnualLeaveApiController extends Controller
      */
     private function scopedEmployeeRows(Request $request)
     {
-        return $this->scopedEmployeeQuery($request->user())
+        return $this->visibleEmployeeQuery($request->user())
             ->get(['id', 'firstName', 'lastName'])
             ->map(fn ($e) => (object) [
                 'employee_id' => (int) $e->id,

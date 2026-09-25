@@ -24,7 +24,7 @@ class PassSummaryPagesController extends Controller
         $monthStart = Carbon::createFromFormat('Y-m', $monthParam, config('app.timezone'))->startOfMonth();
         $monthEnd = $monthStart->copy()->endOfMonth();
 
-        $employees = $this->scopedEmployeeQuery($request->user())
+        $employees = $this->visibleEmployeeQuery($request->user())
             ->get(['id', 'empID', 'firstName', 'lastName'])
             ->keyBy('id');
 
@@ -161,7 +161,7 @@ class PassSummaryPagesController extends Controller
         $todayStart = Carbon::now($tz)->startOfDay();
         $todayEnd   = Carbon::now($tz)->endOfDay();
 
-        $employees = $this->scopedEmployeeQuery($request->user())
+        $employees = $this->visibleEmployeeQuery($request->user())
             ->with(['department:id,name'])
             ->get(['id', 'empID', 'firstName', 'lastName', 'dept'])
             ->keyBy('id');

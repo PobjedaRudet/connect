@@ -53,7 +53,7 @@ class OvertimePagesController extends Controller
             $departmentId = $this->resolveAdminDepartmentFilter($request);
         }
 
-        $employeesQuery = $this->scopedEmployeeQuery($user);
+        $employeesQuery = $this->visibleEmployeeQuery($user);
 
         if ($canFilterByDepartment && $departmentId !== null) {
             $employeesQuery->where('dept', $departmentId);

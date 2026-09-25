@@ -115,8 +115,15 @@ class KapijaController extends Controller
         $date = (string) ($request->query('date') ?: Carbon::now(config('app.timezone'))->toDateString());
         $tolerance = (int) ($request->query('tolerance') ?: GateComparisonService::DEFAULT_TOLERANCE_MINUTES);
 
-        $employeeIds = $this->scopedEmployeeQuery($request->user())->pluck('id');
+        $employeeIds = $this->visibleEmployeeQuery($request->user())->pluck('id');
         $report = $service->buildDailyReport($date, $tolerance, $employeeIds);
+        $editableEmployeeIds = $this->editableEmployeeIds($request->user());
+        $report['rows'] = collect($report['rows'])->map(function (array $row) use ($editableEmployeeIds) {
+            $row['can_edit'] = $editableEmployeeIds === null
+                || in_array((int) $row['employee_id'], $editableEmployeeIds, true);
+
+            return $row;
+        })->all();
 
         return Inertia::render('Kapija/Poredjenje', array_merge($report, [
             'from_hr' => true,

@@ -48,7 +48,7 @@ const fieldMeta = {
 
 const openEditor = (row, field) => {
   const meta = fieldMeta[field]
-  if (!props.from_hr) return
+  if (!props.from_hr || row?.can_edit === false) return
   const id = row?.[meta.idKey] || null
   editor.value = {
     ...meta,
@@ -219,19 +219,19 @@ const filteredRows = computed(() => {
                 <div class="text-xs text-gray-500">#{{ row.empID }}</div>
               </td>
               <td class="px-4 py-3 text-sm text-gray-700">
-                <button v-if="from_hr" type="button" class="font-medium text-sky-800 hover:underline" @click="openEditor(row, 'gate_in')">{{ row.gate_in || 'Dodaj' }}</button>
+                <button v-if="from_hr && row.can_edit" type="button" class="font-medium text-sky-800 hover:underline" @click="openEditor(row, 'gate_in')">{{ row.gate_in || 'Dodaj' }}</button>
                 <span v-else>{{ row.gate_in || '—' }}</span>
               </td>
               <td class="px-4 py-3 text-sm text-gray-700">
-                <button v-if="from_hr" type="button" class="font-medium text-sky-800 hover:underline" @click="openEditor(row, 'building_in')">{{ row.building_in || 'Dodaj' }}</button>
+                <button v-if="from_hr && row.can_edit" type="button" class="font-medium text-sky-800 hover:underline" @click="openEditor(row, 'building_in')">{{ row.building_in || 'Dodaj' }}</button>
                 <span v-else>{{ row.building_in || '—' }}</span>
               </td>
               <td class="px-4 py-3 text-sm text-gray-700">
-                <button v-if="from_hr" type="button" class="font-medium text-sky-800 hover:underline" @click="openEditor(row, 'building_out')">{{ row.building_out || 'Dodaj' }}</button>
+                <button v-if="from_hr && row.can_edit" type="button" class="font-medium text-sky-800 hover:underline" @click="openEditor(row, 'building_out')">{{ row.building_out || 'Dodaj' }}</button>
                 <span v-else>{{ row.building_out || '—' }}</span>
               </td>
               <td class="px-4 py-3 text-sm text-gray-700">
-                <button v-if="from_hr" type="button" class="font-medium text-sky-800 hover:underline" @click="openEditor(row, 'gate_out')">{{ row.gate_out || 'Dodaj' }}</button>
+                <button v-if="from_hr && row.can_edit" type="button" class="font-medium text-sky-800 hover:underline" @click="openEditor(row, 'gate_out')">{{ row.gate_out || 'Dodaj' }}</button>
                 <span v-else>{{ row.gate_out || '—' }}</span>
               </td>
               <td class="px-4 py-3 text-sm">

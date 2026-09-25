@@ -47,7 +47,11 @@ class AnnualLeaveDecisionPagesController extends Controller
             ])
             ->values();
 
-        $accessibleEmployeeIds = $employees->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $visibleEmployeeIds = $this->visibleEmployeeQuery($user)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        $editableEmployeeIds = $this->editableEmployeeIds($user);
 
         $rowsQuery = AnnualLeaveDecision::query()
             ->with(['employee:id,firstName,lastName'])
@@ -56,10 +60,10 @@ class AnnualLeaveDecisionPagesController extends Controller
             ->orderByDesc('id');
 
         if (!$this->hasGlobalEmployeeAccess($user)) {
-            if (empty($accessibleEmployeeIds)) {
+            if (empty($visibleEmployeeIds)) {
                 $rowsQuery->whereRaw('1 = 0');
             } else {
-                $rowsQuery->whereIn('employee_id', $accessibleEmployeeIds);
+                $rowsQuery->whereIn('employee_id', $visibleEmployeeIds);
             }
         }
 
@@ -82,6 +86,7 @@ class AnnualLeaveDecisionPagesController extends Controller
                 'carried_over_days' => (int) round((float) $d->carried_over_days, 0),
                 'used_days' => (int) round((float) ($d->used_days_sum ?? 0), 0),
                 'note' => $d->note,
+                'can_edit' => $editableEmployeeIds === null || in_array((int) $d->employee_id, $editableEmployeeIds, true),
             ]);
 
         return Inertia::render('HR/GodisnjiRjesenjaLista', [
