@@ -268,6 +268,12 @@ Route::middleware('auth', 'adminOrFunkcije:HR,Šef HR,IT,Radnik, Šef PPZ,Šef f
 
         Route::get('/hr/poredjenje-kapije', [KapijaController::class, 'poredjenjeHr'])
             ->name('hr.poredjenje');
+        Route::post('/hr/poredjenje-kapije/korekcija', [KapijaController::class, 'storeComparison'])
+            ->name('hr.poredjenje.store');
+        Route::patch('/hr/poredjenje-kapije/korekcija', [KapijaController::class, 'updateComparison'])
+            ->name('hr.poredjenje.update');
+        Route::delete('/hr/poredjenje-kapije/korekcija', [KapijaController::class, 'deleteComparison'])
+            ->name('hr.poredjenje.delete');
 
         // Godišnji odmori
         Route::get('/hr/godisnji-saldo', function () {

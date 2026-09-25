@@ -35,6 +35,99 @@ const reload = () => {
   })
 }
 
+const editor = ref(null)
+const editTime = ref('')
+const saving = ref(false)
+
+const fieldMeta = {
+  gate_in: { kind: 'gate', event: 'in', idKey: 'gate_in_id', label: 'Ulaz — kapija' },
+  gate_out: { kind: 'gate', event: 'out', idKey: 'gate_out_id', label: 'Izlaz — kapija' },
+  building_in: { kind: 'building', event: 'in', idKey: 'building_in_id', label: 'Ulaz — objekat' },
+  building_out: { kind: 'building', event: 'out', idKey: 'building_out_id', label: 'Izlaz — objekat' },
+}
+
+const openEditor = (row, field) => {
+  const meta = fieldMeta[field]
+  if (!props.from_hr) return
+  const id = row?.[meta.idKey] || null
+  editor.value = {
+    ...meta,
+    id,
+    creating: !id,
+    employeeId: row.employee_id,
+    attendanceId: field === 'building_out' ? row.building_in_id : (field === 'building_in' ? row.building_out_id : null),
+    employee: row.full_name,
+    sameRecord: field.startsWith('building') && row.building_in_id && row.building_in_id === row.building_out_id,
+  }
+  editTime.value = row[field] || ''
+}
+
+const closeEditor = () => {
+  if (saving.value) return
+  editor.value = null
+}
+
+const saveEdit = () => {
+  if (!editor.value || !editTime.value) return
+  saving.value = true
+  if (editor.value.creating) {
+    router.post(route('hr.poredjenje.store'), {
+      kind: editor.value.kind,
+      event: editor.value.event,
+      employee_id: editor.value.employeeId,
+      attendance_id: editor.value.attendanceId,
+      date: date.value,
+      time: editTime.value,
+      tolerance: tolerance.value,
+    }, {
+      preserveScroll: true,
+      onFinish: () => {
+        saving.value = false
+        editor.value = null
+      },
+    })
+    return
+  }
+  router.patch(route('hr.poredjenje.update'), {
+    kind: editor.value.kind,
+    event: editor.value.event,
+    id: editor.value.id,
+    date: date.value,
+    time: editTime.value,
+    tolerance: tolerance.value,
+  }, {
+    preserveScroll: true,
+    onFinish: () => {
+      saving.value = false
+      editor.value = null
+    },
+  })
+}
+
+const deleteEdit = () => {
+  if (!editor.value || editor.value.creating) return
+  const label = editor.value.label
+  const extra = editor.value.event === 'in' && editor.value.sameRecord
+    ? ' Brisanjem ulaza na objekt briše se i odjava ako je na istom zapisu.'
+    : ''
+  if (!window.confirm(`Obrisati ${label} za ${editor.value.employee}?${extra}`)) return
+  saving.value = true
+  router.delete(route('hr.poredjenje.delete'), {
+    data: {
+      kind: editor.value.kind,
+      event: editor.value.event,
+      id: editor.value.id,
+      date: date.value,
+      tolerance: tolerance.value,
+    },
+    preserveScroll: true,
+    onFinish: () => {
+      saving.value = false
+      editor.value = null
+    },
+  })
+}
+
 const filteredRows = computed(() => {
   const term = search.value.trim().toLowerCase()
   return (props.rows || []).filter((row) => {
@@ -125,10 +218,22 @@ const filteredRows = computed(() => {
                 <div class="font-medium text-gray-900">{{ row.full_name }}</div>
                 <div class="text-xs text-gray-500">#{{ row.empID }}</div>
               </td>
-              <td class="px-4 py-3 text-sm text-gray-700">{{ row.gate_in || '—' }}</td>
-              <td class="px-4 py-3 text-sm text-gray-700">{{ row.building_in || '—' }}</td>
-              <td class="px-4 py-3 text-sm text-gray-700">{{ row.building_out || '—' }}</td>
-              <td class="px-4 py-3 text-sm text-gray-700">{{ row.gate_out || '—' }}</td>
+              <td class="px-4 py-3 text-sm text-gray-700">
+                <button v-if="from_hr" type="button" class="font-medium text-sky-800 hover:underline" @click="openEditor(row, 'gate_in')">{{ row.gate_in || 'Dodaj' }}</button>
+                <span v-else>{{ row.gate_in || '—' }}</span>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-700">
+                <button v-if="from_hr" type="button" class="font-medium text-sky-800 hover:underline" @click="openEditor(row, 'building_in')">{{ row.building_in || 'Dodaj' }}</button>
+                <span v-else>{{ row.building_in || '—' }}</span>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-700">
+                <button v-if="from_hr" type="button" class="font-medium text-sky-800 hover:underline" @click="openEditor(row, 'building_out')">{{ row.building_out || 'Dodaj' }}</button>
+                <span v-else>{{ row.building_out || '—' }}</span>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-700">
+                <button v-if="from_hr" type="button" class="font-medium text-sky-800 hover:underline" @click="openEditor(row, 'gate_out')">{{ row.gate_out || 'Dodaj' }}</button>
+                <span v-else>{{ row.gate_out || '—' }}</span>
+              </td>
               <td class="px-4 py-3 text-sm">
                 <span v-if="!row.issues || !row.issues.length" class="inline-flex items-center rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-xs font-semibold">Uredno</span>
                 <div v-else class="flex flex-col gap-1">
@@ -143,6 +248,28 @@ const filteredRows = computed(() => {
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <div
+      v-if="editor"
+      class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 px-4"
+      @click.self="closeEditor"
+    >
+      <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <div class="text-xs font-semibold uppercase tracking-wide text-sky-700">{{ editor.label }}</div>
+        <h2 class="mt-1 text-lg font-semibold text-slate-900">{{ editor.employee }}</h2>
+        <p class="mt-1 text-sm text-slate-500">{{ editor.creating ? 'Upišite vrijeme za ovaj zapis.' : 'Ispravite vrijeme ili obrišite ovaj zapis.' }}</p>
+        <label class="mt-4 block text-xs font-medium text-slate-600" for="edit-time">Vrijeme</label>
+        <input id="edit-time" v-model="editTime" type="time" class="mt-1 w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+        <div class="mt-5 flex items-center justify-between gap-3">
+          <button v-if="!editor.creating" type="button" class="text-sm font-medium text-red-700 hover:text-red-900 disabled:opacity-50" :disabled="saving" @click="deleteEdit">Obriši</button>
+          <span v-else></span>
+          <div class="flex gap-2">
+            <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700" :disabled="saving" @click="closeEditor">Otkaži</button>
+            <button type="button" class="rounded-md bg-sky-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50" :disabled="saving || !editTime" @click="saveEdit">Sačuvaj</button>
+          </div>
+        </div>
       </div>
     </div>
   </AppLayout>

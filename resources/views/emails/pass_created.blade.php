@@ -101,7 +101,7 @@
                         <td align="center" style="padding:0 24px 22px 24px;">
                             <!-- Bulletproof button (Outlook-safe) -->
                             <!--[if mso]>
-                            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{ $passesUrl }}" style="height:44px;v-text-anchor:middle;width:280px;" arcsize="14%" strokecolor="#2563eb" fillcolor="#2563eb">
+                            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{ $passesUrl }}" style="height:44px;v-text-anchor:middle;width:280px;" arcsize="14%" strokecolor="#16a34a" fillcolor="#16a34a">
                                 <w:anchorlock/>
                                 <center style="color:#ffffff;font-family:Arial, Helvetica, sans-serif;font-size:14px;font-weight:700;">
                                     Otvori aktivne izlaznice
@@ -110,12 +110,12 @@
                             <![endif]-->
                             <!--[if !mso]><!-- -->
                             <a href="{{ $passesUrl }}"
-                               style="background-color:#2563eb; border:1px solid #2563eb; border-radius:10px; color:#ffffff; display:inline-block; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:700; line-height:44px; text-align:center; text-decoration:none; width:280px; -webkit-text-size-adjust:none;">
+                               style="background-color:#16a34a; border:1px solid #16a34a; border-radius:10px; color:#ffffff; display:inline-block; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:700; line-height:44px; text-align:center; text-decoration:none; width:280px; -webkit-text-size-adjust:none;">
                                 Otvori aktivne izlaznice
                             </a>
                             <!--<![endif]-->
                             <div style="font-family:Arial, Helvetica, sans-serif; font-size:12px; line-height:18px; color:#64748b; margin-top:10px;">
-                                Ako dugme ne radi, otvorite link: <a href="{{ $passesUrl }}" style="color:#2563eb; text-decoration:underline;">{{ $passesUrl }}</a>
+                                Ako dugme ne radi, otvorite link: <a href="{{ $passesUrl }}" style="color:#16a34a; text-decoration:underline;">{{ $passesUrl }}</a>
                             </div>
 
                             <p style="font-family:Arial, Helvetica, sans-serif; font-size:13px; color:#475569; margin:18px 0 12px 0;">

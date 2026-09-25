@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\AttendanceRecord;
 use App\Models\Employee;
+use App\Models\GateLog;
 use App\Models\Pass;
 use App\Models\Shift;
 use Carbon\Carbon;
@@ -57,6 +58,15 @@ class CloseStalePasses extends Command
                 'end_time' => $endTime,
                 'status' => 'closed',
                 'duration_minutes' => $durationMinutes,
+            ]);
+
+            $rfid = trim((string) ($pass->employee?->rfid_code ?? ''));
+            GateLog::create([
+                'employee_id' => $pass->employee_id,
+                'direction' => 'out',
+                'scanned_at' => $endTime,
+                'terminal_id' => 'auto-pass-close',
+                'rfid_code' => $rfid !== '' ? $rfid : null,
             ]);
 
             $closedCount++;
