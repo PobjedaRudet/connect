@@ -4,7 +4,8 @@ import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 const form = useForm({
     name: '',
@@ -12,6 +13,8 @@ const form = useForm({
     password: '',
     password_confirmation: '',
 });
+
+const success = computed(() => usePage().props.flash?.success || '')
 
 const submit = () => {
     form.post(route('register'), {
@@ -23,6 +26,8 @@ const submit = () => {
 <template>
     <GuestLayout>
         <Head title="Register" />
+
+        <div v-if="success" class="mb-4 text-sm font-medium text-green-600">{{ success }}</div>
 
         <form @submit.prevent="submit">
             <div>
