@@ -16,7 +16,7 @@
             'službeni', 'sluzbeni' => 'Službena izlaznica',
             default => $rawType !== '' ? $rawType : 'Izlaznica',
         };
-        $startAt = optional($pass->start_time)->timezone(config('app.timezone'))->format('d.m.Y H:i');
+        $startAt = $pass->start_time?->timezone(config('app.timezone'))->format('d.m.Y H:i');
         $reason = trim((string)($pass->reason ?? ''));
     @endphp
 

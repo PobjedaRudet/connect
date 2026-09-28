@@ -131,8 +131,8 @@ class PassSummaryPagesController extends Controller
                         'id' => $pass->id,
                         'type' => $pass->type,
                         'reason' => $pass->reason,
-                        'start_time' => optional($pass->start_time)->timezone($tz)->format('Y-m-d H:i:s'),
-                        'end_time' => optional($pass->end_time)->timezone($tz)->format('Y-m-d H:i:s'),
+                        'start_time' => $pass->start_time?->timezone($tz)->format('Y-m-d H:i:s'),
+                        'end_time' => $pass->end_time?->timezone($tz)->format('Y-m-d H:i:s'),
                         'duration_minutes' => (int) ($pass->duration_minutes ?? 0),
                         'duration_display' => $this->formatMinutes((int) ($pass->duration_minutes ?? 0)),
                         'late_pass' => (bool) ($pass->late_pass ?? false),
@@ -195,8 +195,8 @@ class PassSummaryPagesController extends Controller
                     'department'       => $emp?->department?->name ?? '—',
                     'type'             => $pass->type,
                     'reason'           => $pass->reason,
-                    'start_time'       => optional($pass->start_time)->timezone($tz)->format('Y-m-d H:i:s'),
-                    'end_time'         => optional($pass->end_time)?->timezone($tz)->format('Y-m-d H:i:s'),
+                    'start_time'       => $pass->start_time?->timezone($tz)->format('Y-m-d H:i:s'),
+                    'end_time'         => $pass->end_time?->timezone($tz)->format('Y-m-d H:i:s'),
                     'duration_minutes' => $pass->duration_minutes !== null ? (int) $pass->duration_minutes : null,
                     'duration_display' => $pass->duration_minutes !== null
                         ? $this->formatMinutes((int) $pass->duration_minutes)

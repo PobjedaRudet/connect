@@ -12,8 +12,8 @@
         $appName  = config('app.name', 'Connect');
         $fullName = trim(($employee->firstName ?? '') . ' ' . ($employee->lastName ?? ''));
         $tz       = config('app.timezone');
-        $shiftStart = optional($pass->start_time)->timezone($tz)->format('d.m.Y H:i');
-        $arrival    = optional($pass->end_time)->timezone($tz)->format('H:i');
+        $shiftStart = $pass->start_time?->timezone($tz)->format('d.m.Y H:i');
+        $arrival    = $pass->end_time?->timezone($tz)->format('H:i');
         $lateMin    = $pass->late_minutes ?? $pass->duration_minutes ?? 0;
     @endphp
 
