@@ -11,6 +11,8 @@ export default defineConfig(({ mode }) => {
     return {
         server: {
             host: true,
+            port: 5273,
+            strictPort: true,
             cors: true,
             origin: devServerUrl,
             hmr: hmrHost ? { host: hmrHost } : undefined,

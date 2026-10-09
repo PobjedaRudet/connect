@@ -57,6 +57,7 @@ class PreglediController extends Controller
 
         $upcoming = [];
         $expired = [];
+        $nijeDosaoRed = [];
 
         foreach ($employees as $employee) {
             $lastExam = $employee->pregledi->first();
@@ -72,6 +73,11 @@ class PreglediController extends Controller
                 ];
             } elseif ($nextDue->lessThan($today)) {
                 $expired[] = [
+                    'employee' => $employee,
+                    'next_due' => $nextDue,
+                ];
+            } elseif ($nextDue->greaterThan($nextWeek)) {
+                $nijeDosaoRed[] = [
                     'employee' => $employee,
                     'next_due' => $nextDue,
                 ];
@@ -96,6 +102,7 @@ class PreglediController extends Controller
     return Inertia::render('Pregledi/ZaSedamDana', [
         'upcoming' => $upcoming,
         'expired' => $expired,
+        'nijeDosaoRed' => $nijeDosaoRed,
         'bezPregleda' => $bezPregleda, // šaljemo i njih
     ]);
     }
@@ -112,6 +119,7 @@ class PreglediController extends Controller
 
         $upcoming = [];
         $expired = [];
+        $nijeDosaoRed = [];
 
         foreach ($radnici as $employee) {
             $lastExam = $employee->pregledi->first();
@@ -129,6 +137,11 @@ class PreglediController extends Controller
                     'employee' => $employee,
                     'next_due' => $nextDue,
                 ];
+            } elseif ($nextDue->greaterThan($nextWeek) && (string) $employee->Active === '1') {
+                $nijeDosaoRed[] = [
+                    'employee' => $employee,
+                    'next_due' => $nextDue,
+                ];
             }
         }
 
@@ -142,6 +155,7 @@ class PreglediController extends Controller
     return Inertia::render('Pregledi/ZaSedamDana', [
         'upcoming' => $upcoming,
         'expired' => $expired,
+        'nijeDosaoRed' => $nijeDosaoRed,
         'bezPregleda' => $bezPregleda, // šaljemo i njih
     ]);
     }
@@ -229,6 +243,7 @@ class PreglediController extends Controller
 
         $upcoming = [];
         $expired = [];
+        $nijeDosaoRed = [];
 
         foreach ($employees as $employee) {
             $lastExam = $employee->pregledi->first();
@@ -246,6 +261,11 @@ class PreglediController extends Controller
                     'employee' => $employee,
                     'next_due' => $nextDue,
                 ];
+            } elseif ($nextDue->greaterThan($nextWeek)) {
+                $nijeDosaoRed[] = [
+                    'employee' => $employee,
+                    'next_due' => $nextDue,
+                ];
             }
         }
 
@@ -253,6 +273,7 @@ class PreglediController extends Controller
             'success' => true,
             'upcoming' => $upcoming,
             'expired' => $expired,
+            'nijeDosaoRed' => $nijeDosaoRed,
         ]);
     }
 

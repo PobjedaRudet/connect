@@ -190,8 +190,8 @@ function fmtDays(value) {
 
 function fmtPart(part) {
   const p = String(part ?? 'ostalo')
-  if (p === 'ljetni') return 'Ljetni'
-  if (p === 'zimski') return 'Zimski'
+  if (p === 'ljetni') return 'I dio'
+  if (p === 'zimski') return 'II dio'
   if (p === 'jednodnevni') return 'Jednodnevni'
   return 'Ostalo'
 }

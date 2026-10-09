@@ -557,12 +557,19 @@ class AnnualLeaveService
         mixed $validTo,
         int $remainingDays
     ): string {
+        $partLabel = match ($part) {
+            'ljetni' => 'I dio',
+            'zimski' => 'II dio',
+            'jednodnevni' => 'Jednodnevni',
+            'ostalo' => 'Ostalo',
+            default => $part,
+        };
         $num = $decisionNumber ? (' #' . $decisionNumber) : '';
         $range = ($validFrom || $validTo)
             ? (' (' . ($validFrom ?? '?') . ' - ' . ($validTo ?? '?') . ')')
             : '';
 
-        return strtoupper($part) . $num . $range . ' | Preostalo: ' . $remainingDays;
+        return $partLabel . $num . $range . ' | Preostalo: ' . $remainingDays;
     }
 
     private function asWholeDays(float|int $value): int

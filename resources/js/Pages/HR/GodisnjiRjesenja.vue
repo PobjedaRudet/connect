@@ -74,7 +74,7 @@ const submit = () => {
       <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 class="text-2xl font-semibold text-gray-800">Unos rješenja za godišnji odmor</h1>
-          <p class="text-sm text-gray-500">Kreiranje rješenja (ljetni / zimski / jednodnevni) po radniku.</p>
+          <p class="text-sm text-gray-500">Kreiranje rješenja (I dio / II dio / jednodnevni) po radniku.</p>
         </div>
         <Link
           :href="route('hr.godisnji.rjesenja.lista')"
@@ -121,8 +121,8 @@ const submit = () => {
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                 required
               >
-                <option value="ljetni">Ljetni</option>
-                <option value="zimski">Zimski</option>
+                <option value="ljetni">I dio</option>
+                <option value="zimski">II dio</option>
                 <option value="jednodnevni">Jednodnevni</option>
                 <option value="ostalo">Ostalo</option>
               </select>

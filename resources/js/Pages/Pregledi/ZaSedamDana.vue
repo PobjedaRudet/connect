@@ -89,6 +89,44 @@
                         </tbody>
                     </table>
                 </div>
+
+                <h2 class="text-lg font-semibold text-amber-800 mb-2">Unos prije roka</h2>
+                <p class="text-sm text-gray-500 mb-3">
+                    Za uposlenike kojima još nije došlo vrijeme pregleda. Upišite ime ili prezime, pa označite osobu.
+                </p>
+                <input v-model="earlySearch" type="text" placeholder="Pretraži po imenu ili prezimenu..."
+                    class="border rounded px-3 py-2 w-72 mb-4" />
+                <div v-if="earlyQuery.length >= 2" class="overflow-x-auto rounded-lg shadow mb-8 bg-white">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr class="bg-amber-50">
+                                <th class="px-4 py-3"></th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Zaposleni</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">SAP Id</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Pozicija</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Sljedeći rok</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-100">
+                            <tr v-for="item in sortedNijeDosaoRed" :key="'nije-' + item.employee.empID"
+                                :class="{ 'bg-amber-100': selectedNijeDosaoRed.includes(item.employee.empID), 'hover:bg-gray-50': !selectedNijeDosaoRed.includes(item.employee.empID) }"
+                                class="transition">
+                                <td class="px-4 py-4 text-center">
+                                    <input type="checkbox" :checked="selectedNijeDosaoRed.includes(item.employee.empID)"
+                                        @change="onCheckboxChange(item.employee.empID, null, 'nijeDosaoRed')"
+                                        class="form-checkbox h-4 w-4 text-amber-600" />
+                                </td>
+                                <td class="px-6 py-4">{{ item.employee.firstName }} {{ item.employee.lastName }}</td>
+                                <td class="px-6 py-4">{{ item.employee.empID }}</td>
+                                <td class="px-6 py-4">{{ item.employee.radno_mjesto }}</td>
+                                <td class="px-6 py-4 text-center font-semibold">{{ formatDate(item.next_due) }}</td>
+                            </tr>
+                            <tr v-if="sortedNijeDosaoRed.length === 0">
+                                <td colspan="5" class="px-6 py-4 text-sm text-gray-500">Nema rezultata za uneseno ime.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
             <!-- Popup -->
             <div v-if="showPopup" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
@@ -188,6 +226,7 @@ import PpzNav from '@/Components/PpzNav.vue'
 const props = defineProps({
     upcoming: Array,
     expired: Array,
+    nijeDosaoRed: { type: Array, default: () => [] },
     bezPregleda: Array // dodaj ovo
 });
 
@@ -197,6 +236,7 @@ onMounted(() => {
 
 const selectedUpcoming = ref([]);
 const selectedExpired = ref([]);
+const selectedNijeDosaoRed = ref([]);
 const selectedBezPregleda = ref([]);
 const showPopup = ref(false);
 
@@ -204,6 +244,7 @@ const onCheckboxChange = (empID, index = null, type = 'upcoming') => {
     let selectedArr;
     if (type === 'upcoming') selectedArr = selectedUpcoming;
     else if (type === 'expired') selectedArr = selectedExpired;
+    else if (type === 'nijeDosaoRed') selectedArr = selectedNijeDosaoRed;
     else if (type === 'bezPregleda') selectedArr = selectedBezPregleda;
     else return;
 
@@ -223,6 +264,8 @@ const form = ref({
 });
 
 const search = ref('');
+const earlySearch = ref('');
+const earlyQuery = computed(() => earlySearch.value.trim().toLowerCase());
 
 const filteredUpcoming = computed(() => {
     if (!search.value) return props.upcoming;
@@ -255,6 +298,22 @@ const sortedExpired = computed(() => {
     });
 });
 
+const filteredNijeDosaoRed = computed(() => {
+    if (earlyQuery.value.length < 2) return [];
+    return (props.nijeDosaoRed ?? []).filter(item => {
+        const imePrezime = `${item.employee.firstName} ${item.employee.lastName}`.toLowerCase();
+        return imePrezime.includes(earlyQuery.value);
+    });
+});
+
+const sortedNijeDosaoRed = computed(() => {
+    return [...filteredNijeDosaoRed.value].sort((a, b) => {
+        const aTime = new Date(a.next_due).getTime();
+        const bTime = new Date(b.next_due).getTime();
+        return aTime - bTime;
+    });
+});
+
 const formatDate = (dateStr) => {
     const date = new Date(dateStr);
     const day = String(date.getDate()).padStart(2, '0');
@@ -269,6 +328,7 @@ const azurirajPreglede = async () => {
         const allSelected = Array.from(new Set([
             ...selectedUpcoming.value,
             ...selectedExpired.value,
+            ...selectedNijeDosaoRed.value,
             ...selectedBezPregleda.value
         ]));
         if (allSelected.length === 0) {
@@ -280,6 +340,7 @@ const azurirajPreglede = async () => {
             ...form.value
         });
         showPopup.value = false;
+        selectedNijeDosaoRed.value = [];
         alert('Pregledi su ažurirani!');
         await fetchPregledi(); // Osvježi podatke
     } catch (e) {
@@ -308,6 +369,9 @@ const fetchPregledi = async () => {
     // Pretpostavljamo da API vraća { upcoming: [...], expired: [...] }
     props.upcoming.splice(0, props.upcoming.length, ...data.upcoming);
     props.expired.splice(0, props.expired.length, ...data.expired);
+    if (Array.isArray(props.nijeDosaoRed) && Array.isArray(data.nijeDosaoRed)) {
+        props.nijeDosaoRed.splice(0, props.nijeDosaoRed.length, ...data.nijeDosaoRed);
+    }
 };
 
 const showCustomUstanova = ref(false);

@@ -1,12 +1,15 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import HrNav from '@/Components/HrNav.vue'
-import { Head, Link, useForm } from '@inertiajs/vue3'
+import DialogModal from '@/Components/DialogModal.vue'
+import DangerButton from '@/Components/DangerButton.vue'
+import SecondaryButton from '@/Components/SecondaryButton.vue'
+import { Head, useForm } from '@inertiajs/vue3'
 import InputError from '@/Components/InputError.vue'
 import InputLabel from '@/Components/InputLabel.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import TextInput from '@/Components/TextInput.vue'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 
 const props = defineProps({
   employees: { type: Array, required: true },
@@ -14,6 +17,19 @@ const props = defineProps({
 })
 
 const employeeSearch = ref('')
+const editingId = ref(null)
+const formCard = ref(null)
+const pinInput = ref(null)
+
+const deleteModal = ref({
+  show: false,
+  id: null,
+  label: '',
+})
+
+const deleteForm = useForm({
+  pin: '',
+})
 
 const form = useForm({
   employee_id: '',
@@ -22,8 +38,6 @@ const form = useForm({
   days: '',
   document_number: '',
   document_date: '',
-  doctor: '',
-  diagnosis_code: '',
   status: 'otvoreno',
   note: '',
 })
@@ -56,12 +70,96 @@ const formatDisplayDate = (value) => {
   return match[4] ? `${date} ${match[4]}:${match[5]}` : date
 }
 
+const isEditing = computed(() => editingId.value !== null)
+
+const statusLabel = (status) => {
+  if (status === 'otvoreno') return 'Otvoreno'
+  if (status === 'zatvoreno') return 'Zatvoreno'
+  return status || ''
+}
+
+const cancelEdit = () => {
+  editingId.value = null
+  form.clearErrors()
+  form.reset()
+  form.status = 'otvoreno'
+  employeeSearch.value = ''
+}
+
+const startEdit = async (row) => {
+  editingId.value = row.id
+  form.clearErrors()
+  form.employee_id = String(row.employee_id)
+  form.from = row.from || ''
+  form.to = row.to || ''
+  form.days = row.days !== null && row.days !== undefined ? String(row.days) : ''
+  form.document_number = row.document_number || ''
+  form.document_date = row.document_date || ''
+  form.status = row.status || 'otvoreno'
+  form.note = row.note || ''
+  employeeSearch.value = row.employee_name || ''
+
+  await nextTick()
+  formCard.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 const submit = () => {
-  form.post(route('hr.bolovanja.store'), {
+  const options = {
     preserveScroll: true,
     onSuccess: () => {
-      form.reset('from', 'to', 'days', 'document_number', 'document_date', 'doctor', 'diagnosis_code', 'note')
-      form.status = 'otvoreno'
+      if (editingId.value) {
+        cancelEdit()
+      } else {
+        form.reset('from', 'to', 'days', 'document_number', 'document_date', 'note')
+        form.status = 'otvoreno'
+      }
+    },
+  }
+
+  if (editingId.value) {
+    form.put(route('hr.bolovanja.update', editingId.value), options)
+    return
+  }
+
+  form.post(route('hr.bolovanja.store'), options)
+}
+
+const openDeleteModal = (row) => {
+  deleteForm.reset()
+  deleteForm.clearErrors()
+  deleteModal.value = {
+    show: true,
+    id: row.id,
+    label: [
+      row.employee_name || ('#' + row.employee_id),
+      formatDisplayDate(row.from) && formatDisplayDate(row.to)
+        ? `${formatDisplayDate(row.from)} – ${formatDisplayDate(row.to)}`
+        : null,
+      row.document_number ? ('br. ' + row.document_number) : null,
+    ].filter(Boolean).join(' · '),
+  }
+  nextTick(() => pinInput.value?.focus())
+}
+
+const closeDeleteModal = (force = false) => {
+  if (!force && deleteForm.processing) return
+  deleteModal.value = { show: false, id: null, label: '' }
+  deleteForm.reset()
+  deleteForm.clearErrors()
+}
+
+const submitDelete = () => {
+  if (!deleteModal.value.id) return
+
+  const deletedId = deleteModal.value.id
+
+  deleteForm.delete(route('hr.bolovanja.destroy', deletedId), {
+    preserveScroll: true,
+    onSuccess: () => {
+      if (editingId.value === deletedId) {
+        cancelEdit()
+      }
+      closeDeleteModal(true)
     },
   })
 }
@@ -75,10 +173,23 @@ const submit = () => {
     <div class="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
       <div>
         <h1 class="text-2xl font-semibold text-gray-800">Evidencija bolovanja</h1>
-        <p class="text-sm text-gray-500">Unos bolovanja po radniku.</p>
+        <p class="text-sm text-gray-500">Unos, izmjena i brisanje bolovanja po radniku.</p>
       </div>
 
-      <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+      <div
+        ref="formCard"
+        class="bg-white rounded-lg shadow-sm p-6"
+        :class="isEditing ? 'border border-indigo-200' : 'border border-gray-200'"
+      >
+        <div v-if="isEditing" class="mb-4 flex items-center justify-between gap-3">
+          <div class="text-sm text-indigo-900">
+            Uređujete bolovanje <span class="font-semibold">#{{ editingId }}</span>.
+          </div>
+          <button type="button" class="text-sm font-medium text-indigo-700 hover:text-indigo-900" @click="cancelEdit">
+            Otkaži
+          </button>
+        </div>
+
         <form class="space-y-5" @submit.prevent="submit">
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
@@ -133,18 +244,6 @@ const submit = () => {
             </div>
 
             <div>
-              <InputLabel value="Doktor" />
-              <TextInput v-model="form.doctor" class="mt-1 block w-full" />
-              <InputError class="mt-2" :message="form.errors.doctor" />
-            </div>
-
-            <div>
-              <InputLabel value="Šifra dijagnoze" />
-              <TextInput v-model="form.diagnosis_code" class="mt-1 block w-full" />
-              <InputError class="mt-2" :message="form.errors.diagnosis_code" />
-            </div>
-
-            <div>
               <InputLabel value="Status" />
               <select
                 v-model="form.status"
@@ -169,15 +268,15 @@ const submit = () => {
 
           <div class="flex items-center gap-3">
             <PrimaryButton type="submit" :disabled="form.processing">
-              Sačuvaj
+              {{ isEditing ? 'Spremi izmjene' : 'Sačuvaj' }}
             </PrimaryButton>
 
             <button
               type="button"
               class="text-sm text-gray-600 hover:text-gray-800"
-              @click="form.reset()"
+              @click="isEditing ? cancelEdit() : form.reset()"
             >
-              Reset
+              {{ isEditing ? 'Otkaži' : 'Reset' }}
             </button>
           </div>
         </form>
@@ -198,20 +297,42 @@ const submit = () => {
               <th class="py-3 px-4">Dani</th>
               <th class="py-3 px-4">Status</th>
               <th class="py-3 px-4">Doznaka</th>
+              <th class="py-3 px-4"></th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in props.rows" :key="row.id" class="border-b">
+            <tr
+              v-for="row in props.rows"
+              :key="row.id"
+              class="border-b"
+              :class="editingId === row.id ? 'bg-indigo-50/60' : ''"
+            >
               <td class="py-2 px-4 text-gray-800">{{ row.employee_name ?? ('#' + row.employee_id) }}</td>
               <td class="py-2 px-4 text-gray-800">{{ formatDisplayDate(row.from) }}</td>
               <td class="py-2 px-4 text-gray-800">{{ formatDisplayDate(row.to) }}</td>
               <td class="py-2 px-4 text-gray-800">{{ row.days ?? '' }}</td>
-              <td class="py-2 px-4 text-gray-800">{{ row.status }}</td>
+              <td class="py-2 px-4 text-gray-800">{{ statusLabel(row.status) }}</td>
               <td class="py-2 px-4 text-gray-800">{{ row.document_number ?? '' }}</td>
+              <td class="py-2 px-4 text-right whitespace-nowrap">
+                <button
+                  type="button"
+                  class="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                  @click="startEdit(row)"
+                >
+                  Uredi
+                </button>
+                <button
+                  type="button"
+                  class="ml-3 text-sm font-medium text-red-600 hover:text-red-800"
+                  @click="openDeleteModal(row)"
+                >
+                  Obriši
+                </button>
+              </td>
             </tr>
 
             <tr v-if="props.rows.length === 0">
-              <td colspan="6" class="py-3 px-4 text-sm text-gray-500">
+              <td colspan="7" class="py-3 px-4 text-sm text-gray-500">
                 Nema podataka.
               </td>
             </tr>
@@ -219,5 +340,49 @@ const submit = () => {
         </table>
       </div>
     </div>
+
+    <DialogModal :show="deleteModal.show" max-width="md" @close="closeDeleteModal">
+      <template #title>
+        Brisanje bolovanja
+      </template>
+
+      <template #content>
+        <p>
+          Trajno brišete
+          <span class="font-semibold text-gray-800">{{ deleteModal.label || 'bolovanje' }}</span>.
+          Unesite šifru da potvrdite.
+        </p>
+
+        <div class="mt-4">
+          <label class="block text-sm font-medium text-gray-700">Šifra</label>
+          <input
+            ref="pinInput"
+            v-model="deleteForm.pin"
+            type="password"
+            inputmode="numeric"
+            autocomplete="off"
+            class="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-red-500 focus:ring-red-500"
+            placeholder="Unesite šifru"
+            @keyup.enter="submitDelete"
+          />
+          <p v-if="deleteForm.errors.pin" class="mt-1 text-sm text-red-600">{{ deleteForm.errors.pin }}</p>
+        </div>
+      </template>
+
+      <template #footer>
+        <SecondaryButton :disabled="deleteForm.processing" @click="closeDeleteModal">
+          Otkaži
+        </SecondaryButton>
+
+        <DangerButton
+          class="ms-3"
+          :class="{ 'opacity-40': deleteForm.processing }"
+          :disabled="deleteForm.processing || !deleteForm.pin"
+          @click="submitDelete"
+        >
+          Obriši
+        </DangerButton>
+      </template>
+    </DialogModal>
   </AppLayout>
 </template>

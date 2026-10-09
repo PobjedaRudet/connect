@@ -1,7 +1,14 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import HrNav from '@/Components/HrNav.vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import DialogModal from '@/Components/DialogModal.vue'
+import DangerButton from '@/Components/DangerButton.vue'
+import SecondaryButton from '@/Components/SecondaryButton.vue'
+import PrimaryButton from '@/Components/PrimaryButton.vue'
+import InputError from '@/Components/InputError.vue'
+import InputLabel from '@/Components/InputLabel.vue'
+import { Head, Link, router, useForm } from '@inertiajs/vue3'
+import { ref } from 'vue'
 
 const props = defineProps({
   passes: { type: Array, default: () => [] },
@@ -37,6 +44,71 @@ const confirmPass = (passId, type) => {
   router.post(route('passes.confirm', passId), { type }, {
     preserveScroll: true,
     preserveState: true,
+  })
+}
+
+const toInputDateTime = (value) => {
+  if (!value) return ''
+  const match = String(value).trim().match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/)
+  return match ? `${match[1]}T${match[2]}` : ''
+}
+
+const editing = ref(null)
+const deleteTarget = ref(null)
+
+const editForm = useForm({
+  type: 'privatni',
+  reason: '',
+  start_time: '',
+  end_time: '',
+})
+
+const deleteForm = useForm({})
+
+const openEdit = (passItem) => {
+  editing.value = passItem
+  editForm.clearErrors()
+  editForm.type = passItem.type || 'privatni'
+  editForm.reason = passItem.reason || ''
+  editForm.start_time = toInputDateTime(passItem.start_time)
+  editForm.end_time = toInputDateTime(passItem.end_time)
+}
+
+const closeEdit = () => {
+  if (editForm.processing) return
+  editing.value = null
+  editForm.clearErrors()
+}
+
+const submitEdit = () => {
+  if (!editing.value) return
+
+  editForm.put(route('passes.update', editing.value.id), {
+    preserveScroll: true,
+    onSuccess: () => {
+      editing.value = null
+    },
+  })
+}
+
+const openDelete = (passItem) => {
+  deleteTarget.value = passItem
+  deleteForm.clearErrors()
+}
+
+const closeDelete = () => {
+  if (deleteForm.processing) return
+  deleteTarget.value = null
+}
+
+const submitDelete = () => {
+  if (!deleteTarget.value) return
+
+  deleteForm.delete(route('passes.destroy', deleteTarget.value.id), {
+    preserveScroll: true,
+    onSuccess: () => {
+      deleteTarget.value = null
+    },
   })
 }
 </script>
@@ -96,7 +168,21 @@ const confirmPass = (passId, type) => {
                   <option value="službeni">Službena</option>
                 </select>
               </td>
-              <td class="px-4 py-3 text-sm text-right space-x-2">
+              <td class="px-4 py-3 text-sm text-right whitespace-nowrap space-x-2">
+                <button
+                  type="button"
+                  class="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                  @click="openEdit(passItem)"
+                >
+                  Uredi
+                </button>
+                <button
+                  type="button"
+                  class="text-sm font-medium text-red-600 hover:text-red-800"
+                  @click="openDelete(passItem)"
+                >
+                  Obriši
+                </button>
                 <button
                   class="inline-flex items-center px-3 py-2 bg-emerald-600 text-white rounded-md text-sm font-medium hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 disabled:opacity-50"
                   :disabled="passItem.approved"
@@ -113,5 +199,107 @@ const confirmPass = (passId, type) => {
         </table>
       </div>
     </div>
+
+    <DialogModal :show="editing !== null" max-width="lg" @close="closeEdit">
+      <template #title>
+        Izmjena izlaznice
+      </template>
+
+      <template #content>
+        <p v-if="editing" class="mb-4">
+          {{ editing.employee_name }}
+        </p>
+
+        <form id="pass-edit-form" class="space-y-4" @submit.prevent="submitEdit">
+          <div>
+            <InputLabel value="Tip" />
+            <select
+              v-model="editForm.type"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="privatni">Privatna</option>
+              <option value="službeni">Službena</option>
+            </select>
+            <InputError class="mt-2" :message="editForm.errors.type" />
+          </div>
+
+          <div>
+            <InputLabel value="Razlog" />
+            <textarea
+              v-model="editForm.reason"
+              rows="3"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+            <InputError class="mt-2" :message="editForm.errors.reason" />
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <InputLabel value="Izlazak" />
+              <input
+                v-model="editForm.start_time"
+                type="datetime-local"
+                required
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              />
+              <InputError class="mt-2" :message="editForm.errors.start_time" />
+            </div>
+
+            <div>
+              <InputLabel value="Povratak" />
+              <input
+                v-model="editForm.end_time"
+                type="datetime-local"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              />
+              <InputError class="mt-2" :message="editForm.errors.end_time" />
+            </div>
+          </div>
+        </form>
+      </template>
+
+      <template #footer>
+        <SecondaryButton :disabled="editForm.processing" @click="closeEdit">
+          Otkaži
+        </SecondaryButton>
+
+        <PrimaryButton
+          type="button"
+          class="ms-3"
+          :disabled="editForm.processing"
+          @click="submitEdit"
+        >
+          Spremi
+        </PrimaryButton>
+      </template>
+    </DialogModal>
+
+    <DialogModal :show="deleteTarget !== null" max-width="md" @close="closeDelete">
+      <template #title>
+        Brisanje izlaznice
+      </template>
+
+      <template #content>
+        <p>
+          Trajno brišete izlaznicu za
+          <span class="font-semibold text-gray-800">{{ deleteTarget?.employee_name || 'radnika' }}</span>.
+        </p>
+      </template>
+
+      <template #footer>
+        <SecondaryButton :disabled="deleteForm.processing" @click="closeDelete">
+          Otkaži
+        </SecondaryButton>
+
+        <DangerButton
+          class="ms-3"
+          :class="{ 'opacity-40': deleteForm.processing }"
+          :disabled="deleteForm.processing"
+          @click="submitDelete"
+        >
+          Obriši
+        </DangerButton>
+      </template>
+    </DialogModal>
   </AppLayout>
 </template>

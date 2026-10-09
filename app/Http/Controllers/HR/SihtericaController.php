@@ -185,8 +185,8 @@ class SihtericaController extends Controller
                 $employeeId = (int) $decision->employee_id;
 
                 $partLabel = match ((string) $decision->part) {
-                    'ljetni' => 'Ljetni',
-                    'zimski' => 'Zimski',
+                    'ljetni' => 'I dio',
+                    'zimski' => 'II dio',
                     'jednodnevni' => 'Jednodnevni',
                     'ostalo' => 'Ostalo',
                     default => (string) $decision->part,

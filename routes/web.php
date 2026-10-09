@@ -287,10 +287,14 @@ Route::middleware('auth', 'adminOrFunkcije:HR,Šef HR,IT,Radnik, Šef PPZ,Šef f
         Route::delete('/hr/godisnji-rjesenja/{decision}', [AnnualLeaveDecisionPagesController::class, 'destroy'])->name('hr.godisnji.rjesenja.destroy');
         Route::get('/hr/godisnji-iskoristenje', [AnnualLeaveUsagePagesController::class, 'index'])->name('hr.godisnji.iskoristenje');
         Route::post('/hr/godisnji-iskoristenje', [AnnualLeaveUsagePagesController::class, 'store'])->name('hr.godisnji.iskoristenje.store');
+        Route::put('/hr/godisnji-iskoristenje/{usage}', [AnnualLeaveUsagePagesController::class, 'update'])->name('hr.godisnji.iskoristenje.update');
+        Route::delete('/hr/godisnji-iskoristenje/{usage}', [AnnualLeaveUsagePagesController::class, 'destroy'])->name('hr.godisnji.iskoristenje.destroy');
 
         // Bolovanja
         Route::get('/hr/bolovanja', [SickLeavePagesController::class, 'index'])->name('hr.bolovanja');
         Route::post('/hr/bolovanja', [SickLeavePagesController::class, 'store'])->name('hr.bolovanja.store');
+        Route::put('/hr/bolovanja/{sickLeave}', [SickLeavePagesController::class, 'update'])->name('hr.bolovanja.update');
+        Route::delete('/hr/bolovanja/{sickLeave}', [SickLeavePagesController::class, 'destroy'])->name('hr.bolovanja.destroy');
 
         // API — godišnji odmori
         Route::get('/api/godisnji/balance', [AnnualLeaveApiController::class, 'balance'])->name('api.godisnji.balance');
@@ -307,11 +311,9 @@ Route::middleware('auth', 'adminOrFunkcije:HR,Šef HR,IT,Radnik, Šef PPZ,Šef f
         Route::put('/hr/sihterica/{record}', [SihtericaController::class, 'update'])->name('hr.sihterica.update');
         Route::delete('/hr/sihterica/{record}', [SihtericaController::class, 'destroy'])->name('hr.sihterica.destroy');
 
-        // Masovna dodjela statusa — samo admin ili Šef HR
-        Route::middleware('adminOrFunkcije:Šef HR')->group(function () {
-            Route::get('/hr/masovna-dodjela-statusa', [BulkDayStatusPagesController::class, 'index'])->name('hr.statusi.masovno');
-            Route::post('/hr/masovna-dodjela-statusa', [BulkDayStatusPagesController::class, 'store'])->name('hr.statusi.masovno.store');
-        });
+        // Masovna dodjela statusa — admin i Šef HR za sve, ostali samo za nadležne uposlenike
+        Route::get('/hr/masovna-dodjela-statusa', [BulkDayStatusPagesController::class, 'index'])->name('hr.statusi.masovno');
+        Route::post('/hr/masovna-dodjela-statusa', [BulkDayStatusPagesController::class, 'store'])->name('hr.statusi.masovno.store');
 
         // Prekovremeni sati
         Route::get('/hr/prekovremeni-sati', [OvertimePagesController::class, 'index'])->name('hr.prekovremeni-sati');

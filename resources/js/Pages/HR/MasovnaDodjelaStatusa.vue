@@ -12,6 +12,7 @@ const props = defineProps({
   recentRows: { type: Array, default: () => [] },
   allowedStatuses: { type: Array, default: () => [] },
   departments: { type: Array, default: () => [] },
+  globalAccess: { type: Boolean, default: true },
 })
 
 const formatDisplayDate = (value) => {
@@ -50,14 +51,18 @@ const submitLabel = computed(() => {
     if (selectedDepartmentCount.value === 1) return 'Dodijeli status odabranom odjelu'
     return `Dodijeli status (${selectedDepartmentCount.value} odjela)`
   }
-  return 'Dodijeli status svima'
+  return props.globalAccess ? 'Dodijeli status svima' : 'Dodijeli status nadležnima'
 })
 
 const infoText = computed(() => {
   if (form.scope === 'departments') {
-    return 'Status se upisuje aktivnim radnicima u označenim odjelima i ažurira postojeći unos za isti datum.'
+    return props.globalAccess
+      ? 'Status se upisuje aktivnim radnicima u označenim odjelima i ažurira postojeći unos za isti datum.'
+      : 'Status se upisuje samo nadležnim radnicima u označenim odjelima i ažurira postojeći unos za isti datum.'
   }
-  return 'Ova akcija automatski upisuje status svim aktivnim radnicima i ažurira postojeći unos za isti datum.'
+  return props.globalAccess
+    ? 'Ova akcija automatski upisuje status svim aktivnim radnicima i ažurira postojeći unos za isti datum.'
+    : 'Ova akcija upisuje status samo uposlenicima za koje ste nadležni i ažurira postojeći unos za isti datum.'
 })
 
 const toggleAllDepartments = () => {
@@ -101,7 +106,12 @@ const submit = () => {
       <div>
         <h1 class="text-2xl font-semibold text-gray-800">Masovna dodjela statusa</h1>
         <p class="text-sm text-gray-500">
-          Dodijelite isti status svim aktivnim radnicima ili samo odabranim odjelima, za jedan dan ili raspon dana.
+          <template v-if="props.globalAccess">
+            Dodijelite isti status svim aktivnim radnicima ili samo odabranim odjelima, za jedan dan ili raspon dana.
+          </template>
+          <template v-else>
+            Dodijelite isti status uposlenicima za koje ste nadležni, svima ili po odjelu, za jedan dan ili raspon dana.
+          </template>
         </p>
       </div>
 
@@ -153,7 +163,7 @@ const submit = () => {
                     class="border-gray-300 text-indigo-600 focus:ring-indigo-500"
                     @change="onScopeChange"
                   />
-                  Svi aktivni radnici
+                  {{ props.globalAccess ? 'Svi aktivni radnici' : 'Svi nadležni radnici' }}
                 </label>
                 <label class="inline-flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
                   <input

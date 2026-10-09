@@ -206,4 +206,97 @@ class PassController extends Controller
 
         return back()->with('success', 'Izlaznica označena kao odobrena.');
     }
+
+    public function update(Request $request, Pass $pass): RedirectResponse
+    {
+        if (! $this->canAccessPass($request->user(), $pass)) {
+            abort(403, 'Nemate pravo pristupa ovoj izlaznici.');
+        }
+
+        if ($pass->approved) {
+            return back()->with('info', 'Odobrena izlaznica se ne može mijenjati.');
+        }
+
+        if ($request->has('end_time') && $request->input('end_time') === '') {
+            $request->merge(['end_time' => null]);
+        }
+
+        if ($request->has('reason') && $request->input('reason') === null) {
+            $request->merge(['reason' => '']);
+        }
+
+        $validated = $request->validate([
+            'type' => 'required|in:privatni,službeni',
+            'reason' => 'nullable|string|max:2000',
+            'start_time' => 'required|date',
+            'end_time' => 'nullable|date|after_or_equal:start_time',
+        ]);
+
+        $endTime = isset($validated['end_time']) ? Carbon::parse($validated['end_time']) : null;
+        $startTime = Carbon::parse($validated['start_time']);
+        $duration = $endTime
+            ? $this->durationMinutes($validated['type'], $startTime, $endTime)
+            : null;
+
+        $updates = [
+            'type' => $validated['type'],
+            'reason' => $validated['reason'] ?? '',
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'status' => $endTime ? 'closed' : 'open',
+            'duration_minutes' => $duration,
+        ];
+
+        if ($pass->late_pass) {
+            $updates['late_minutes'] = $duration;
+        }
+
+        if ($pass->early_departure) {
+            $updates['early_minutes'] = $duration;
+        }
+
+        $pass->update($updates);
+
+        return back()->banner('Izlaznica je ažurirana.');
+    }
+
+    public function destroy(Request $request, Pass $pass): RedirectResponse
+    {
+        if (! $this->canAccessPass($request->user(), $pass)) {
+            abort(403, 'Nemate pravo pristupa ovoj izlaznici.');
+        }
+
+        if ($pass->approved) {
+            return back()->with('info', 'Odobrena izlaznica se ne može obrisati.');
+        }
+
+        $pass->delete();
+
+        return back()->banner('Izlaznica je obrisana.');
+    }
+
+    private function durationMinutes(string $type, Carbon $start, Carbon $end): int
+    {
+        if ($end->lessThanOrEqualTo($start)) {
+            return 0;
+        }
+
+        $endReference = $end;
+
+        if ($type === 'privatni') {
+            $workdayEndString = config('app.workday_end_time', '15:00');
+
+            try {
+                $workdayEnd = Carbon::parse($start->toDateString() . ' ' . $workdayEndString);
+            } catch (\Throwable) {
+                $workdayEnd = $start->copy()->setTime(15, 0);
+            }
+
+            if ($workdayEnd->greaterThan($start) && $end->greaterThan($workdayEnd)) {
+                $endReference = $workdayEnd;
+            }
+        }
+
+        return (int) max($start->diffInMinutes($endReference, false), 0);
+    }
 }

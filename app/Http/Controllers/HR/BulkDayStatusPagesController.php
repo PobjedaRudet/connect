@@ -17,13 +17,21 @@ class BulkDayStatusPagesController extends Controller
 {
     use Concerns\ScopesEmployeesByUser;
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $user = $request->user();
+        $globalAccess = $this->hasGlobalEmployeeAccess($user);
         $recentRows = collect();
 
         if (Schema::hasTable('attendance_day_statuses')) {
-            $recentRows = AttendanceDayStatus::query()
-                ->with(['employee:id,firstName,lastName'])
+            $recentQuery = AttendanceDayStatus::query()
+                ->with(['employee:id,firstName,lastName']);
+
+            if (! $globalAccess) {
+                $recentQuery->whereIn('employee_id', $this->scopedEmployeeQuery($user)->pluck('id'));
+            }
+
+            $recentRows = $recentQuery
                 ->orderByDesc('work_date')
                 ->orderByDesc('id')
                 ->limit(120)
@@ -48,7 +56,8 @@ class BulkDayStatusPagesController extends Controller
 
         return Inertia::render('HR/MasovnaDodjelaStatusa', [
             'recentRows' => $recentRows,
-            'departments' => $this->departmentFilterOptions(),
+            'departments' => $this->departmentsForUser($user),
+            'globalAccess' => $globalAccess,
             'allowedStatuses' => [
                 ['code' => 'P', 'label' => 'P - Praznik'],
                 ['code' => 'GO', 'label' => 'GO - Godisnji odmor'],
@@ -179,5 +188,31 @@ class BulkDayStatusPagesController extends Controller
         return redirect()
             ->route('hr.statusi.masovno')
             ->banner('Status "' . $statusCode . '" dodijeljen/azuriran za ' . $affectedRows . ' stavki.');
+    }
+
+    /**
+     * @return array<int, array{id: int, name: string}>
+     */
+    private function departmentsForUser($user): array
+    {
+        $departments = $this->departmentFilterOptions();
+
+        if ($this->hasGlobalEmployeeAccess($user)) {
+            return $departments;
+        }
+
+        $allowedIds = $this->scopedEmployeeQuery($user)
+            ->whereNotNull('dept')
+            ->pluck('dept')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->all();
+
+        $allowed = array_flip($allowedIds);
+
+        return array_values(array_filter(
+            $departments,
+            fn (array $department) => isset($allowed[(int) $department['id']])
+        ));
     }
 }
