@@ -8,10 +8,13 @@ import PrimaryButton from '@/Components/PrimaryButton.vue'
 import InputError from '@/Components/InputError.vue'
 import InputLabel from '@/Components/InputLabel.vue'
 import { Head, Link, router, useForm } from '@inertiajs/vue3'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+
+const MANUAL_REASON = 'Ručni unos zbog zaboravljenog skena'
 
 const props = defineProps({
   passes: { type: Array, default: () => [] },
+  employees: { type: Array, default: () => [] },
   workdayEndTime: { type: String, default: '15:00' },
 })
 
@@ -111,6 +114,41 @@ const submitDelete = () => {
     },
   })
 }
+
+const employeeSearch = ref('')
+
+const createForm = useForm({
+  employee_id: '',
+  type: 'privatni',
+  reason: MANUAL_REASON,
+  start_time: '',
+  end_time: '',
+})
+
+const filteredEmployees = computed(() => {
+  const query = employeeSearch.value.trim().toLowerCase()
+  const list = props.employees ?? []
+  if (!query) return list
+
+  const selectedId = String(createForm.employee_id ?? '')
+  const matches = list.filter((employee) => String(employee.name || '').toLowerCase().includes(query))
+  const selected = list.find((employee) => String(employee.id) === selectedId)
+  if (selected && !matches.some((employee) => String(employee.id) === selectedId)) {
+    return [selected, ...matches]
+  }
+
+  return matches
+})
+
+const submitCreate = () => {
+  createForm.post(route('passes.store'), {
+    preserveScroll: true,
+    onSuccess: () => {
+      createForm.reset()
+      employeeSearch.value = ''
+    },
+  })
+}
 </script>
 
 <template>
@@ -131,6 +169,92 @@ const submitDelete = () => {
           Pregled odobrenih izlaznica
         </Link>
       </div>
+
+      <form class="bg-white shadow rounded-lg border border-gray-200 p-5 mb-6 space-y-4" @submit.prevent="submitCreate">
+        <div>
+          <h2 class="text-lg font-semibold text-gray-800">Ručni unos izlaznice</h2>
+          <p class="text-sm text-gray-500">
+            Za radnika koji je bio prijavljen, a zaboravio se provući. Upišite i izlazak i povratak. Sati prijave se ne mijenjaju.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <InputLabel value="Radnik" />
+            <input
+              v-model="employeeSearch"
+              type="text"
+              placeholder="Pretraga po imenu ili prezimenu"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+            <select
+              v-model="createForm.employee_id"
+              required
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="" disabled>Odaberi radnika...</option>
+              <option v-for="employee in filteredEmployees" :key="employee.id" :value="String(employee.id)">
+                {{ employee.name }}
+              </option>
+            </select>
+            <InputError class="mt-2" :message="createForm.errors.employee_id" />
+          </div>
+
+          <div>
+            <InputLabel value="Tip" />
+            <select
+              v-model="createForm.type"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            >
+              <option value="privatni">Privatna</option>
+              <option value="službeni">Službena</option>
+            </select>
+            <InputError class="mt-2" :message="createForm.errors.type" />
+          </div>
+
+          <div>
+            <InputLabel value="Razlog" />
+            <input
+              v-model="createForm.reason"
+              type="text"
+              required
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+            <InputError class="mt-2" :message="createForm.errors.reason" />
+          </div>
+
+          <div>
+            <InputLabel value="Izlazak" />
+            <input
+              v-model="createForm.start_time"
+              type="datetime-local"
+              required
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+            <InputError class="mt-2" :message="createForm.errors.start_time" />
+          </div>
+
+          <div>
+            <InputLabel value="Povratak" />
+            <input
+              v-model="createForm.end_time"
+              type="datetime-local"
+              required
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+            <InputError class="mt-2" :message="createForm.errors.end_time" />
+          </div>
+        </div>
+
+        <div>
+          <PrimaryButton type="submit" :disabled="createForm.processing || employees.length === 0">
+            Unesi izlaznicu
+          </PrimaryButton>
+          <p v-if="employees.length === 0" class="mt-2 text-sm text-gray-500">
+            Nema radnika za koje možete unijeti izlaznicu.
+          </p>
+        </div>
+      </form>
 
       <div class="bg-white shadow rounded-lg overflow-hidden border border-gray-200">
         <table class="min-w-full divide-y divide-gray-200">

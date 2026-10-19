@@ -9,6 +9,7 @@ use App\Models\AttendanceDayStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Shift;
 use App\Models\SickLeave;
+use App\Models\TravelOrder;
 use App\Services\SihtericaAuditLogger;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -425,6 +426,41 @@ class SihtericaController extends Controller
                     true
                 );
                 $locked[$employeeId][$dateKey] = true;
+            }
+        }
+
+        if (!empty($employeeIds) && Schema::hasTable('travel_orders')) {
+            $travelOrders = TravelOrder::query()
+                ->whereIn('employee_id', $employeeIds)
+                ->where('date_from', '<=', $monthEndDate)
+                ->where('date_to', '>=', $monthStartDate)
+                ->orderBy('id')
+                ->get(['id', 'employee_id', 'date_from', 'date_to', 'reason']);
+
+            foreach ($travelOrders as $order) {
+                $employeeId = (int) $order->employee_id;
+                $note = 'Putni nalog: ' . trim((string) $order->reason);
+
+                foreach ($this->workingDatesInRange(
+                    $order->date_from,
+                    $order->date_to,
+                    $monthStart,
+                    $monthEnd
+                ) as $dateKey) {
+                    if (!empty($locked[$employeeId][$dateKey]) || isset($boDays[$employeeId][$dateKey])) {
+                        continue;
+                    }
+
+                    $cell = $this->buildDayCell(
+                        $existingRecords($employeeId, $dateKey),
+                        true,
+                        '8',
+                        $note
+                    );
+                    $cell['from_travel_order'] = true;
+                    $attendance[$employeeId][$dateKey] = $cell;
+                    $locked[$employeeId][$dateKey] = true;
+                }
             }
         }
 

@@ -22,6 +22,7 @@ const groups = [
     label: 'Evidencija',
     links: [
       { label: 'Šihterica', href: route('hr.sihterica'), route: 'hr.sihterica' },
+      { label: 'Putni nalozi', href: route('hr.putni-nalozi'), route: 'hr.putni-nalozi' },
       { label: 'Statusi', href: route('hr.statusi.masovno'), route: 'hr.statusi.masovno' },
       { label: 'Prekovremeni', href: route('hr.prekovremeni-sati'), route: 'hr.prekovremeni-sati' },
       { label: 'Iskorištenje PK', href: route('hr.prekovremeni.iskoristenje'), route: 'hr.prekovremeni.iskoristenje' },

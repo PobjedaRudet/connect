@@ -85,6 +85,8 @@ const cellClasses = (dayMeta, entry) => {
       base.push('text-teal-800', 'font-semibold', 'bg-teal-50')
     } else if (entry.from_annual_leave_usage) {
       base.push('text-blue-700', 'font-semibold', 'bg-blue-50')
+    } else if (entry.from_travel_order) {
+      base.push('text-sky-800', 'font-semibold', 'bg-sky-50')
     } else {
       base.push('text-indigo-700', 'font-semibold', 'bg-indigo-50')
     }
@@ -135,6 +137,8 @@ const cellTitle = (entry) => {
       lines.push(`Godišnji odmor (rješenje): ${entry.duration_display}`)
     } else if (entry.from_annual_leave_usage) {
       lines.push(`Iskorištenje GO (kao radni dan): ${entry.duration_display}`)
+    } else if (entry.from_travel_order) {
+      lines.push(`Putni nalog: ${entry.duration_display}`)
     } else {
       lines.push(`Ručni status: ${entry.duration_display}`)
     }
@@ -158,7 +162,7 @@ const cellTitle = (entry) => {
   }
 
   if (entry.manual_status && entry.manual_note) {
-    if (entry.from_annual_leave_decision || entry.from_annual_leave_usage || entry.from_sick_leave || entry.leave_overlap) {
+    if (entry.from_annual_leave_decision || entry.from_annual_leave_usage || entry.from_sick_leave || entry.leave_overlap || entry.from_travel_order) {
       lines.push(entry.manual_note)
     } else {
       lines.push(`Napomena: ${entry.manual_note}`)

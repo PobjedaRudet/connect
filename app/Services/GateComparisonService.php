@@ -26,10 +26,27 @@ class GateComparisonService
         string $date,
         int $toleranceMinutes = self::DEFAULT_TOLERANCE_MINUTES,
         ?iterable $employeeIds = null,
+        ?Carbon $until = null,
     ): array {
         $tz = config('app.timezone');
         $day = Carbon::parse($date, $tz)->startOfDay();
         $dayEnd = $day->copy()->endOfDay();
+        $windowEnd = $dayEnd;
+
+        if ($until !== null) {
+            $until = $until->copy()->timezone($tz);
+            if ($until->lt($day)) {
+                return [
+                    'date' => $day->toDateString(),
+                    'tolerance_minutes' => $toleranceMinutes,
+                    'rows' => [],
+                    'summary' => ['total' => 0, 'flagged' => 0, 'ok' => 0],
+                ];
+            }
+            if ($until->lt($dayEnd)) {
+                $windowEnd = $until;
+            }
+        }
 
         $allowedIds = $employeeIds === null
             ? null
@@ -44,16 +61,16 @@ class GateComparisonService
             ];
         }
 
-        $gateLogsQuery = GateLog::whereBetween('scanned_at', [$day, $dayEnd])
+        $gateLogsQuery = GateLog::whereBetween('scanned_at', [$day, $windowEnd])
             ->orderBy('scanned_at');
         if ($allowedIds !== null) {
             $gateLogsQuery->whereIn('employee_id', $allowedIds->all());
         }
         $gateLogsByEmployee = $gateLogsQuery->get()->groupBy('employee_id');
 
-        $attendanceQuery = AttendanceRecord::where(function ($q) use ($day, $dayEnd) {
-                $q->whereBetween('entry_time', [$day, $dayEnd])
-                    ->orWhereBetween('exit_time', [$day, $dayEnd]);
+        $attendanceQuery = AttendanceRecord::where(function ($q) use ($day, $windowEnd) {
+                $q->whereBetween('entry_time', [$day, $windowEnd])
+                    ->orWhereBetween('exit_time', [$day, $windowEnd]);
             })
             ->orderBy('entry_time');
         if ($allowedIds !== null) {
@@ -125,6 +142,10 @@ class GateComparisonService
                 'gate_out' => $gateOut?->scanned_at?->format('H:i'),
                 'building_in' => $buildingIn?->entry_time?->format('H:i'),
                 'building_out' => $buildingOut?->exit_time?->format('H:i'),
+                'gate_in_at' => $gateIn?->scanned_at?->format('Y-m-d H:i:s'),
+                'gate_out_at' => $gateOut?->scanned_at?->format('Y-m-d H:i:s'),
+                'building_in_at' => $buildingIn?->entry_time?->format('Y-m-d H:i:s'),
+                'building_out_at' => $buildingOut?->exit_time?->format('Y-m-d H:i:s'),
                 'gate_in_id' => $gateIn?->id ? (int) $gateIn->id : null,
                 'gate_out_id' => $gateOut?->id ? (int) $gateOut->id : null,
                 'building_in_id' => $buildingIn?->id ? (int) $buildingIn->id : null,

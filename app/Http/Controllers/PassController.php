@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendPassCreatedEmailJob;
+use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\Pass;
 use Illuminate\Http\RedirectResponse;
@@ -13,6 +15,8 @@ use Inertia\Response;
 
 class PassController extends Controller
 {
+    private const MANUAL_REASON = 'Ručni unos zbog zaboravljenog skena';
+
     private function resolveApproverEmployeeId(?User $user): ?int
     {
         $email = trim((string) ($user?->email ?? ''));
@@ -98,8 +102,80 @@ class PassController extends Controller
 
         return inertia('HR/OdobravanjeIzlaznica', [
             'passes' => $passes,
+            'employees' => $this->employeesForManualPass($request->user()),
             'workdayEndTime' => config('app.workday_end_time', '15:00'),
         ]);
+    }
+
+    /**
+     * Ručni unos zatvorene izlaznice za zaboravljeni sken u toku smjene.
+     * Ne dira prijavu, odjavu, kapiju ni automatske izlaznice za kašnjenje.
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'employee_id' => 'required|integer|exists:employees,id',
+            'type' => 'required|in:privatni,službeni',
+            'reason' => 'required|string|max:2000',
+            'start_time' => 'required|date',
+            'end_time' => 'required|date|after:start_time',
+        ], [
+            'employee_id.required' => 'Odaberite radnika.',
+            'type.required' => 'Odaberite tip izlaznice.',
+            'reason.required' => 'Razlog je obavezan.',
+            'start_time.required' => 'Vrijeme izlaska je obavezno.',
+            'end_time.required' => 'Vrijeme povratka je obavezno.',
+            'end_time.after' => 'Povratak mora biti poslije izlaska.',
+        ]);
+
+        $employee = Employee::query()->findOrFail((int) $validated['employee_id']);
+        if (! $this->canCreatePassFor($request->user(), $employee)) {
+            abort(403, 'Nemate pravo unosa izlaznice za ovog radnika.');
+        }
+
+        $tz = config('app.timezone');
+        $start = Carbon::parse($validated['start_time'], $tz);
+        $end = Carbon::parse($validated['end_time'], $tz);
+        $now = Carbon::now($tz);
+
+        if ($start->greaterThan($now) || $end->greaterThan($now)) {
+            return back()->withErrors([
+                'end_time' => 'Izlaznica ne može biti u budućnosti.',
+            ])->withInput();
+        }
+
+        if (! $this->intervalInsideAttendance((int) $employee->id, $start, $end, $now)) {
+            return back()->withErrors([
+                'start_time' => 'Interval mora pasti unutar jedne prijave tog radnika. Ako je prijava još otvorena, povratak mora biti do sada.',
+            ])->withInput();
+        }
+
+        if ($this->overlapsExistingPass((int) $employee->id, $start, $end)) {
+            return back()->withErrors([
+                'start_time' => 'Izlaznica se preklapa sa postojećom izlaznicom ovog radnika.',
+            ])->withInput();
+        }
+
+        $pass = Pass::create([
+            'employee_id' => $employee->id,
+            'type' => $validated['type'],
+            'reason' => $this->manualReason($validated['reason']),
+            'start_time' => $start,
+            'end_time' => $end,
+            'approved_by' => null,
+            'approved_by_user_id' => null,
+            'status' => 'closed',
+            'duration_minutes' => $this->durationMinutes($validated['type'], $start, $end),
+            'approved' => false,
+            'late_pass' => false,
+            'late_minutes' => null,
+            'early_departure' => false,
+            'early_minutes' => null,
+        ]);
+
+        SendPassCreatedEmailJob::dispatch($employee->id, $pass->id)->afterResponse();
+
+        return back()->banner('Izlaznica je unesena.');
     }
 
     /**
@@ -273,6 +349,123 @@ class PassController extends Controller
         $pass->delete();
 
         return back()->banner('Izlaznica je obrisana.');
+    }
+
+    private function canCreatePassFor($user, Employee $employee): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if ($this->isAdminUser($user)) {
+            return true;
+        }
+
+        $uid = (int) $user->id;
+        foreach ((array) ($employee->pass_approvers ?? []) as $approverId) {
+            if ((int) $approverId === $uid) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    private function employeesForManualPass($user): array
+    {
+        $query = Employee::query()
+            ->where(function ($q) {
+                $q->whereNull('Active')->orWhere('Active', 1);
+            })
+            ->orderBy('lastName')
+            ->orderBy('firstName');
+
+        if (! $this->isAdminUser($user)) {
+            $uid = (int) ($user->id ?? 0);
+            $query->where(function ($q) use ($uid) {
+                $q->whereJsonContains('pass_approvers', $uid)
+                    ->orWhereJsonContains('pass_approvers', (string) $uid);
+            });
+        }
+
+        return $query->get(['id', 'firstName', 'lastName'])
+            ->map(fn (Employee $employee) => [
+                'id' => (int) $employee->id,
+                'name' => trim((string) $employee->lastName . ' ' . (string) $employee->firstName),
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function manualReason(string $reason): string
+    {
+        $reason = trim($reason);
+        if ($reason === '' || $reason === self::MANUAL_REASON) {
+            return self::MANUAL_REASON;
+        }
+
+        if (str_starts_with($reason, self::MANUAL_REASON)) {
+            return $reason;
+        }
+
+        return self::MANUAL_REASON . '. ' . $reason;
+    }
+
+    private function intervalInsideAttendance(int $employeeId, Carbon $start, Carbon $end, Carbon $now): bool
+    {
+        $tz = config('app.timezone');
+
+        $records = AttendanceRecord::query()
+            ->where('employee_id', $employeeId)
+            ->whereNotNull('entry_time')
+            ->where(function ($q) use ($end) {
+                $q->where('entry_time', '<=', $end)
+                    ->orWhere(function ($q) use ($end) {
+                        $q->whereNotNull('effective_start')->where('effective_start', '<=', $end);
+                    });
+            })
+            ->where(function ($q) use ($start) {
+                $q->whereNull('exit_time')->orWhere('exit_time', '>=', $start);
+            })
+            ->get(['entry_time', 'effective_start', 'exit_time']);
+
+        foreach ($records as $record) {
+            $windowStart = $record->effective_start ?: $record->entry_time;
+            if (! $windowStart) {
+                continue;
+            }
+
+            $windowStart = Carbon::parse($windowStart)->timezone($tz);
+            $windowEnd = $record->exit_time
+                ? Carbon::parse($record->exit_time)->timezone($tz)
+                : $now;
+
+            if ($start->greaterThanOrEqualTo($windowStart) && $end->lessThanOrEqualTo($windowEnd)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function overlapsExistingPass(int $employeeId, Carbon $start, Carbon $end): bool
+    {
+        return Pass::query()
+            ->where('employee_id', $employeeId)
+            ->where(function ($q) use ($start, $end) {
+                $q->where(function ($q) use ($start, $end) {
+                    $q->whereNotNull('end_time')
+                        ->where('start_time', '<', $end)
+                        ->where('end_time', '>', $start);
+                })->orWhere(function ($q) use ($end) {
+                    $q->whereNull('end_time')
+                        ->where('start_time', '<', $end);
+                });
+            })
+            ->exists();
     }
 
     private function durationMinutes(string $type, Carbon $start, Carbon $end): int

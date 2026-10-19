@@ -28,6 +28,11 @@ Schedule::command('app:close-stale-passes')
     ->everyMinute()
     ->description('Automatski zatvara otvorene izlaznice na kraj smjene.');
 
+Schedule::command('app:notify-attendance-mismatches')
+    ->dailyAt('08:00')
+    ->timezone(config('app.timezone'))
+    ->description('Evidentira neslaganja dolaska i odlaska i šalje mail nadležnima.');
+
 
 Artisan::command('app:doctor {--queue-ping} {--mail=}', function () {
     $out = [];

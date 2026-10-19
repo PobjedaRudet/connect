@@ -18,6 +18,7 @@ use App\Http\Controllers\HR\OvertimeUsagePagesController;
 use App\Http\Controllers\HR\PassSummaryPagesController;
 use App\Http\Controllers\HR\SihtericaController;
 use App\Http\Controllers\HR\SickLeavePagesController;
+use App\Http\Controllers\HR\TravelOrderPagesController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\PartnerController;
 use App\Http\Controllers\PassController;
@@ -310,6 +311,10 @@ Route::middleware('auth', 'adminOrFunkcije:HR,Šef HR,IT,Radnik, Šef PPZ,Šef f
         Route::post('/hr/sihterica/manual', [SihtericaController::class, 'manualStore'])->name('hr.sihterica.manual');
         Route::put('/hr/sihterica/{record}', [SihtericaController::class, 'update'])->name('hr.sihterica.update');
         Route::delete('/hr/sihterica/{record}', [SihtericaController::class, 'destroy'])->name('hr.sihterica.destroy');
+
+        Route::get('/hr/putni-nalozi', [TravelOrderPagesController::class, 'index'])->name('hr.putni-nalozi');
+        Route::post('/hr/putni-nalozi', [TravelOrderPagesController::class, 'store'])->name('hr.putni-nalozi.store');
+        Route::delete('/hr/putni-nalozi/{travelOrder}', [TravelOrderPagesController::class, 'destroy'])->name('hr.putni-nalozi.destroy');
 
         // Masovna dodjela statusa — admin i Šef HR za sve, ostali samo za nadležne uposlenike
         Route::get('/hr/masovna-dodjela-statusa', [BulkDayStatusPagesController::class, 'index'])->name('hr.statusi.masovno');
