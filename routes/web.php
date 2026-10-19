@@ -89,6 +89,37 @@ Route::middleware(['auth', 'adminOnly'])->prefix('admin')->group(function () {
 
     Route::get('/sihterica-audit', [SihtericaAuditController::class, 'index'])
         ->name('admin.sihterica-audit');
+
+    Route::get('/migracija-putni-nalozi', function () {
+        $html = function (string $body, int $status = 200) {
+            return response(
+                '<!DOCTYPE html><html lang="bs"><head><meta charset="utf-8"><title>Putni nalozi</title></head><body style="font-family:sans-serif;padding:2rem">'.$body.'</body></html>',
+                $status,
+                ['Content-Type' => 'text/html; charset=UTF-8']
+            );
+        };
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('travel_orders')) {
+            return $html('<p>Tabela travel_orders već postoji. Ništa nije mijenjano i ništa nije obrisano.</p><p><a href="'.e(url('/hr/putni-nalozi')).'">Otvori putne naloge</a></p>');
+        }
+
+        \Illuminate\Support\Facades\Artisan::call('migrate', [
+            '--path' => 'database/migrations/2026_10_19_000001_create_travel_orders_table.php',
+            '--force' => true,
+        ]);
+
+        $output = e(\Illuminate\Support\Facades\Artisan::output());
+        $created = \Illuminate\Support\Facades\Schema::hasTable('travel_orders');
+
+        $message = $created
+            ? 'Tabela travel_orders je dodana. Ostale tabele nisu mijenjane i ništa nije obrisano.'
+            : 'Tabela nije kreirana.';
+
+        return $html(
+            '<p>'.e($message).'</p><pre style="white-space:pre-wrap">'.$output.'</pre><p><a href="'.e(url('/hr/putni-nalozi')).'">Otvori putne naloge</a></p>',
+            $created ? 200 : 500
+        );
+    })->name('admin.travel-orders.migrate');
 });
 
 // ╔═══════════════════════════════════════════════════════════════════════╗
