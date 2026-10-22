@@ -6,10 +6,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class AttendanceRecord extends Model
 {
     use HasFactory;
+
+    public const AUTO_SHIFT_CLOSE_TERMINAL = 'auto-shift-close';
 
     private const I_SHIFT_BASE_MINUTES = 480;
     private const SHIFT_END_OVERTIME_GRACE_MINUTES = 30;
@@ -39,6 +42,11 @@ class AttendanceRecord extends Model
         static::saving(function (self $record): void {
             // Recalculate when times change.
             if (!$record->isDirty('exit_time') && !$record->isDirty('entry_time') && !$record->isDirty('effective_start')) {
+                return;
+            }
+
+            if ($record->terminal_out === self::AUTO_SHIFT_CLOSE_TERMINAL) {
+                self::applyAutoShiftCloseDuration($record);
                 return;
             }
 
@@ -85,8 +93,46 @@ class AttendanceRecord extends Model
         return strtoupper(trim($code)) === 'I';
     }
 
+    private static function applyAutoShiftCloseDuration(self $record): void
+    {
+        $start = $record->effective_start ?: $record->entry_time;
+        if (!$start) {
+            $record->duration_minutes = null;
+            Log::warning('Automatska odjava: nema vremena prijave, trajanje nije izračunato.', [
+                'attendance_record_id' => $record->id,
+                'employee_id' => $record->employee_id,
+            ]);
+            return;
+        }
+
+        $shiftEnd = self::resolveShiftEndMoment($record, Carbon::parse($start));
+        if (!$shiftEnd) {
+            $record->duration_minutes = null;
+            Log::warning('Automatska odjava: kraj smjene nije određen, trajanje ostaje prazno.', [
+                'attendance_record_id' => $record->id,
+                'employee_id' => $record->employee_id,
+                'shift_id' => $record->shift_id,
+            ]);
+            return;
+        }
+
+        $workedMinutes = max($start->diffInMinutes($shiftEnd, false), 0);
+        if (self::isIShift($record) && $workedMinutes > self::I_SHIFT_BASE_MINUTES) {
+            $record->duration_minutes = self::I_SHIFT_BASE_MINUTES;
+            return;
+        }
+
+        $record->duration_minutes = (int) $workedMinutes;
+    }
+
     private static function syncOvertime(self $record): void
     {
+        // Automatic close stamps the cutoff as exit_time. That is not time worked.
+        if ($record->terminal_out === self::AUTO_SHIFT_CLOSE_TERMINAL) {
+            AttendanceOvertime::query()->where('attendance_record_id', $record->id)->delete();
+            return;
+        }
+
         // Overtime is based on staying beyond scheduled shift end.
         // If shift/end_time can't be resolved, keep no overtime.
 

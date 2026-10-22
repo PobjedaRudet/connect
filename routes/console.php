@@ -33,6 +33,21 @@ Schedule::command('app:notify-attendance-mismatches')
     ->timezone(config('app.timezone'))
     ->description('Evidentira neslaganja dolaska i odlaska i šalje mail nadležnima.');
 
+Schedule::command('app:auto-shift-close I')
+    ->dailyAt('23:00')
+    ->timezone(config('app.timezone'))
+    ->description('Automatska odjava I smjene u 23:00 ako radnik nije odjavljen.');
+
+Schedule::command('app:auto-shift-close II')
+    ->dailyAt('03:00')
+    ->timezone(config('app.timezone'))
+    ->description('Automatska odjava II smjene u 03:00 ako radnik nije odjavljen.');
+
+Schedule::command('app:auto-shift-close III')
+    ->dailyAt('09:00')
+    ->timezone(config('app.timezone'))
+    ->description('Automatska odjava III smjene u 09:00 ako radnik nije odjavljen.');
+
 
 Artisan::command('app:doctor {--queue-ping} {--mail=}', function () {
     $out = [];
