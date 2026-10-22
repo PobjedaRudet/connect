@@ -2,18 +2,18 @@
 
 namespace App\Services;
 
+use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\GateLog;
+use App\Models\Pass;
 use Carbon\Carbon;
 
 /**
  * Logika za terminal na kapiji (okretna vrata na ulazu u firmu).
  *
- * Namjerno jednostavnije od AttendanceService: kapija samo bilježi ulaz/izlaz
- * (naizmjenično, jedan čitač) radi kontrole — ne dodjeljuje smjene, ne računa
- * radno vrijeme/prekovremene i ne zna za izlaznice (Pass). To je posao terminala
- * kod objekta. Kapija služi da se kasnije uporedi vrijeme ulaska/izlaska sa
- * onim što je zabilježeno na terminalu kod objekta (vidi GateComparisonService).
+ * Kapija bilježi ulaz/izlaz (naizmjenično, jedan čitač). Ne dodjeljuje smjene
+ * i ne računa radno vrijeme. Izlaz je dozvoljen samo ako je radnik odjavljen
+ * na terminalu objekta, ili ako ima otvorenu izlaznicu.
  */
 class GateService
 {
@@ -33,6 +33,17 @@ class GateService
             ->first();
 
         $direction = (!$lastLog || $lastLog->direction === 'out') ? 'in' : 'out';
+        $fullName = trim((string) $employee->firstName . ' ' . (string) $employee->lastName);
+
+        if ($direction === 'out' && $this->missingBuildingCheckout($employee->id)) {
+            return [
+                'status' => 'error',
+                'message' => 'Ne možete izaći na kapiji dok se ne odjavite na terminalu.',
+                'employee_id' => $employee->id,
+                'employee_full_name' => $fullName,
+            ];
+        }
+
         $now = Carbon::now();
 
         $log = GateLog::create([
@@ -42,8 +53,6 @@ class GateService
             'terminal_id' => $terminalId,
             'rfid_code' => $rfid,
         ]);
-
-        $fullName = trim((string) $employee->firstName . ' ' . (string) $employee->lastName);
 
         return [
             'status' => $direction === 'in' ? 'gate-in' : 'gate-out',
@@ -55,5 +64,26 @@ class GateService
             'direction' => $direction,
             'scanned_at' => $log->scanned_at->toDateTimeString(),
         ];
+    }
+
+    /**
+     * Radnik je još prijavljen na terminalu objekta i nema otvorenu izlaznicu.
+     */
+    private function missingBuildingCheckout(int $employeeId): bool
+    {
+        $stillWorking = AttendanceRecord::where('employee_id', $employeeId)
+            ->whereNull('exit_time')
+            ->exists();
+
+        if (!$stillWorking) {
+            return false;
+        }
+
+        $openPass = Pass::where('employee_id', $employeeId)
+            ->where('status', 'open')
+            ->whereNull('end_time')
+            ->exists();
+
+        return !$openPass;
     }
 }

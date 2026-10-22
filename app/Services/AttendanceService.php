@@ -234,6 +234,11 @@ class AttendanceService
                     'pass' => $recentlyClosed,
                 ];
             }
+            $earlyCheckout = $this->earlyCheckoutRejection($openRecord, $moment);
+            if ($earlyCheckout) {
+                return $earlyCheckout;
+            }
+
             // Checkout with provided timestamp
             $openRecord->update([
                 'exit_time' => $moment,
@@ -328,21 +333,41 @@ class AttendanceService
     {
         $exitTime = Carbon::now();
 
+        $earlyCheckout = $this->earlyCheckoutRejection($record, $exitTime);
+        if ($earlyCheckout) {
+            return $earlyCheckout;
+        }
+
         $record->update([
             'exit_time' => $exitTime,
             'status' => 'left',
             'terminal_out' => $terminalId ?? $record->terminal_out,
         ]);
 
-        $shiftEnd = $this->resolveShiftEndForRecord($record, $exitTime);
-        if ($shiftEnd && $exitTime->lessThan($shiftEnd)) {
-            $this->createEarlyDeparturePass($employee, $exitTime, $shiftEnd);
-        }
-
         return [
             'status' => 'checkout',
             'message' => 'Odjava',
             'record' => $record,
+        ];
+    }
+
+    /**
+     * Odbija odjavu dok zakazani kraj smjene nije nastupio.
+     * null znači da je odjava dozvoljena: kraj smjene je nepoznat, ili je scan u taj trenutak ili poslije.
+     */
+    private function earlyCheckoutRejection(AttendanceRecord $record, Carbon $moment): ?array
+    {
+        $anchor = $record->effective_start ?: $record->entry_time;
+        $workStart = $anchor ? Carbon::parse($anchor) : $moment;
+        $shiftEnd = $this->resolveShiftEndForRecord($record, $workStart);
+
+        if (!$shiftEnd || !$moment->lessThan($shiftEnd)) {
+            return null;
+        }
+
+        return [
+            'status' => 'error',
+            'message' => 'Ne možete se odjaviti prije kraja radnog vremena. Možete uzeti samo izlaznicu.',
         ];
     }
 

@@ -1,0 +1,63 @@
+2026-10-20 15:32:06,801 [INFO] Connected to database: C:\Users\h.ahmet\Desktop\AClientGate\offline_scans.db
+2026-10-20 15:32:06,801 [INFO] Database tables created/verified successfully
+2026-10-20 15:32:06,801 [INFO] Database initialized
+2026-10-20 15:32:08,486 [INFO] Connection restored - going ONLINE
+2026-10-20 15:32:11,056 [INFO] message [info]: Šaljem...
+2026-10-20 15:32:11,056 [INFO] RFID: 0003014269, action: None
+2026-10-20 15:32:11,194 [INFO] Response 404: {"status":"error","message":"Ne mo\u017eete iza\u0107i na kapiji dok se ne odjavite na terminalu.","employee_id":260,"employee_full_name":"AHMET HAD\u017dIAHMETOVI\u0106"}
+2026-10-20 15:32:17,096 [INFO] Deleted 10 synced scans older than 30 days
+2026-10-20 15:36:18,770 [INFO] Connected to database: C:\Users\h.ahmet\Desktop\AClientGate\offline_scans.db
+2026-10-20 15:36:18,771 [INFO] Database tables created/verified successfully
+2026-10-20 15:36:18,771 [INFO] Database initialized
+2026-10-20 15:36:20,708 [INFO] Connection restored - going ONLINE
+2026-10-20 15:36:22,343 [INFO] message [info]: Šaljem...
+2026-10-20 15:36:22,344 [INFO] RFID: 0003014269, action: None
+2026-10-20 15:36:22,498 [INFO] Response 404: {"status":"error","message":"Ne mo\u017eete iza\u0107i na kapiji dok se ne odjavite na terminalu.","employee_id":260,"employee_full_name":"AHMET HAD\u017dIAHMETOVI\u0106"}
+2026-10-20 15:36:27,015 [INFO] message [info]: Šaljem...
+2026-10-20 15:36:27,015 [INFO] RFID: 0003014269, action: None
+2026-10-20 15:36:27,140 [INFO] Response 404: {"status":"error","message":"Ne mo\u017eete iza\u0107i na kapiji dok se ne odjavite na terminalu.","employee_id":260,"employee_full_name":"AHMET HAD\u017dIAHMETOVI\u0106"}
+2026-10-20 15:37:27,415 [INFO] message [info]: Šaljem...
+2026-10-20 15:37:27,416 [INFO] RFID: 0003014269, action: None
+2026-10-20 15:37:27,556 [INFO] Response 404: {"status":"error","message":"Ne mo\u017eete iza\u0107i na kapiji dok se ne odjavite na terminalu.","employee_id":260,"employee_full_name":"AHMET HAD\u017dIAHMETOVI\u0106"}
+2026-10-20 15:37:32,918 [INFO] message [info]: Šaljem...
+2026-10-20 15:37:32,919 [INFO] RFID: 0003014269, action: None
+2026-10-20 15:37:33,043 [INFO] Response 404: {"status":"error","message":"Ne mo\u017eete iza\u0107i na kapiji dok se ne odjavite na terminalu.","employee_id":260,"employee_full_name":"AHMET HAD\u017dIAHMETOVI\u0106"}
+2026-10-20 15:38:19,358 [INFO] Connected to database: C:\Users\h.ahmet\Desktop\AClientGate\offline_scans.db
+2026-10-20 15:38:19,358 [INFO] Database tables created/verified successfully
+2026-10-20 15:38:19,358 [INFO] Database initialized
+2026-10-20 15:38:20,831 [INFO] message [info]: Šaljem...
+2026-10-20 15:38:20,831 [INFO] RFID: 0003014269, action: None
+2026-10-20 15:38:20,832 [INFO] OFFLINE - Saving to database: 0003014269
+2026-10-20 15:38:20,832 [INFO] Saved offline scan: ID=42, RFID=0003014269, Terminal=KAPIJA
+2026-10-20 15:38:21,008 [INFO] Connection restored - going ONLINE
+2026-10-20 15:38:22,010 [INFO] Auto-sync started
+2026-10-20 15:38:22,156 [WARNING] Auto-sync scan ID 42: rejected 404, marking synced. Response: {"status":"error","message":"Ne mo\u017eete iza\u0107i na kapiji dok se ne odjavite na terminalu.","employee_id":260,"employee_full_name":"AHMET HAD\u017dIAHMETOVI\u0106"}
+2026-10-20 15:38:22,157 [INFO] Marked 1 scans as synced
+2026-10-20 15:38:22,157 [INFO] Auto-sync completed: 1/1 scans synced
+2026-10-20 15:38:23,984 [INFO] message [info]: Šaljem...
+2026-10-20 15:38:23,984 [INFO] RFID: 0003014269, action: None
+2026-10-20 15:38:24,083 [INFO] Response 404: {"status":"error","message":"Ne mo\u017eete iza\u0107i na kapiji dok se ne odjavite na terminalu.","employee_id":260,"employee_full_name":"AHMET HAD\u017dIAHMETOVI\u0106"}
+2026-10-20 15:38:31,278 [INFO] message [info]: Šaljem...
+2026-10-20 15:38:31,278 [INFO] RFID: 0003014269, action: None
+2026-10-20 15:38:31,406 [INFO] Response 404: {"status":"error","message":"Ne mo\u017eete iza\u0107i na kapiji dok se ne odjavite na terminalu.","employee_id":260,"employee_full_name":"AHMET HAD\u017dIAHMETOVI\u0106"}
+2026-10-20 15:38:37,791 [INFO] message [info]: Šaljem...
+2026-10-20 15:38:37,791 [INFO] RFID: 0003014269, action: None
+2026-10-20 15:38:37,932 [INFO] Response 404: {"status":"error","message":"Ne mo\u017eete iza\u0107i na kapiji dok se ne odjavite na terminalu.","employee_id":260,"employee_full_name":"AHMET HAD\u017dIAHMETOVI\u0106"}
+2026-10-20 15:38:44,646 [INFO] message [info]: Šaljem...
+2026-10-20 15:38:44,646 [INFO] RFID: 0003014269, action: None
+2026-10-20 15:38:44,789 [INFO] Response 404: {"status":"error","message":"Ne mo\u017eete iza\u0107i na kapiji dok se ne odjavite na terminalu.","employee_id":260,"employee_full_name":"AHMET HAD\u017dIAHMETOVI\u0106"}
+2026-10-20 15:42:20,154 [INFO] Connected to database: C:\Users\h.ahmet\Desktop\AClientGate\offline_scans.db
+2026-10-20 15:42:20,154 [INFO] Database tables created/verified successfully
+2026-10-20 15:42:20,154 [INFO] Database initialized
+2026-10-20 15:42:21,892 [INFO] Connection restored - going ONLINE
+2026-10-20 15:42:22,574 [INFO] message [info]: Šaljem...
+2026-10-20 15:42:22,575 [INFO] RFID: 0003014269, action: None
+2026-10-20 15:42:22,672 [INFO] Response 404: {"status":"error","message":"Ne mo\u017eete iza\u0107i na kapiji dok se ne odjavite na terminalu.","employee_id":260,"employee_full_name":"AHMET HAD\u017dIAHMETOVI\u0106"}
+2026-10-20 15:42:24,830 [INFO] Duplicate scan ignored: 0003014269 (još 0.7s do isteka debounce-a)
+2026-10-20 15:42:27,798 [INFO] message [info]: Šaljem...
+2026-10-20 15:42:27,798 [INFO] RFID: 0003014269, action: None
+2026-10-20 15:42:27,912 [INFO] Response 404: {"status":"error","message":"Ne mo\u017eete iza\u0107i na kapiji dok se ne odjavite na terminalu.","employee_id":260,"employee_full_name":"AHMET HAD\u017dIAHMETOVI\u0106"}
+2026-10-20 15:42:29,958 [INFO] Duplicate scan ignored: 0003014269 (još 0.8s do isteka debounce-a)
+2026-10-20 15:42:32,711 [INFO] message [info]: Šaljem...
+2026-10-20 15:42:32,711 [INFO] RFID: 0003014269, action: None
+2026-10-20 15:42:32,836 [INFO] Response 404: {"status":"error","message":"Ne mo\u017eete iza\u0107i na kapiji dok se ne odjavite na terminalu.","employee_id":260,"employee_full_name":"AHMET HAD\u017dIAHMETOVI\u0106"}
