@@ -13,6 +13,11 @@ class Department extends Model
     protected $fillable = [
         'name',
         'description',
+        'vikend_redovan',
+    ];
+
+    protected $casts = [
+        'vikend_redovan' => 'boolean',
     ];
 
     public function shifts(): HasMany

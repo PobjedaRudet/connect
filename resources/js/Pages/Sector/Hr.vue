@@ -31,6 +31,7 @@ const sections = [
       { title: 'Poređenje ulaza/izlaza', href: route('hr.poredjenje') },
       { title: 'Masovna dodjela statusa', href: route('hr.statusi.masovno') },
       { title: 'Prekovremeni sati', href: route('hr.prekovremeni-sati') },
+      { title: 'Stimulacija', href: route('hr.stimulacija') },
       { title: 'Iskorištenje prekovremenih', href: route('hr.prekovremeni.iskoristenje') },
       { title: 'Odjeli i smjene', href: route('hr.smjene.dodjela') },
     ],

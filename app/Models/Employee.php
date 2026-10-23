@@ -19,6 +19,7 @@ class Employee extends Model
         'middleName',
         'period',
         'rizik',
+        'stimulacija',
         'radno_mjesto',
         'sex',
         'jobTitle',
@@ -36,6 +37,7 @@ class Employee extends Model
         'nadlezne_osobe' => 'array',
         'pass_approvers' => 'array',
         'rizik' => 'boolean',
+        'stimulacija' => 'boolean',
         'Active' => 'boolean',
         'period' => 'integer',
     ];

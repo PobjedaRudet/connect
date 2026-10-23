@@ -63,6 +63,7 @@ const form = useForm({
   email: props.employee?.email ?? '',
   sex: props.employee?.sex ?? '',
   risk: props.employee?.risk ?? false,
+  stimulacija: props.employee?.stimulacija ?? false,
   period: props.employee?.period ?? '',
   status: props.employee?.status ?? '',
   active: props.employee?.Active ?? true,
@@ -312,7 +313,7 @@ const submit = () => {
           <!-- Status i period -->
           <div class="px-6 py-5 border-b border-gray-200 bg-white">
             <h2 class="text-sm font-semibold text-gray-800">Status i period</h2>
-            <p class="text-xs text-gray-500 mt-0.5">Aktivnost, rizik, period i status ugovora.</p>
+            <p class="text-xs text-gray-500 mt-0.5">Aktivnost, rizik, stimulacija, period i status ugovora.</p>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div>
@@ -357,6 +358,15 @@ const submit = () => {
                         <p class="text-sm font-medium text-gray-800">Rizik</p>
                         <p class="text-xs text-gray-500">Označi kao rizično (po potrebi).</p>
                         <p v-if="form.errors.risk" class="text-sm text-red-600 mt-1">{{ form.errors.risk }}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="rounded-md border border-gray-200 p-4">
+                    <div class="flex items-start gap-3">
+                      <input v-model="form.stimulacija" type="checkbox" class="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                      <div>
+                        <p class="text-sm font-medium text-gray-800">Stimulacija — subota i nedjelja se vode kao stimulacija.</p>
+                        <p v-if="form.errors.stimulacija" class="text-sm text-red-600 mt-1">{{ form.errors.stimulacija }}</p>
                       </div>
                     </div>
                   </div>

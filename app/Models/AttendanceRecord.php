@@ -129,10 +129,23 @@ class AttendanceRecord extends Model
     {
         // Automatic close stamps the cutoff as exit_time. That is not time worked.
         if ($record->terminal_out === self::AUTO_SHIFT_CLOSE_TERMINAL) {
-            AttendanceOvertime::query()->where('attendance_record_id', $record->id)->delete();
+            self::deleteOvertime($record);
+            self::deleteStimulation($record);
             return;
         }
 
+        $start = $record->effective_start ?: $record->entry_time;
+        if ($start && self::isWeekendStart($start) && !self::departmentHasRegularWeekend($record)) {
+            self::syncFullWeekendDay($record, $start);
+            return;
+        }
+
+        self::syncShiftEndOvertime($record);
+        self::deleteStimulation($record);
+    }
+
+    private static function syncShiftEndOvertime(self $record): void
+    {
         // Overtime is based on staying beyond scheduled shift end.
         // If shift/end_time can't be resolved, keep no overtime.
 
@@ -140,13 +153,13 @@ class AttendanceRecord extends Model
         $end = $record->exit_time;
 
         if (!$start || !$end) {
-            AttendanceOvertime::query()->where('attendance_record_id', $record->id)->delete();
+            self::deleteOvertime($record);
             return;
         }
 
         $shiftEnd = self::resolveShiftEndMoment($record, Carbon::parse($start));
         if (!$shiftEnd) {
-            AttendanceOvertime::query()->where('attendance_record_id', $record->id)->delete();
+            self::deleteOvertime($record);
             return;
         }
 
@@ -155,7 +168,7 @@ class AttendanceRecord extends Model
 
         $graceEnd = $shiftEnd->copy()->addMinutes(self::SHIFT_END_OVERTIME_GRACE_MINUTES);
         if ($exit->lessThanOrEqualTo($graceEnd)) {
-            AttendanceOvertime::query()->where('attendance_record_id', $record->id)->delete();
+            self::deleteOvertime($record);
             return;
         }
 
@@ -171,6 +184,99 @@ class AttendanceRecord extends Model
                 'overtime_minutes' => $overtimeMinutes,
             ]
         );
+    }
+
+    private static function syncFullWeekendDay(self $record, mixed $start): void
+    {
+        $minutes = $record->duration_minutes;
+        if ($minutes === null || (int) $minutes <= 0) {
+            self::deleteOvertime($record);
+            self::deleteStimulation($record);
+            return;
+        }
+
+        $tz = config('app.timezone');
+        $workDate = Carbon::parse($start)->timezone($tz)->toDateString();
+        $minutes = (int) $minutes;
+
+        if (self::employeeHasStimulacija($record)) {
+            AttendanceStimulation::updateOrCreate(
+                ['attendance_record_id' => $record->id],
+                [
+                    'employee_id' => $record->employee_id,
+                    'work_date' => $workDate,
+                    'minutes' => $minutes,
+                ]
+            );
+            self::deleteOvertime($record);
+            return;
+        }
+
+        AttendanceOvertime::updateOrCreate(
+            ['attendance_record_id' => $record->id],
+            [
+                'employee_id' => $record->employee_id,
+                'work_date' => $workDate,
+                'overtime_minutes' => $minutes,
+            ]
+        );
+        self::deleteStimulation($record);
+    }
+
+    private static function isWeekendStart(mixed $start): bool
+    {
+        $tz = config('app.timezone');
+
+        return Carbon::parse($start)->timezone($tz)->isWeekend();
+    }
+
+    private static function departmentHasRegularWeekend(self $record): bool
+    {
+        $employee = self::employeeFor($record);
+        if (!$employee || $employee->dept === null || $employee->dept === '') {
+            return false;
+        }
+
+        $department = $employee->relationLoaded('department')
+            ? $employee->department
+            : $employee->department()->first();
+
+        return (bool) ($department?->vikend_redovan);
+    }
+
+    private static function employeeHasStimulacija(self $record): bool
+    {
+        return (bool) (self::employeeFor($record)?->stimulacija);
+    }
+
+    private static function employeeFor(self $record): ?Employee
+    {
+        if ($record->relationLoaded('employee')) {
+            return $record->employee;
+        }
+
+        $employee = $record->employee()->first();
+        $record->setRelation('employee', $employee);
+
+        return $employee;
+    }
+
+    private static function deleteOvertime(self $record): void
+    {
+        if (!$record->id) {
+            return;
+        }
+
+        AttendanceOvertime::query()->where('attendance_record_id', $record->id)->delete();
+    }
+
+    private static function deleteStimulation(self $record): void
+    {
+        if (!$record->id) {
+            return;
+        }
+
+        AttendanceStimulation::query()->where('attendance_record_id', $record->id)->delete();
     }
 
     private static function resolveShiftEndMoment(self $record, Carbon $workStart): ?Carbon

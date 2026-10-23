@@ -62,6 +62,7 @@ const filteredShifts = computed(() => {
 const form = useForm({
   name: '',
   description: '',
+  vikend_redovan: false,
   shift_ids: [],
 })
 
@@ -109,6 +110,7 @@ const startCreate = () => {
   form.clearErrors()
   form.name = ''
   form.description = ''
+  form.vikend_redovan = false
   form.shift_ids = []
   activeTab.value = 'departments'
 }
@@ -118,6 +120,7 @@ const startEdit = (department) => {
   form.clearErrors()
   form.name = department.name || ''
   form.description = department.description || ''
+  form.vikend_redovan = !!department.vikend_redovan
   form.shift_ids = (department.shifts || []).map((shift) => String(shift.id))
   activeTab.value = 'departments'
 }
@@ -357,6 +360,12 @@ const submitDelete = () => {
                   <span class="inline-flex items-center rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
                     {{ department.shifts.length }} smjena
                   </span>
+                  <span
+                    class="inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium"
+                    :class="department.vikend_redovan ? 'bg-teal-100 text-teal-800' : 'bg-gray-100 text-gray-600'"
+                  >
+                    {{ department.vikend_redovan ? 'Vikend redovan' : 'Vikend nije redovan' }}
+                  </span>
                 </div>
                 <div v-if="department.shifts.length" class="mt-2 flex flex-wrap gap-1">
                   <span
@@ -432,6 +441,16 @@ const submitDelete = () => {
                     <p v-if="form.errors.description" class="mt-1 text-sm text-red-600">{{ form.errors.description }}</p>
                   </div>
                 </div>
+
+                <label class="flex items-start gap-3 rounded-md border border-gray-200 p-4">
+                  <input
+                    v-model="form.vikend_redovan"
+                    type="checkbox"
+                    class="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span class="text-sm font-medium text-gray-800">Subota i nedjelja su redovan rad</span>
+                </label>
+                <p v-if="form.errors.vikend_redovan" class="text-sm text-red-600">{{ form.errors.vikend_redovan }}</p>
 
                 <div>
                   <div class="flex flex-wrap items-center justify-between gap-3">

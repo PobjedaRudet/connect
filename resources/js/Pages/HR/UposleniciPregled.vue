@@ -207,6 +207,7 @@ const updateRadnoMjesto = async (employee, newValue) => {
                 <th class="px-4 py-3">Odjel</th>
                 <th class="px-4 py-3">Status</th>
                 <th class="px-4 py-3">Aktivan</th>
+                <th class="px-4 py-3">Stimulacija</th>
                 <th class="px-4 py-3 text-right sticky right-0 bg-gray-50">Akcije</th>
               </tr>
             </thead>
@@ -224,6 +225,14 @@ const updateRadnoMjesto = async (employee, newValue) => {
                     {{ e.active ? 'Da' : 'Ne' }}
                   </span>
                 </td>
+                <td class="px-4 py-3 text-sm whitespace-nowrap">
+                  <span
+                    :class="e.stimulacija ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-600'"
+                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                  >
+                    {{ e.stimulacija ? 'Da' : 'Ne' }}
+                  </span>
+                </td>
                 <td class="px-4 py-3 text-sm text-right whitespace-nowrap sticky right-0 bg-white">
                   <Link
                     v-if="e.can_edit"
@@ -235,7 +244,7 @@ const updateRadnoMjesto = async (employee, newValue) => {
                 </td>
               </tr>
               <tr v-if="items.length === 0 && !resetting">
-                <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">Nema uposlenika za prikaz.</td>
+                <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">Nema uposlenika za prikaz.</td>
               </tr>
             </tbody>
           </table>

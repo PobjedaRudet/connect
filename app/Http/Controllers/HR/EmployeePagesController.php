@@ -53,6 +53,7 @@ class EmployeePagesController extends Controller
 
             'period' => ['nullable', 'integer'],
             'risk' => ['nullable', 'boolean'],
+            'stimulacija' => ['sometimes', 'boolean'],
             'radno_mjesto' => ['nullable', 'string', 'max:255'],
             'sex' => ['nullable', 'string', 'max:10'],
             'funkcija_id' => ['nullable', 'string', 'max:100'],
@@ -85,6 +86,9 @@ class EmployeePagesController extends Controller
 
         $employee->period = $data['period'] ?? null;
         $employee->rizik = array_key_exists('risk', $data) ? (bool) $data['risk'] : null;
+        if (array_key_exists('stimulacija', $data)) {
+            $employee->stimulacija = (bool) $data['stimulacija'];
+        }
         $employee->radno_mjesto = $data['radno_mjesto'] ?? null;
         $employee->sex = $data['sex'] ?? null;
         if (array_key_exists('funkcija_id', $data)) {
@@ -138,6 +142,7 @@ class EmployeePagesController extends Controller
             'sex' => $employee->sex,
             'phone' => null,
             'risk' => $employee->rizik,
+            'stimulacija' => (bool) $employee->stimulacija,
             'period' => $employee->period,
             'status' => $employee->status,
             'home_county' => $employee->homeCounty,
@@ -224,6 +229,7 @@ class EmployeePagesController extends Controller
                     'phone' => null,
                     'status' => $e->status,
                     'active' => (bool) $e->Active,
+                    'stimulacija' => (bool) $e->stimulacija,
                     'can_edit' => $editableEmployeeIds === null || in_array((int) $e->id, $editableEmployeeIds, true),
                 ];
             })

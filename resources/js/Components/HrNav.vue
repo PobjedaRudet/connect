@@ -25,6 +25,7 @@ const groups = [
       { label: 'Putni nalozi', href: route('hr.putni-nalozi'), route: 'hr.putni-nalozi' },
       { label: 'Statusi', href: route('hr.statusi.masovno'), route: 'hr.statusi.masovno' },
       { label: 'Prekovremeni', href: route('hr.prekovremeni-sati'), route: 'hr.prekovremeni-sati' },
+      { label: 'Stimulacija', href: route('hr.stimulacija'), route: 'hr.stimulacija' },
       { label: 'Iskorištenje PK', href: route('hr.prekovremeni.iskoristenje'), route: 'hr.prekovremeni.iskoristenje' },
       { label: 'Smjene', href: route('hr.smjene.dodjela'), route: 'hr.smjene.dodjela' },
     ],

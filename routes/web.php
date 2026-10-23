@@ -17,6 +17,7 @@ use App\Http\Controllers\HR\OvertimePagesController;
 use App\Http\Controllers\HR\OvertimeUsagePagesController;
 use App\Http\Controllers\HR\PassSummaryPagesController;
 use App\Http\Controllers\HR\SihtericaController;
+use App\Http\Controllers\HR\StimulationPagesController;
 use App\Http\Controllers\HR\SickLeavePagesController;
 use App\Http\Controllers\HR\TravelOrderPagesController;
 use App\Http\Controllers\LeaveController;
@@ -322,6 +323,7 @@ Route::middleware('auth', 'adminOrFunkcije:HR,Šef HR,IT,Radnik, Šef PPZ,Šef f
 
         // Prekovremeni sati
         Route::get('/hr/prekovremeni-sati', [OvertimePagesController::class, 'index'])->name('hr.prekovremeni-sati');
+        Route::get('/hr/stimulacija', [StimulationPagesController::class, 'index'])->name('hr.stimulacija');
         Route::get('/hr/prekovremeni-iskoristenje', [OvertimeUsagePagesController::class, 'index'])->name('hr.prekovremeni.iskoristenje');
         Route::post('/hr/prekovremeni-iskoristenje', [OvertimeUsagePagesController::class, 'store'])->name('hr.prekovremeni.iskoristenje.store');
 

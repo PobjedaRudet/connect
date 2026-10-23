@@ -27,11 +27,12 @@ class DepartmentShiftPagesController extends Controller
                     ->orderBy('name');
             }])
             ->orderBy('name')
-            ->get(['id', 'name', 'description'])
+            ->get(['id', 'name', 'description', 'vikend_redovan'])
             ->map(fn ($d) => [
                 'id' => (int) $d->id,
                 'name' => $d->name,
                 'description' => $d->description,
+                'vikend_redovan' => (bool) $d->vikend_redovan,
                 'employee_count' => (int) $d->employees_count,
                 'shifts' => $d->shifts->map(fn ($s) => [
                     'id' => (int) $s->id,
@@ -71,6 +72,7 @@ class DepartmentShiftPagesController extends Controller
         $department = new Department();
         $department->name = $validated['name'];
         $department->description = $validated['description'] ?? null;
+        $this->fillWeekendFlag($department, $validated);
         $department->save();
 
         $this->syncShifts($department, $validated['shift_ids'] ?? []);
@@ -84,6 +86,7 @@ class DepartmentShiftPagesController extends Controller
 
         $department->name = $validated['name'];
         $department->description = $validated['description'] ?? null;
+        $this->fillWeekendFlag($department, $validated);
         $department->save();
 
         $this->syncShifts($department, $validated['shift_ids'] ?? []);
@@ -165,9 +168,17 @@ class DepartmentShiftPagesController extends Controller
                 Rule::unique('departments', 'name')->ignore($department?->id),
             ],
             'description' => ['nullable', 'string'],
+            'vikend_redovan' => ['sometimes', 'boolean'],
             'shift_ids' => ['nullable', 'array'],
             'shift_ids.*' => ['integer', 'exists:shifts,id'],
         ]);
+    }
+
+    private function fillWeekendFlag(Department $department, array $validated): void
+    {
+        if (array_key_exists('vikend_redovan', $validated)) {
+            $department->vikend_redovan = (bool) $validated['vikend_redovan'];
+        }
     }
 
     private function validateShift(Request $request): array
