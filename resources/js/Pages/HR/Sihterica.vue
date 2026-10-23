@@ -186,19 +186,78 @@ const manualForm = useForm({
   exit_time: '',
 })
 
+const maskDate = (raw) => {
+  const digits = String(raw || '').replace(/\D/g, '').slice(0, 8)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
+}
+
+const displayDate = (value) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || '').trim())
+  if (!match) return maskDate(value)
+  return `${match[3]}/${match[2]}/${match[1]}`
+}
+
+const toIsoDate = (value) => {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(value || '').trim())
+  if (!match) return ''
+  const day = Number(match[1])
+  const month = Number(match[2])
+  const year = Number(match[3])
+  const parsed = new Date(year, month - 1, day)
+  if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) return ''
+  return `${match[3]}-${match[2]}-${match[1]}`
+}
+
+const maskTime = (raw) => {
+  const cleaned = String(raw || '').replace(/[^\d:]/g, '')
+  if (cleaned.includes(':')) {
+    const [hour, minute = ''] = cleaned.split(':')
+    return `${hour.replace(/\D/g, '').slice(0, 2)}:${minute.replace(/\D/g, '').slice(0, 2)}`
+  }
+  const digits = cleaned.slice(0, 4)
+  if (digits.length <= 2) return digits
+  return `${digits.slice(0, 2)}:${digits.slice(2)}`
+}
+
+const normalizeTime = (value) => {
+  const match = /^(\d{1,2}):(\d{1,2})$/.exec(maskTime(value))
+  if (!match) return ''
+  const hour = match[1].padStart(2, '0')
+  const minute = match[2].padStart(2, '0')
+  if (!/^([01]\d|2[0-3])$/.test(hour) || !/^[0-5]\d$/.test(minute)) return ''
+  return `${hour}:${minute}`
+}
+
+const attendancePayload = (data) => ({
+  ...data,
+  date: toIsoDate(data.date),
+  entry_time: normalizeTime(data.entry_time),
+  exit_time: data.exit_time ? normalizeTime(data.exit_time) : '',
+})
+
+const attendanceReady = (data) => {
+  if (!toIsoDate(data.date) || !normalizeTime(data.entry_time)) return false
+  if (data.exit_time && !normalizeTime(data.exit_time)) return false
+  return true
+}
+
 const openManualModal = (prefill = {}) => {
   manualForm.reset()
   manualForm.clearErrors()
   manualForm.employee_id = prefill.employee_id || ''
   manualForm.shift_id = prefill.shift_id || ''
-  manualForm.date = prefill.date || new Date().toISOString().slice(0, 10)
-  manualForm.entry_time = prefill.entry_time || ''
-  manualForm.exit_time = prefill.exit_time || ''
+  manualForm.date = displayDate(prefill.date || new Date().toISOString().slice(0, 10))
+  manualForm.entry_time = (prefill.entry_time || '').slice(0, 5)
+  manualForm.exit_time = (prefill.exit_time || '').slice(0, 5)
   employeeSearch.value = ''
   showManualModal.value = true
 }
 
 const submitManual = () => {
+  if (!attendanceReady(manualForm)) return
+  manualForm.transform((data) => attendancePayload(data))
   manualForm.post(route('hr.sihterica.manual'), {
     preserveScroll: true,
     onSuccess: () => {
@@ -276,9 +335,9 @@ const closeDayModal = () => {
 const startEdit = (record) => {
   editingId.value = record.record_id
   editForm.clearErrors()
-  editForm.date = record.entry_date || dayModal.value.date
-  editForm.entry_time = record.entry_time || ''
-  editForm.exit_time = record.exit_time || ''
+  editForm.date = displayDate(record.entry_date || dayModal.value.date)
+  editForm.entry_time = (record.entry_time || '').slice(0, 5)
+  editForm.exit_time = (record.exit_time || '').slice(0, 5)
   editForm.shift_id = record.shift_id || ''
 }
 
@@ -289,8 +348,9 @@ const cancelEdit = () => {
 }
 
 const submitEdit = () => {
-  if (!editingId.value) return
+  if (!editingId.value || !attendanceReady(editForm)) return
 
+  editForm.transform((data) => attendancePayload(data))
   editForm.put(route('hr.sihterica.update', editingId.value), {
     preserveScroll: true,
     preserveState: true,
@@ -635,19 +695,21 @@ const visibleLeaveOverlaps = computed(() => {
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Datum</label>
-                    <input v-model="editForm.date" type="date" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" required />
+                    <input :value="editForm.date" type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/yyyy" autocomplete="off" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" @input="editForm.date = maskDate($event.target.value)" />
                     <div v-if="editForm.errors.date" class="text-red-600 text-xs mt-1">{{ editForm.errors.date }}</div>
+                    <p v-else class="text-[11px] text-gray-400 mt-0.5">dd/mm/yyyy</p>
                   </div>
                   <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Prijava</label>
-                    <input v-model="editForm.entry_time" type="time" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" required />
+                    <input :value="editForm.entry_time" type="text" inputmode="numeric" maxlength="5" placeholder="HH:mm" autocomplete="off" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" @input="editForm.entry_time = maskTime($event.target.value)" @blur="editForm.entry_time = normalizeTime(editForm.entry_time) || editForm.entry_time" />
                     <div v-if="editForm.errors.entry_time" class="text-red-600 text-xs mt-1">{{ editForm.errors.entry_time }}</div>
+                    <p v-else class="text-[11px] text-gray-400 mt-0.5">24h, npr. 07:00</p>
                   </div>
                   <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Odjava</label>
-                    <input v-model="editForm.exit_time" type="time" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" />
+                    <input :value="editForm.exit_time" type="text" inputmode="numeric" maxlength="5" placeholder="HH:mm" autocomplete="off" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" @input="editForm.exit_time = maskTime($event.target.value)" @blur="editForm.exit_time = editForm.exit_time ? (normalizeTime(editForm.exit_time) || editForm.exit_time) : ''" />
                     <div v-if="editForm.errors.exit_time" class="text-red-600 text-xs mt-1">{{ editForm.errors.exit_time }}</div>
-                    <p class="text-[11px] text-gray-400 mt-0.5">Prazno = još radi</p>
+                    <p class="text-[11px] text-gray-400 mt-0.5">Prazno = još radi. 24h, npr. 16:20</p>
                   </div>
                 </div>
 
@@ -664,7 +726,7 @@ const visibleLeaveOverlaps = computed(() => {
                   <button
                     type="button"
                     class="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                    :disabled="editForm.processing"
+                    :disabled="editForm.processing || !attendanceReady(editForm)"
                     @click="submitEdit"
                   >
                     {{ editForm.processing ? 'Spremam...' : 'Spremi izmjene' }}
@@ -761,21 +823,23 @@ const visibleLeaveOverlaps = computed(() => {
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Datum</label>
-              <input v-model="manualForm.date" type="date" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" required />
+              <input :value="manualForm.date" type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/yyyy" autocomplete="off" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" @input="manualForm.date = maskDate($event.target.value)" />
               <div v-if="manualForm.errors.date" class="text-red-600 text-xs mt-1">{{ manualForm.errors.date }}</div>
+              <p v-else class="text-xs text-gray-400 mt-0.5">dd/mm/yyyy</p>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Prijava (dolazak)</label>
-                <input v-model="manualForm.entry_time" type="time" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" required />
+                <input :value="manualForm.entry_time" type="text" inputmode="numeric" maxlength="5" placeholder="HH:mm" autocomplete="off" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" @input="manualForm.entry_time = maskTime($event.target.value)" @blur="manualForm.entry_time = normalizeTime(manualForm.entry_time) || manualForm.entry_time" />
                 <div v-if="manualForm.errors.entry_time" class="text-red-600 text-xs mt-1">{{ manualForm.errors.entry_time }}</div>
+                <p v-else class="text-xs text-gray-400 mt-0.5">24h, npr. 07:00</p>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Odjava (odlazak)</label>
-                <input v-model="manualForm.exit_time" type="time" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" />
+                <input :value="manualForm.exit_time" type="text" inputmode="numeric" maxlength="5" placeholder="HH:mm" autocomplete="off" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" @input="manualForm.exit_time = maskTime($event.target.value)" @blur="manualForm.exit_time = manualForm.exit_time ? (normalizeTime(manualForm.exit_time) || manualForm.exit_time) : ''" />
                 <div v-if="manualForm.errors.exit_time" class="text-red-600 text-xs mt-1">{{ manualForm.errors.exit_time }}</div>
-                <p class="text-xs text-gray-400 mt-0.5">Ostavite prazno ako radnik još radi.</p>
+                <p class="text-xs text-gray-400 mt-0.5">Ostavite prazno ako radnik još radi. 24h, npr. 16:20</p>
               </div>
             </div>
 
@@ -783,7 +847,7 @@ const visibleLeaveOverlaps = computed(() => {
               <button type="button" @click="showManualModal = false" class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition">
                 Otkaži
               </button>
-              <button type="submit" :disabled="manualForm.processing" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition disabled:opacity-50">
+              <button type="submit" :disabled="manualForm.processing || !attendanceReady(manualForm)" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition disabled:opacity-50">
                 {{ manualForm.processing ? 'Spremam...' : 'Spremi' }}
               </button>
             </div>

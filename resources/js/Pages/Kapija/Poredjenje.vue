@@ -36,15 +36,56 @@ const reload = () => {
 }
 
 const editor = ref(null)
+const editDate = ref('')
 const editTime = ref('')
 const saving = ref(false)
 
 const fieldMeta = {
-  gate_in: { kind: 'gate', event: 'in', idKey: 'gate_in_id', label: 'Ulaz — kapija' },
-  gate_out: { kind: 'gate', event: 'out', idKey: 'gate_out_id', label: 'Izlaz — kapija' },
-  building_in: { kind: 'building', event: 'in', idKey: 'building_in_id', label: 'Ulaz — objekat' },
-  building_out: { kind: 'building', event: 'out', idKey: 'building_out_id', label: 'Izlaz — objekat' },
+  gate_in: { kind: 'gate', event: 'in', idKey: 'gate_in_id', atKey: 'gate_in_at', label: 'Ulaz — kapija' },
+  gate_out: { kind: 'gate', event: 'out', idKey: 'gate_out_id', atKey: 'gate_out_at', label: 'Izlaz — kapija' },
+  building_in: { kind: 'building', event: 'in', idKey: 'building_in_id', atKey: 'building_in_at', label: 'Ulaz — objekat' },
+  building_out: { kind: 'building', event: 'out', idKey: 'building_out_id', atKey: 'building_out_at', label: 'Izlaz — objekat' },
 }
+
+const displayFromIso = (value) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || '').trim())
+  if (!match) return ''
+  return `${match[3]}/${match[2]}/${match[1]}`
+}
+
+const isoFromDisplay = (value) => {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(value || '').trim())
+  if (!match) return ''
+  const day = Number(match[1])
+  const month = Number(match[2])
+  const year = Number(match[3])
+  const parsed = new Date(year, month - 1, day)
+  if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) return ''
+  return `${match[3]}-${match[2]}-${match[1]}`
+}
+
+const maskDate = (raw) => {
+  const digits = String(raw || '').replace(/\D/g, '').slice(0, 8)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
+}
+
+const maskTime = (raw) => {
+  const cleaned = String(raw || '').replace(/[^\d:]/g, '')
+  if (cleaned.includes(':')) {
+    const [hour, minute = ''] = cleaned.split(':')
+    return `${hour.replace(/\D/g, '').slice(0, 2)}:${minute.replace(/\D/g, '').slice(0, 2)}`
+  }
+  const digits = cleaned.slice(0, 4)
+  if (digits.length <= 2) return digits
+  return `${digits.slice(0, 2)}:${digits.slice(2)}`
+}
+
+const editDateIso = computed(() => isoFromDisplay(editDate.value))
+const editTimeValue = computed(() => (/^([01]\d|2[0-3]):[0-5]\d$/.test(editTime.value) ? editTime.value : ''))
+const dateInvalid = computed(() => editDate.value.length === 10 && !editDateIso.value)
+const timeInvalid = computed(() => editTime.value.length === 5 && !editTimeValue.value)
 
 const openEditor = (row, field) => {
   const meta = fieldMeta[field]
@@ -59,7 +100,10 @@ const openEditor = (row, field) => {
     employee: row.full_name,
     sameRecord: field.startsWith('building') && row.building_in_id && row.building_in_id === row.building_out_id,
   }
-  editTime.value = row[field] || ''
+  const stamp = String(row?.[meta.atKey] || '')
+  const [stampDate, stampTime] = stamp.includes(' ') ? stamp.split(' ') : ['', '']
+  editDate.value = displayFromIso(stampDate || date.value)
+  editTime.value = (stampTime || row[field] || '').slice(0, 5)
 }
 
 const closeEditor = () => {
@@ -67,8 +111,16 @@ const closeEditor = () => {
   editor.value = null
 }
 
+const onDateInput = (event) => { editDate.value = maskDate(event.target.value) }
+const onTimeInput = (event) => { editTime.value = maskTime(event.target.value) }
+const onTimeBlur = () => {
+  const match = /^(\d{1,2}):(\d{1,2})$/.exec(editTime.value)
+  if (!match) return
+  editTime.value = `${match[1].padStart(2, '0')}:${match[2].padStart(2, '0')}`
+}
+
 const saveEdit = () => {
-  if (!editor.value || !editTime.value) return
+  if (!editor.value || !editDateIso.value || !editTimeValue.value) return
   saving.value = true
   if (editor.value.creating) {
     router.post(route('hr.poredjenje.store'), {
@@ -76,8 +128,9 @@ const saveEdit = () => {
       event: editor.value.event,
       employee_id: editor.value.employeeId,
       attendance_id: editor.value.attendanceId,
-      date: date.value,
-      time: editTime.value,
+      date: editDateIso.value,
+      report_date: date.value,
+      time: editTimeValue.value,
       tolerance: tolerance.value,
     }, {
       preserveScroll: true,
@@ -92,8 +145,9 @@ const saveEdit = () => {
     kind: editor.value.kind,
     event: editor.value.event,
     id: editor.value.id,
-    date: date.value,
-    time: editTime.value,
+    date: editDateIso.value,
+    report_date: date.value,
+    time: editTimeValue.value,
     tolerance: tolerance.value,
   }, {
     preserveScroll: true,
@@ -259,15 +313,46 @@ const filteredRows = computed(() => {
       <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
         <div class="text-xs font-semibold uppercase tracking-wide text-sky-700">{{ editor.label }}</div>
         <h2 class="mt-1 text-lg font-semibold text-slate-900">{{ editor.employee }}</h2>
-        <p class="mt-1 text-sm text-slate-500">{{ editor.creating ? 'Upišite vrijeme za ovaj zapis.' : 'Ispravite vrijeme ili obrišite ovaj zapis.' }}</p>
-        <label class="mt-4 block text-xs font-medium text-slate-600" for="edit-time">Vrijeme</label>
-        <input id="edit-time" v-model="editTime" type="time" class="mt-1 w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+        <p class="mt-1 text-sm text-slate-500">{{ editor.creating ? 'Upišite datum i vrijeme za ovaj zapis.' : 'Ispravite datum i vrijeme ili obrišite ovaj zapis.' }}</p>
+        <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label class="block text-xs font-medium text-slate-600" for="edit-date">Datum</label>
+            <input
+              id="edit-date"
+              :value="editDate"
+              type="text"
+              inputmode="numeric"
+              maxlength="10"
+              placeholder="dd/mm/yyyy"
+              autocomplete="off"
+              class="mt-1 w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              @input="onDateInput"
+            />
+            <p class="mt-1 text-xs" :class="dateInvalid ? 'text-red-600' : 'text-slate-500'">Format: dd/mm/yyyy</p>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600" for="edit-time">Vrijeme (24h)</label>
+            <input
+              id="edit-time"
+              :value="editTime"
+              type="text"
+              inputmode="numeric"
+              maxlength="5"
+              placeholder="HH:mm"
+              autocomplete="off"
+              class="mt-1 w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              @input="onTimeInput"
+              @blur="onTimeBlur"
+            />
+            <p class="mt-1 text-xs" :class="timeInvalid ? 'text-red-600' : 'text-slate-500'">24 sata, npr. 07:30 ili 18:05.</p>
+          </div>
+        </div>
         <div class="mt-5 flex items-center justify-between gap-3">
           <button v-if="!editor.creating" type="button" class="text-sm font-medium text-red-700 hover:text-red-900 disabled:opacity-50" :disabled="saving" @click="deleteEdit">Obriši</button>
           <span v-else></span>
           <div class="flex gap-2">
             <button type="button" class="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700" :disabled="saving" @click="closeEditor">Otkaži</button>
-            <button type="button" class="rounded-md bg-sky-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50" :disabled="saving || !editTime" @click="saveEdit">Sačuvaj</button>
+            <button type="button" class="rounded-md bg-sky-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50" :disabled="saving || !editDateIso || !editTimeValue" @click="saveEdit">Sačuvaj</button>
           </div>
         </div>
       </div>

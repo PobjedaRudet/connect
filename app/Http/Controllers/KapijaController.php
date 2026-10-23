@@ -138,6 +138,7 @@ class KapijaController extends Controller
             'employee_id' => ['required', 'integer'],
             'attendance_id' => ['nullable', 'integer'],
             'date' => ['required', 'date'],
+            'report_date' => ['nullable', 'date'],
             'time' => ['required', 'date_format:H:i'],
             'tolerance' => ['nullable', 'integer', 'min:0'],
         ]);
@@ -202,7 +203,7 @@ class KapijaController extends Controller
             }
         }
 
-        return $this->redirectToComparison($validated['date'], $validated['tolerance'] ?? null);
+        return $this->redirectToComparison($validated['report_date'] ?? $validated['date'], $validated['tolerance'] ?? null);
     }
 
     public function updateComparison(Request $request, SihtericaAuditLogger $audit)
@@ -212,6 +213,7 @@ class KapijaController extends Controller
             'event' => ['required', 'in:in,out'],
             'id' => ['required', 'integer'],
             'date' => ['required', 'date'],
+            'report_date' => ['nullable', 'date'],
             'time' => ['required', 'date_format:H:i'],
             'tolerance' => ['nullable', 'integer', 'min:0'],
         ]);
@@ -256,7 +258,7 @@ class KapijaController extends Controller
             $audit->logUpdated($request->user(), $record->fresh(), $before, $request);
         }
 
-        return $this->redirectToComparison($validated['date'], $validated['tolerance'] ?? null);
+        return $this->redirectToComparison($validated['report_date'] ?? $validated['date'], $validated['tolerance'] ?? null);
     }
 
     public function deleteComparison(Request $request, SihtericaAuditLogger $audit)

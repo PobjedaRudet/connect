@@ -319,6 +319,7 @@ class AnnualLeaveService
             ->select([
                 'employee_id',
                 DB::raw('CAST(ROUND(SUM(COALESCE(granted_days,0)), 0) AS SIGNED) as total_granted'),
+                DB::raw('COUNT(*) as decision_count'),
             ])
             ->groupBy('employee_id')
             ->get()
@@ -343,6 +344,7 @@ class AnnualLeaveService
                 'employee_id' => $eid,
                 'firstName' => $e->firstName,
                 'lastName' => $e->lastName,
+                'decision_count' => (int) ($decisionsAgg[$eid]->decision_count ?? 0),
                 'total_days' => $granted,
                 'used_days' => $used,
                 'remaining_days' => $granted - $used,
@@ -355,10 +357,40 @@ class AnnualLeaveService
     /**
      * Lifetime summary details for one employee (year totals + all usages).
      *
-     * @return array{employee_id: int, year_totals: list<array<string, mixed>>, usages: list<array<string, mixed>>}
+     * @return array{employee_id: int, year_totals: list<array<string, mixed>>, decisions: list<array<string, mixed>>, usages: list<array<string, mixed>>}
      */
     public function getBalanceSummaryDetails(int $employeeId): array
     {
+        $decisions = DB::table('annual_leave_decisions')
+            ->where('employee_id', $employeeId)
+            ->orderByDesc('year')
+            ->orderBy('decision_date')
+            ->orderBy('id')
+            ->get([
+                'id',
+                'year',
+                'part',
+                'decision_number',
+                'decision_date',
+                'valid_from',
+                'valid_to',
+                DB::raw('CAST(ROUND(COALESCE(granted_days,0),0) AS SIGNED) as granted_days'),
+                'note',
+            ])
+            ->map(fn ($d) => [
+                'id' => (int) $d->id,
+                'year' => (int) $d->year,
+                'part' => (string) ($d->part ?? 'ostalo'),
+                'decision_number' => $d->decision_number,
+                'decision_date' => $d->decision_date,
+                'valid_from' => $d->valid_from,
+                'valid_to' => $d->valid_to,
+                'granted_days' => (int) $d->granted_days,
+                'note' => $d->note,
+            ])
+            ->values()
+            ->all();
+
         $yearTotals = DB::table('annual_leave_decisions')
             ->where('employee_id', $employeeId)
             ->select([
@@ -406,6 +438,7 @@ class AnnualLeaveService
         return [
             'employee_id' => $employeeId,
             'year_totals' => $yearTotals,
+            'decisions' => $decisions,
             'usages' => $usages,
         ];
     }

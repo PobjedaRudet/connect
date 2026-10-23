@@ -110,24 +110,34 @@ const selectedError = computed(() => {
   return detailsError.value[cacheKey(employeeId)] ?? null
 })
 
-const usageGroups = computed(() => {
-  const list = [...(selectedDetails.value?.usages ?? [])]
+const yearStats = computed(() => {
+  const decisions = selectedDetails.value?.decisions ?? []
+  const usages = [...(selectedDetails.value?.usages ?? [])]
     .sort((a, b) => String(b?.date_from ?? '').localeCompare(String(a?.date_from ?? '')))
+  const years = new Set([
+    ...decisions.map((item) => Number(item?.year) || 0),
+    ...usages.map((item) => Number(item?.year) || 0),
+  ])
 
-  const groups = new Map()
-  for (const usage of list) {
-    const year = Number(usage?.year) || 0
-    if (!groups.has(year)) groups.set(year, [])
-    groups.get(year).push(usage)
-  }
+  return [...years]
+    .sort((a, b) => b - a)
+    .map((year) => {
+      const yearDecisions = decisions
+        .filter((item) => Number(item?.year) === year)
+        .sort((a, b) => String(b?.decision_date ?? '').localeCompare(String(a?.decision_date ?? '')))
+      const yearUsages = usages.filter((item) => Number(item?.year) === year)
+      const granted = yearDecisions.reduce((sum, item) => sum + wholeDays(item?.granted_days), 0)
+      const used = yearUsages.reduce((sum, item) => sum + wholeDays(item?.days), 0)
 
-  return [...groups.entries()]
-    .sort((a, b) => b[0] - a[0])
-    .map(([year, items]) => ({
-      year,
-      items,
-      days: items.reduce((sum, item) => sum + Number(item?.days ?? 0), 0),
-    }))
+      return {
+        year,
+        decisions: yearDecisions,
+        usages: yearUsages,
+        granted,
+        used,
+        remaining: granted - used,
+      }
+    })
 })
 
 function usageReason(usage) {
@@ -147,6 +157,18 @@ const filteredRows = computed(() => {
     const full2 = `${last} ${first}`.trim().toLowerCase()
     return full1.includes(q) || full2.includes(q)
   })
+})
+
+const stats = computed(() => {
+  const list = filteredRows.value ?? []
+  return list.reduce((sum, row) => {
+    sum.employees += 1
+    sum.decisions += wholeDays(row?.decision_count)
+    sum.granted += wholeDays(row?.total_days)
+    sum.used += wholeDays(row?.used_days)
+    sum.remaining += wholeDays(row?.remaining_days)
+    return sum
+  }, { employees: 0, decisions: 0, granted: 0, used: 0, remaining: 0 })
 })
 
 const totalPages = computed(() => {
@@ -183,9 +205,28 @@ watch(search, () => {
   page.value = 1
 })
 
-function fmtDays(value) {
+function wholeDays(value) {
   const n = Number(value ?? 0)
-  return Number.isFinite(n) ? String(Math.round(n)) : '0'
+  return Number.isFinite(n) ? Math.round(n) : 0
+}
+
+function fmtDays(value) {
+  return String(wholeDays(value))
+}
+
+function fmtPlus(value) {
+  const n = wholeDays(value)
+  return n > 0 ? `+${n}` : '0'
+}
+
+function fmtMinus(value) {
+  const n = wholeDays(value)
+  return n > 0 ? `-${n}` : '0'
+}
+
+function decisionLabel(count) {
+  const n = wholeDays(count)
+  return n === 1 ? '1 rješenje' : `${n} rješenja`
 }
 
 function fmtPart(part) {
@@ -238,7 +279,7 @@ onUnmounted(() => {
       <div class="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 class="text-2xl font-semibold text-gray-800">Saldo godišnjeg</h1>
-          <p class="text-sm text-gray-500">Sumarni pregled odobrenog, iskorištenog i preostalog po radniku za sve godine.</p>
+          <p class="text-sm text-gray-500">Rješenja su odobreni dani. Iskorišteni dani su u minusu. Preostalo je razlika.</p>
         </div>
 
         <div class="flex items-center gap-3">
@@ -262,6 +303,26 @@ onUnmounted(() => {
         </div>
       </div>
 
+      <div v-if="!isLoading" class="grid gap-4 sm:grid-cols-4">
+        <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <div class="text-xs font-semibold uppercase tracking-wider text-gray-500">Radnika</div>
+          <div class="mt-2 text-2xl font-semibold text-gray-900">{{ stats.employees }}</div>
+        </div>
+        <div class="rounded-lg border border-sky-200 bg-sky-50 p-4 shadow-sm">
+          <div class="text-xs font-semibold uppercase tracking-wider text-sky-700">Rješenja</div>
+          <div class="mt-2 text-2xl font-semibold text-sky-900">{{ fmtPlus(stats.granted) }} <span class="text-base font-medium">dana</span></div>
+          <div class="mt-1 text-xs text-sky-800">{{ decisionLabel(stats.decisions) }}</div>
+        </div>
+        <div class="rounded-lg border border-red-200 bg-red-50 p-4 shadow-sm">
+          <div class="text-xs font-semibold uppercase tracking-wider text-red-700">Iskorišteno</div>
+          <div class="mt-2 text-2xl font-semibold text-red-900">{{ fmtMinus(stats.used) }} <span class="text-base font-medium">dana</span></div>
+        </div>
+        <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+          <div class="text-xs font-semibold uppercase tracking-wider text-emerald-700">Preostalo</div>
+          <div class="mt-2 text-2xl font-semibold text-emerald-900">{{ fmtDays(stats.remaining) }} <span class="text-base font-medium">dana</span></div>
+        </div>
+      </div>
+
       <div v-if="error" class="text-sm text-red-600">
         {{ error }}
       </div>
@@ -275,7 +336,7 @@ onUnmounted(() => {
           <thead>
             <tr class="text-left text-gray-600 border-b">
               <th class="py-3 px-4">Radnik</th>
-              <th class="py-3 px-4">Odobreno</th>
+              <th class="py-3 px-4">Rješenja</th>
               <th class="py-3 px-4">Iskorišteno</th>
               <th class="py-3 px-4">Preostalo</th>
             </tr>
@@ -296,31 +357,36 @@ onUnmounted(() => {
                 @mouseenter="showPopover(row.employee_id, 'approved')"
                 @mouseleave="hidePopover"
               >
-                <span class="underline decoration-dotted cursor-help">
-                  {{ fmtDays(row.total_days) }}
+                <span class="underline decoration-dotted cursor-help text-sky-800">
+                  {{ fmtPlus(row.total_days) }}
                 </span>
+                <div class="text-xs text-gray-500">{{ decisionLabel(row.decision_count) }}</div>
 
                 <div
                   v-if="hover.employee_id === row.employee_id && hover.field === 'approved'"
                   class="absolute z-20 mt-2 left-4 top-full w-96 bg-white border border-gray-200 rounded-lg shadow-sm p-3"
                 >
-                  <div class="text-sm font-semibold text-gray-800 mb-2">Odobreno – detalji</div>
+                  <div class="text-sm font-semibold text-gray-800 mb-2">Rješenja</div>
 
                   <div v-if="activeLoading" class="text-sm text-gray-600">Učitavanje...</div>
                   <div v-else-if="activeError" class="text-sm text-red-600">{{ activeError }}</div>
-                  <div v-else-if="!activeDetails || (activeDetails.year_totals?.length ?? 0) === 0" class="text-sm text-gray-600">
+                  <div v-else-if="!activeDetails || (activeDetails.decisions?.length ?? 0) === 0" class="text-sm text-gray-600">
                     Nema rješenja.
                   </div>
                   <div v-else class="text-sm text-gray-800 max-h-60 overflow-auto">
                     <div
-                      v-for="yt in activeDetails.year_totals"
-                      :key="yt.year"
+                      v-for="decision in activeDetails.decisions"
+                      :key="decision.id"
                       class="py-2 border-b last:border-b-0"
                     >
-                      <div class="flex justify-between">
-                        <span class="font-medium">{{ yt.year }}.</span>
-                        <span class="text-gray-600">{{ fmtDays(yt.granted_days) }} dana</span>
+                      <div class="flex justify-between gap-3">
+                        <span class="font-medium">
+                          {{ decision.year }}. · {{ fmtPart(decision.part) }}
+                          <span v-if="decision.decision_number">#{{ decision.decision_number }}</span>
+                        </span>
+                        <span class="text-sky-800">{{ fmtPlus(decision.granted_days) }} dana</span>
                       </div>
+                      <div class="text-gray-500">{{ fmtDate(decision.decision_date) || 'Bez datuma' }}</div>
                     </div>
                   </div>
                 </div>
@@ -331,8 +397,8 @@ onUnmounted(() => {
                 @mouseenter="showPopover(row.employee_id, 'used')"
                 @mouseleave="hidePopover"
               >
-                <span class="underline decoration-dotted cursor-help">
-                  {{ fmtDays(row.used_days) }}
+                <span class="underline decoration-dotted cursor-help" :class="wholeDays(row.used_days) > 0 ? 'text-red-700' : ''">
+                  {{ fmtMinus(row.used_days) }}
                 </span>
 
                 <div
@@ -354,7 +420,7 @@ onUnmounted(() => {
                     >
                       <div class="font-medium">{{ fmtRange(u.date_from, u.date_to) }}</div>
                       <div class="text-gray-600">
-                        Dani: {{ fmtDays(u.days) }}
+                        Iskorišteno {{ fmtMinus(u.days) }} dana
                         <span class="text-gray-600"> | {{ u.year }}.</span>
                         <span class="text-gray-600"> | {{ fmtPart(u.part) }}</span>
                         <span v-if="u.decision_number" class="text-gray-600"> #{{ u.decision_number }}</span>
@@ -365,7 +431,7 @@ onUnmounted(() => {
                 </div>
               </td>
 
-              <td class="py-2 px-4 text-gray-800">
+              <td class="py-2 px-4 font-medium" :class="wholeDays(row.remaining_days) < 0 ? 'text-red-700' : 'text-emerald-800'">
                 {{ fmtDays(row.remaining_days) }}
               </td>
             </tr>
@@ -414,7 +480,7 @@ onUnmounted(() => {
       <div class="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
         <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
           <div>
-            <div class="text-xs font-semibold uppercase tracking-wide text-sky-700">Iskorišteni godišnji</div>
+            <div class="text-xs font-semibold uppercase tracking-wide text-sky-700">Saldo godišnjeg</div>
             <h2 class="mt-1 text-xl font-semibold text-slate-900">
               {{ selected.lastName }} {{ selected.firstName }}
             </h2>
@@ -430,48 +496,62 @@ onUnmounted(() => {
 
         <div class="grid grid-cols-3 gap-3 border-b border-slate-200 bg-slate-50 px-6 py-4">
           <div class="rounded-xl bg-white px-4 py-3 ring-1 ring-slate-200">
-            <div class="text-xs text-slate-500">Odobreno</div>
-            <div class="mt-1 text-lg font-semibold text-slate-900">{{ fmtDays(selected.total_days) }}</div>
+            <div class="text-xs text-slate-500">Rješenja</div>
+            <div class="mt-1 text-lg font-semibold text-sky-800">{{ fmtPlus(selected.total_days) }} dana</div>
+            <div class="text-xs text-slate-500">{{ decisionLabel(selected.decision_count) }}</div>
           </div>
           <div class="rounded-xl bg-white px-4 py-3 ring-1 ring-slate-200">
             <div class="text-xs text-slate-500">Iskorišteno</div>
-            <div class="mt-1 text-lg font-semibold text-slate-900">{{ fmtDays(selected.used_days) }}</div>
+            <div class="mt-1 text-lg font-semibold text-red-700">{{ fmtMinus(selected.used_days) }} dana</div>
           </div>
           <div class="rounded-xl bg-white px-4 py-3 ring-1 ring-slate-200">
             <div class="text-xs text-slate-500">Preostalo</div>
-            <div class="mt-1 text-lg font-semibold text-emerald-700">{{ fmtDays(selected.remaining_days) }}</div>
+            <div class="mt-1 text-lg font-semibold" :class="wholeDays(selected.remaining_days) < 0 ? 'text-red-700' : 'text-emerald-700'">{{ fmtDays(selected.remaining_days) }} dana</div>
           </div>
         </div>
 
         <div class="overflow-y-auto px-6 py-5">
-          <div v-if="selectedLoading" class="text-sm text-slate-500">Učitavanje iskorištenih dana...</div>
+          <div v-if="selectedLoading" class="text-sm text-slate-500">Učitavanje rješenja i iskorištenih dana...</div>
           <div v-else-if="selectedError" class="text-sm text-red-600">{{ selectedError }}</div>
-          <div v-else-if="usageGroups.length === 0" class="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
-            Nema unesenih iskorištenja.
+          <div v-else-if="yearStats.length === 0" class="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
+            Nema rješenja ni iskorištenja.
           </div>
           <div v-else class="space-y-6">
-            <section v-for="group in usageGroups" :key="group.year">
-              <div class="mb-2 flex items-center justify-between">
+            <section v-for="group in yearStats" :key="group.year">
+              <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <h3 class="text-sm font-semibold text-slate-800">{{ group.year }}.</h3>
-                <span class="text-xs text-slate-500">{{ fmtDays(group.days) }} dana</span>
+                <div class="flex flex-wrap gap-2 text-xs">
+                  <span class="rounded-full bg-sky-50 px-2 py-1 text-sky-800">Rješenja {{ fmtPlus(group.granted) }}</span>
+                  <span class="rounded-full bg-red-50 px-2 py-1 text-red-700">Iskorišteno {{ fmtMinus(group.used) }}</span>
+                  <span class="rounded-full bg-emerald-50 px-2 py-1" :class="group.remaining < 0 ? 'text-red-700' : 'text-emerald-800'">Preostalo {{ fmtDays(group.remaining) }}</span>
+                </div>
               </div>
+
               <div class="overflow-hidden rounded-xl border border-slate-200">
-                <table class="min-w-full text-sm">
-                  <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th class="px-4 py-2.5 font-medium">Datum</th>
-                      <th class="px-4 py-2.5 font-medium">Dani</th>
-                      <th class="px-4 py-2.5 font-medium">Razlog</th>
-                    </tr>
-                  </thead>
+                <div class="bg-sky-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-sky-800">Rješenja</div>
+                <div v-if="group.decisions.length === 0" class="px-4 py-3 text-sm text-slate-500">Nema rješenja za ovu godinu.</div>
+                <table v-else class="min-w-full text-sm">
                   <tbody>
-                    <tr v-for="usage in group.items" :key="usage.id" class="border-t border-slate-100">
-                      <td class="px-4 py-3 text-slate-800">{{ fmtRange(usage.date_from, usage.date_to) }}</td>
-                      <td class="px-4 py-3 text-slate-700">{{ fmtDays(usage.days) }}</td>
-                      <td class="px-4 py-3 text-slate-700">
-                        <div>{{ usageReason(usage) }}</div>
-                        <div v-if="String(usage.note ?? '').trim()" class="mt-0.5 text-xs text-slate-400">{{ fmtPart(usage.part) }}</div>
+                    <tr v-for="decision in group.decisions" :key="decision.id" class="border-t border-slate-100">
+                      <td class="px-4 py-3 text-slate-800">
+                        <div>{{ fmtPart(decision.part) }}<span v-if="decision.decision_number"> · #{{ decision.decision_number }}</span></div>
+                        <div class="text-xs text-slate-500">{{ fmtDate(decision.decision_date) || 'Bez datuma' }}<span v-if="decision.valid_from || decision.valid_to"> · važi {{ fmtRange(decision.valid_from, decision.valid_to) }}</span></div>
                       </td>
+                      <td class="px-4 py-3 text-right font-medium text-sky-800">{{ fmtPlus(decision.granted_days) }} dana</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div class="border-t border-slate-200 bg-red-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-red-800">Iskorišteno</div>
+                <div v-if="group.usages.length === 0" class="px-4 py-3 text-sm text-slate-500">Nema iskorištenja za ovu godinu.</div>
+                <table v-else class="min-w-full text-sm">
+                  <tbody>
+                    <tr v-for="usage in group.usages" :key="usage.id" class="border-t border-slate-100">
+                      <td class="px-4 py-3 text-slate-800">
+                        <div>{{ fmtRange(usage.date_from, usage.date_to) }}</div>
+                        <div class="text-xs text-slate-500">{{ usageReason(usage) }}<span v-if="usage.decision_number"> · #{{ usage.decision_number }}</span></div>
+                      </td>
+                      <td class="px-4 py-3 text-right font-medium text-red-700">Iskorišteno {{ fmtMinus(usage.days) }} dana</td>
                     </tr>
                   </tbody>
                 </table>
