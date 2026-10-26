@@ -407,54 +407,69 @@ Route::get('/pass-email-approval/{pass}', [\App\Http\Controllers\LateArrivalAppr
     ->name('pass.email.approval')
     ->middleware('signed');
 
-// Jednokratno: kreira samo attendance_stimulations. Ne dira i ne briše postojeće tabele.
+// Jednokratno: tabela attendance_stimulations i kolona employees.stimulacija.
+// Ne briše podatke i ne mijenja ostale kolone.
 Route::get('/ops/kreiraj-attendance-stimulations', function (Request $request) {
     $token = (string) $request->query('token', '');
     if (! hash_equals('stim-tabela-4c8e1a9b7d2f6e0c', $token)) {
         abort(404);
     }
 
-    $migration = '2026_10_23_000003_create_attendance_stimulations_table';
-    $path = database_path('migrations/'.$migration.'.php');
-
-    if (! is_file($path)) {
-        return response('Migracijski fajl nije na serveru: '.$migration.'.php', 500)
-            ->header('Content-Type', 'text/plain; charset=UTF-8');
-    }
+    $steps = [
+        [
+            'migration' => '2026_10_23_000001_add_stimulacija_to_employees_table',
+            'ready' => fn () => Schema::hasColumn('employees', 'stimulacija'),
+            'done' => 'Dodana je kolona employees.stimulacija (podrazumijevano 0). Ostale kolone nisu mijenjane.',
+            'exists' => 'Kolona employees.stimulacija već postoji.',
+        ],
+        [
+            'migration' => '2026_10_23_000003_create_attendance_stimulations_table',
+            'ready' => fn () => Schema::hasTable('attendance_stimulations'),
+            'done' => 'Kreirana je samo tabela attendance_stimulations.',
+            'exists' => 'Tabela attendance_stimulations već postoji. Nije kreirana ponovo.',
+        ],
+    ];
 
     $lines = [];
 
     try {
-        if (Schema::hasTable('attendance_stimulations')) {
-            $lines[] = 'Tabela attendance_stimulations već postoji. Nije kreirana ponovo.';
-        } else {
-            $exit = Artisan::call('migrate', [
-                '--path' => $path,
-                '--realpath' => true,
-                '--force' => true,
-            ]);
-            $output = trim(Artisan::output());
-            if ($output !== '') {
-                $lines[] = $output;
-            }
-            if ($exit !== 0 || ! Schema::hasTable('attendance_stimulations')) {
-                return response(implode("\n", $lines)."\nTabela nije kreirana. Ništa drugo nije dirano.", 500)
+        foreach ($steps as $step) {
+            $path = database_path('migrations/'.$step['migration'].'.php');
+            if (! is_file($path)) {
+                return response('Migracijski fajl nije na serveru: '.$step['migration'].'.php', 500)
                     ->header('Content-Type', 'text/plain; charset=UTF-8');
             }
-            $lines[] = 'Kreirana je samo tabela attendance_stimulations.';
+
+            if (! ($step['ready'])()) {
+                $exit = Artisan::call('migrate', [
+                    '--path' => $path,
+                    '--realpath' => true,
+                    '--force' => true,
+                ]);
+                $output = trim(Artisan::output());
+                if ($output !== '') {
+                    $lines[] = $output;
+                }
+                if ($exit !== 0 || ! ($step['ready'])()) {
+                    return response(implode("\n", $lines)."\nKorak nije završen: {$step['migration']}. Ništa drugo nije dirano.", 500)
+                        ->header('Content-Type', 'text/plain; charset=UTF-8');
+                }
+                $lines[] = $step['done'];
+            } else {
+                $lines[] = $step['exists'];
+            }
+
+            $recorded = DB::table('migrations')->where('migration', $step['migration'])->exists();
+            if (! $recorded) {
+                $batch = ((int) DB::table('migrations')->max('batch')) + 1;
+                DB::table('migrations')->insert([
+                    'migration' => $step['migration'],
+                    'batch' => $batch,
+                ]);
+            }
         }
 
-        $recorded = DB::table('migrations')->where('migration', $migration)->exists();
-        if (! $recorded) {
-            $batch = ((int) DB::table('migrations')->max('batch')) + 1;
-            DB::table('migrations')->insert([
-                'migration' => $migration,
-                'batch' => $batch,
-            ]);
-            $lines[] = 'U tabelu migrations upisan je samo red za ovu migraciju, da se ne pokrene ponovo.';
-        }
-
-        $lines[] = 'Postojeće tabele nisu mijenjane i ništa nije obrisano.';
+        $lines[] = 'Postojeći podaci nisu brisani.';
     } catch (\Throwable $e) {
         return response("Greška: {$e->getMessage()}\nNišta drugo nije dirano.", 500)
             ->header('Content-Type', 'text/plain; charset=UTF-8');
