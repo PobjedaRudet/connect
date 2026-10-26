@@ -136,7 +136,7 @@
                     <form @submit.prevent="azurirajPreglede">
                         <div class="mb-4">
                             <label class="block text-sm font-medium mb-1">Datum kontrolnog pregleda</label>
-                            <input type="date" v-model="form.datum" class="form-input w-full" required />
+                            <DateInput v-model="form.datum" class="form-input w-full" required />
                         </div>
                         <div class="mb-4">
                             <label class="block text-sm font-medium mb-1">TIP</label>
@@ -219,6 +219,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import DateInput from '@/Components/DateInput.vue';
 import axios from 'axios';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PpzNav from '@/Components/PpzNav.vue'

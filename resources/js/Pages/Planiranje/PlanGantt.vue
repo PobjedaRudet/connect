@@ -10,11 +10,11 @@
   <div class="bg-white dark:bg-gray-800 p-4 rounded shadow grid grid-cols-1 md:grid-cols-8 gap-3 items-end">
           <div>
             <label class="block text-xs text-gray-500">Od</label>
-            <input v-model="filters.from" type="date" class="form-input w-full mt-1 border-2 border-blue-200 bg-blue-50 dark:bg-gray-900 rounded focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition" />
+            <DateInput v-model="filters.from" class="form-input w-full mt-1 border-2 border-blue-200 bg-blue-50 dark:bg-gray-900 rounded focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition" />
           </div>
           <div>
             <label class="block text-xs text-gray-500">Do</label>
-            <input v-model="filters.to" type="date" class="form-input w-full mt-1 border-2 border-blue-200 bg-blue-50 dark:bg-gray-900 rounded focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition" />
+            <DateInput v-model="filters.to" class="form-input w-full mt-1 border-2 border-blue-200 bg-blue-50 dark:bg-gray-900 rounded focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition" />
           </div>
           <div class="md:col-span-2">
             <label class="block text-xs text-gray-500">Objekat</label>
@@ -188,12 +188,12 @@
             </div>
             <div v-if="insertForm.objekat==='Kompletiranje' || insertForm.objekat==='Kompletiranje Nonel'">
               <label class="block text-xs text-gray-500">Datum laboracije</label>
-              <input v-model="insertForm.laboracija_datum" type="date" class="form-input w-full mt-1" />
+              <DateInput v-model="insertForm.laboracija_datum" class="form-input w-full mt-1" />
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs text-gray-500">Početak</label>
-                <input v-model="insertForm.start_date" type="date" class="form-input w-full mt-1" />
+                <DateInput v-model="insertForm.start_date" class="form-input w-full mt-1" />
               </div>
               <div>
                 <label class="block text-xs text-gray-500">Trajanje (radni dani)</label>
@@ -246,6 +246,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import DateInput from '@/Components/DateInput.vue';
 import { router } from '@inertiajs/vue3';
 import ProductionAppLayout from '@/Layouts/ProductionAppLayout.vue';
 

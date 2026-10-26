@@ -22,11 +22,11 @@
           <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label class="block text-xs text-gray-500">Od datuma</label>
-              <input v-model="from" type="date" class="mt-1 w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:ring-indigo-500" />
+              <DateInput v-model="from" class="mt-1 w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:ring-indigo-500" />
             </div>
             <div>
               <label class="block text-xs text-gray-500">Do datuma</label>
-              <input v-model="to" type="date" class="mt-1 w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:ring-indigo-500" />
+              <DateInput v-model="to" class="mt-1 w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 focus:border-indigo-500 focus:ring-indigo-500" />
             </div>
             <div>
               <label class="block text-xs text-gray-500">Status</label>
@@ -91,6 +91,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import DateInput from '@/Components/DateInput.vue';
 import { Link } from '@inertiajs/vue3';
 import axios from 'axios';
 import ProductionAppLayout from '@/Layouts/ProductionAppLayout.vue';

@@ -43,7 +43,7 @@
               </div>
               <div v-if="requiresLaboracija">
                 <label class="block text-xs text-gray-500">Datum laboracije</label>
-                <input v-model="form.laboracija_datum" type="date" class="form-input w-full mt-1 border-2 border-blue-200 bg-blue-50 dark:bg-gray-900 rounded focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition" />
+                <DateInput v-model="form.laboracija_datum" class="form-input w-full mt-1 border-2 border-blue-200 bg-blue-50 dark:bg-gray-900 rounded focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition" />
                 <!-- Smjene prikazuj samo ako NIJE Kompletiranje ili Kompletiranje Nonel -->
                 <div class="flex gap-4 mt-2" v-if="!['kompletiranje','kompletiranje nonel'].includes((form.objekat || '').toLowerCase())">
                   <label class="inline-flex items-center">
@@ -61,17 +61,17 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label class="block text-xs text-gray-500">Početak</label>
-                <input v-model="bulk.start_date" type="date" class="form-input w-full mt-1 border-2 border-blue-200 bg-blue-50 dark:bg-gray-900 rounded focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition" />
+                <DateInput v-model="bulk.start_date" class="form-input w-full mt-1 border-2 border-blue-200 bg-blue-50 dark:bg-gray-900 rounded focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition" />
                 <div v-if="bulk.start_date" class="text-xs text-gray-500 mt-1">{{ formatDateDisplay(bulk.start_date) }}</div>
               </div>
               <div>
                 <label class="block text-xs text-gray-500">Kraj</label>
-                <input v-model="bulk.end_date" type="date" class="form-input w-full mt-1 border-2 border-blue-200 bg-blue-50 dark:bg-gray-900 rounded focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition" />
+                <DateInput v-model="bulk.end_date" class="form-input w-full mt-1 border-2 border-blue-200 bg-blue-50 dark:bg-gray-900 rounded focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition" />
                 <div v-if="bulk.end_date" class="text-xs text-gray-500 mt-1">{{ formatDateDisplay(bulk.end_date) }}</div>
               </div>
               <div>
                 <label class="block text-xs text-gray-500">Datum isporuke</label>
-                <input v-model="form.delivery_date" type="date" class="form-input w-full mt-1 border-2 border-orange-300 bg-orange-50 dark:bg-gray-900 rounded focus:border-orange-400 focus:ring-2 focus:ring-orange-200 transition" />
+                <DateInput v-model="form.delivery_date" class="form-input w-full mt-1 border-2 border-orange-300 bg-orange-50 dark:bg-gray-900 rounded focus:border-orange-400 focus:ring-2 focus:ring-orange-200 transition" />
                 <div v-if="form.delivery_date" class="text-xs text-gray-500 mt-1">{{ formatDateDisplay(form.delivery_date) }}</div>
               </div>
             </div>
@@ -170,6 +170,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import DateInput from '@/Components/DateInput.vue';
 import axios from 'axios';
 import ProductionAppLayout from '@/Layouts/ProductionAppLayout.vue';
 

@@ -1,5 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import DateInput from '@/Components/DateInput.vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import { reactive, ref } from 'vue'
 
@@ -138,11 +139,11 @@ const formatTimePart = (value) => {
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">Od datuma</label>
-            <input v-model="form.date_from" type="date" class="w-full border-gray-300 rounded-md shadow-sm text-sm" />
+            <DateInput v-model="form.date_from" class="w-full border-gray-300 rounded-md shadow-sm text-sm" />
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">Do datuma</label>
-            <input v-model="form.date_to" type="date" class="w-full border-gray-300 rounded-md shadow-sm text-sm" />
+            <DateInput v-model="form.date_to" class="w-full border-gray-300 rounded-md shadow-sm text-sm" />
           </div>
           <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">Pretraga</label>

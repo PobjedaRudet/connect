@@ -62,7 +62,7 @@
                                         </div>
                                         <div>
                                             <label for="orderDate" class="block text-xs font-medium text-gray-600 dark:text-gray-300">Datum naloga</label>
-                                            <input type="date" v-model="form.OrderDate" id="orderDate"
+                                            <DateInput v-model="form.OrderDate" id="orderDate"
                                                    class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200" required />
                                         </div>
                                         <div>
@@ -165,7 +165,7 @@
                                     <label for="DatumPredaje"
                                         class="block text-xs font-medium text-gray-600 dark:text-gray-300">Datum
                                         Predaje</label>
-                                    <input type="date" v-model="form.DatumPredaje" id="datumPredaje" @input="datumPredajeManuallyEdited = true"
+                                    <DateInput v-model="form.DatumPredaje" id="datumPredaje" @input="datumPredajeManuallyEdited = true"
                                         class="form-input rounded-md mt-1 block w-full dark:bg-gray-700 dark:text-gray-200"
                                         required />
                                             </div>
@@ -267,6 +267,7 @@
 
 <script setup>
 import ProductionAppLayout from '@/Layouts/ProductionAppLayout.vue';
+import DateInput from '@/Components/DateInput.vue';
 import { ref, onMounted, watch, computed } from 'vue';
 import axios from 'axios';
 

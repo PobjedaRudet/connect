@@ -12,7 +12,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
               <div>
                 <label class="block text-xs text-gray-500">Datum</label>
-                <input v-model="form.date" type="date" class="form-input w-full mt-1 border-2 border-blue-200 bg-blue-50 dark:bg-gray-900 rounded focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition" required />
+                <DateInput v-model="form.date" class="form-input w-full mt-1 border-2 border-blue-200 bg-blue-50 dark:bg-gray-900 rounded focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition" required />
                 <div v-if="form.errors.date" class="text-red-600 text-xs mt-1">{{ form.errors.date }}</div>
               </div>
               <div class="md:col-span-2">
@@ -47,6 +47,7 @@
 
 <script setup>
 import { router, useForm } from '@inertiajs/vue3';
+import DateInput from '@/Components/DateInput.vue';
 import ProductionAppLayout from '@/Layouts/ProductionAppLayout.vue';
 
 const props = defineProps({

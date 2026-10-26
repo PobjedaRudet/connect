@@ -7,9 +7,12 @@ use App\Models\AnnualLeaveDecision;
 use App\Models\AnnualLeaveUsage;
 use App\Models\AttendanceDayStatus;
 use App\Models\AttendanceRecord;
+use App\Models\Department;
 use App\Models\Shift;
 use App\Models\SickLeave;
 use App\Models\TravelOrder;
+use App\Models\User;
+use App\Services\OsmiceExportService;
 use App\Services\SihtericaAuditLogger;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -25,6 +28,75 @@ class SihtericaController extends Controller
     }
 
     public function index(Request $request)
+    {
+        return Inertia::render('HR/Sihterica', $this->viewData($request));
+    }
+
+    public function exportOsmice(Request $request, OsmiceExportService $exporter)
+    {
+        $departmentId = (int) $request->query('department_id');
+        $redirect = [
+            'month' => $request->query('month'),
+            'department_id' => $departmentId > 0 ? (string) $departmentId : null,
+        ];
+
+        if ($departmentId <= 0 || !Department::query()->whereKey($departmentId)->exists()) {
+            return redirect()
+                ->route('hr.sihterica', array_filter($redirect))
+                ->with('error', 'Odaberite odjel. Svaki odjel ima svoj Osmice template.');
+        }
+
+        if (!$this->canUseDepartment($request->user(), $departmentId)) {
+            return redirect()
+                ->route('hr.sihterica', array_filter($redirect))
+                ->with('error', 'Nemate pristup odabranom odjelu.');
+        }
+
+        if (!$exporter->hasTemplate($departmentId)) {
+            $name = (string) Department::query()->whereKey($departmentId)->value('name');
+
+            return redirect()
+                ->route('hr.sihterica', array_filter($redirect))
+                ->with('error', 'Nema template-a za odjel ' . $name . '.');
+        }
+
+        $name = (string) Department::query()->whereKey($departmentId)->value('name');
+
+        return $exporter->download(
+            $this->viewData($request),
+            $departmentId,
+            $name,
+            trim((string) $request->query('search', ''))
+        );
+    }
+
+    public function storeOsmiceTemplate(Request $request, OsmiceExportService $exporter)
+    {
+        $validated = $request->validate([
+            'department_id' => 'required|integer|exists:departments,id',
+            'template' => 'required|file|extensions:xlsx|max:10240',
+        ]);
+
+        $departmentId = (int) $validated['department_id'];
+        if (!$this->canUseDepartment($request->user(), $departmentId)) {
+            return back()->with('error', 'Nemate pristup odabranom odjelu.');
+        }
+
+        try {
+            $exporter->storeTemplate($departmentId, $request->file('template'));
+        } catch (\RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        $name = (string) Department::query()->whereKey($departmentId)->value('name');
+
+        return back()->with('success', 'Template za odjel ' . $name . ' je sačuvan.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function viewData(Request $request): array
     {
         $monthParam = (string) $request->query('month', '');
         $monthParam = trim($monthParam);
@@ -480,7 +552,25 @@ class SihtericaController extends Controller
             $departments = $this->departmentFilterOptions();
         }
 
-        return Inertia::render('HR/Sihterica', [
+        $osmiceDepartmentIds = $employees->pluck('dept')
+            ->filter(fn ($id) => $id !== null && $id !== '')
+            ->map(fn ($id) => (int) $id);
+        if ($departmentId !== null) {
+            $osmiceDepartmentIds->push($departmentId);
+        }
+        $osmiceDepartmentIds = $osmiceDepartmentIds->unique()->values();
+
+        $osmiceExporter = app(OsmiceExportService::class);
+        $osmiceDepartments = Department::query()
+            ->whereIn('id', $osmiceDepartmentIds)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+        $osmiceTemplates = [];
+        foreach ($osmiceDepartments as $osmiceDepartment) {
+            $osmiceTemplates[(string) $osmiceDepartment->id] = $osmiceExporter->hasTemplate((int) $osmiceDepartment->id);
+        }
+
+        return [
             'month' => $monthParam,
             'days' => $days,
             'employees' => $employees->map(fn ($e) => [
@@ -498,7 +588,23 @@ class SihtericaController extends Controller
             'filters' => [
                 'department_id' => $departmentId !== null ? (string) $departmentId : '',
             ],
-        ]);
+            'osmiceDepartments' => $osmiceDepartments->map(fn ($department) => [
+                'id' => (int) $department->id,
+                'name' => (string) $department->name,
+            ])->values()->all(),
+            'osmiceTemplates' => $osmiceTemplates,
+        ];
+    }
+
+    private function canUseDepartment(?User $user, int $departmentId): bool
+    {
+        if ($this->hasGlobalEmployeeAccess($user)) {
+            return true;
+        }
+
+        return $this->visibleEmployeeQuery($user)
+            ->where('dept', $departmentId)
+            ->exists();
     }
 
     public function manualStore(Request $request)

@@ -1,5 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
+import DateInput from '@/Components/DateInput.vue'
 import { Head, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 
@@ -47,28 +48,14 @@ const fieldMeta = {
   building_out: { kind: 'building', event: 'out', idKey: 'building_out_id', atKey: 'building_out_at', label: 'Izlaz — objekat' },
 }
 
-const displayFromIso = (value) => {
+const isIsoDate = (value) => {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || '').trim())
-  if (!match) return ''
-  return `${match[3]}/${match[2]}/${match[1]}`
-}
-
-const isoFromDisplay = (value) => {
-  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(value || '').trim())
-  if (!match) return ''
-  const day = Number(match[1])
+  if (!match) return false
+  const year = Number(match[1])
   const month = Number(match[2])
-  const year = Number(match[3])
+  const day = Number(match[3])
   const parsed = new Date(year, month - 1, day)
-  if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) return ''
-  return `${match[3]}-${match[2]}-${match[1]}`
-}
-
-const maskDate = (raw) => {
-  const digits = String(raw || '').replace(/\D/g, '').slice(0, 8)
-  if (digits.length <= 2) return digits
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
+  return parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day
 }
 
 const maskTime = (raw) => {
@@ -82,9 +69,9 @@ const maskTime = (raw) => {
   return `${digits.slice(0, 2)}:${digits.slice(2)}`
 }
 
-const editDateIso = computed(() => isoFromDisplay(editDate.value))
+const editDateIso = computed(() => (isIsoDate(editDate.value) ? String(editDate.value).slice(0, 10) : ''))
 const editTimeValue = computed(() => (/^([01]\d|2[0-3]):[0-5]\d$/.test(editTime.value) ? editTime.value : ''))
-const dateInvalid = computed(() => editDate.value.length === 10 && !editDateIso.value)
+const dateInvalid = computed(() => String(editDate.value || '') !== '' && !editDateIso.value)
 const timeInvalid = computed(() => editTime.value.length === 5 && !editTimeValue.value)
 
 const openEditor = (row, field) => {
@@ -102,7 +89,7 @@ const openEditor = (row, field) => {
   }
   const stamp = String(row?.[meta.atKey] || '')
   const [stampDate, stampTime] = stamp.includes(' ') ? stamp.split(' ') : ['', '']
-  editDate.value = displayFromIso(stampDate || date.value)
+  editDate.value = String(stampDate || date.value || '').slice(0, 10)
   editTime.value = (stampTime || row[field] || '').slice(0, 5)
 }
 
@@ -111,7 +98,6 @@ const closeEditor = () => {
   editor.value = null
 }
 
-const onDateInput = (event) => { editDate.value = maskDate(event.target.value) }
 const onTimeInput = (event) => { editTime.value = maskTime(event.target.value) }
 const onTimeBlur = () => {
   const match = /^(\d{1,2}):(\d{1,2})$/.exec(editTime.value)
@@ -234,7 +220,7 @@ const filteredRows = computed(() => {
         <div class="flex items-end gap-3 flex-wrap">
           <div>
             <label for="date-input" class="block text-xs font-medium text-gray-600 mb-1">Datum</label>
-            <input id="date-input" v-model="date" type="date" class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm" @change="reload" />
+            <DateInput id="date-input" v-model="date" class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm" @change="reload" />
           </div>
           <div>
             <label for="tolerance-input" class="block text-xs font-medium text-gray-600 mb-1">Tolerancija (min)</label>
@@ -317,16 +303,10 @@ const filteredRows = computed(() => {
         <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label class="block text-xs font-medium text-slate-600" for="edit-date">Datum</label>
-            <input
+            <DateInput
               id="edit-date"
-              :value="editDate"
-              type="text"
-              inputmode="numeric"
-              maxlength="10"
-              placeholder="dd/mm/yyyy"
-              autocomplete="off"
+              v-model="editDate"
               class="mt-1 w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              @input="onDateInput"
             />
             <p class="mt-1 text-xs" :class="dateInvalid ? 'text-red-600' : 'text-slate-500'">Format: dd/mm/yyyy</p>
           </div>

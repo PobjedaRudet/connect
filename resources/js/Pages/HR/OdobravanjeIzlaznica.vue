@@ -7,6 +7,7 @@ import SecondaryButton from '@/Components/SecondaryButton.vue'
 import PrimaryButton from '@/Components/PrimaryButton.vue'
 import InputError from '@/Components/InputError.vue'
 import InputLabel from '@/Components/InputLabel.vue'
+import DateTimeInput from '@/Components/DateTimeInput.vue'
 import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 
@@ -225,9 +226,8 @@ const submitCreate = () => {
 
           <div>
             <InputLabel value="Izlazak" />
-            <input
+            <DateTimeInput
               v-model="createForm.start_time"
-              type="datetime-local"
               required
               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
@@ -236,9 +236,8 @@ const submitCreate = () => {
 
           <div>
             <InputLabel value="Povratak" />
-            <input
+            <DateTimeInput
               v-model="createForm.end_time"
-              type="datetime-local"
               required
               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             />
@@ -360,9 +359,8 @@ const submitCreate = () => {
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <InputLabel value="Izlazak" />
-              <input
+              <DateTimeInput
                 v-model="editForm.start_time"
-                type="datetime-local"
                 required
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               />
@@ -371,9 +369,8 @@ const submitCreate = () => {
 
             <div>
               <InputLabel value="Povratak" />
-              <input
+              <DateTimeInput
                 v-model="editForm.end_time"
-                type="datetime-local"
                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               />
               <InputError class="mt-2" :message="editForm.errors.end_time" />

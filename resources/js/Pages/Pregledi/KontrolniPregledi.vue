@@ -61,7 +61,7 @@
         <form @submit.prevent="submitPopup">
           <div class="mb-4">
             <label class="block text-sm font-medium mb-1">Datum kontrolnog pregleda</label>
-            <input type="date" v-model="popupForm.datum" class="form-input w-full" required />
+            <DateInput v-model="popupForm.datum" class="form-input w-full" required />
           </div>
           <div class="mb-4">
             <label class="block text-sm font-medium mb-1">Komentar</label>
@@ -84,6 +84,7 @@
 
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
+import DateInput from '@/Components/DateInput.vue';
 import PpzNav from '@/Components/PpzNav.vue'
 import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';

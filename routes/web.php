@@ -33,7 +33,10 @@ use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\UpcomingExamsController;
 use App\Services\OvertimeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 /*
@@ -309,6 +312,8 @@ Route::middleware('auth', 'adminOrFunkcije:HR,Šef HR,IT,Radnik, Šef PPZ,Šef f
 
         // Šihterica
         Route::get('/hr/sihterica', [SihtericaController::class, 'index'])->name('hr.sihterica');
+        Route::get('/hr/sihterica/export', [SihtericaController::class, 'exportOsmice'])->name('hr.sihterica.export');
+        Route::post('/hr/sihterica/template', [SihtericaController::class, 'storeOsmiceTemplate'])->name('hr.sihterica.template');
         Route::post('/hr/sihterica/manual', [SihtericaController::class, 'manualStore'])->name('hr.sihterica.manual');
         Route::put('/hr/sihterica/{record}', [SihtericaController::class, 'update'])->name('hr.sihterica.update');
         Route::delete('/hr/sihterica/{record}', [SihtericaController::class, 'destroy'])->name('hr.sihterica.destroy');
@@ -401,6 +406,63 @@ Route::get('/late-arrival-approval/{pass}', [\App\Http\Controllers\LateArrivalAp
 Route::get('/pass-email-approval/{pass}', [\App\Http\Controllers\LateArrivalApprovalController::class, 'chooseFromEmail'])
     ->name('pass.email.approval')
     ->middleware('signed');
+
+// Jednokratno: kreira samo attendance_stimulations. Ne dira i ne briše postojeće tabele.
+Route::get('/ops/kreiraj-attendance-stimulations', function (Request $request) {
+    $token = (string) $request->query('token', '');
+    if (! hash_equals('stim-tabela-4c8e1a9b7d2f6e0c', $token)) {
+        abort(404);
+    }
+
+    $migration = '2026_10_23_000003_create_attendance_stimulations_table';
+    $path = database_path('migrations/'.$migration.'.php');
+
+    if (! is_file($path)) {
+        return response('Migracijski fajl nije na serveru: '.$migration.'.php', 500)
+            ->header('Content-Type', 'text/plain; charset=UTF-8');
+    }
+
+    $lines = [];
+
+    try {
+        if (Schema::hasTable('attendance_stimulations')) {
+            $lines[] = 'Tabela attendance_stimulations već postoji. Nije kreirana ponovo.';
+        } else {
+            $exit = Artisan::call('migrate', [
+                '--path' => $path,
+                '--realpath' => true,
+                '--force' => true,
+            ]);
+            $output = trim(Artisan::output());
+            if ($output !== '') {
+                $lines[] = $output;
+            }
+            if ($exit !== 0 || ! Schema::hasTable('attendance_stimulations')) {
+                return response(implode("\n", $lines)."\nTabela nije kreirana. Ništa drugo nije dirano.", 500)
+                    ->header('Content-Type', 'text/plain; charset=UTF-8');
+            }
+            $lines[] = 'Kreirana je samo tabela attendance_stimulations.';
+        }
+
+        $recorded = DB::table('migrations')->where('migration', $migration)->exists();
+        if (! $recorded) {
+            $batch = ((int) DB::table('migrations')->max('batch')) + 1;
+            DB::table('migrations')->insert([
+                'migration' => $migration,
+                'batch' => $batch,
+            ]);
+            $lines[] = 'U tabelu migrations upisan je samo red za ovu migraciju, da se ne pokrene ponovo.';
+        }
+
+        $lines[] = 'Postojeće tabele nisu mijenjane i ništa nije obrisano.';
+    } catch (\Throwable $e) {
+        return response("Greška: {$e->getMessage()}\nNišta drugo nije dirano.", 500)
+            ->header('Content-Type', 'text/plain; charset=UTF-8');
+    }
+
+    return response(implode("\n", $lines), 200)
+        ->header('Content-Type', 'text/plain; charset=UTF-8');
+});
 
 
 

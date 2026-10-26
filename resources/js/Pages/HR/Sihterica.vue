@@ -1,7 +1,8 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue'
 import HrNav from '@/Components/HrNav.vue'
-import { Head, router, useForm } from '@inertiajs/vue3'
+import DateInput from '@/Components/DateInput.vue'
+import { Head, router, useForm, usePage } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
@@ -17,7 +18,13 @@ const props = defineProps({
     type: Object,
     default: () => ({ department_id: '' }),
   },
+  osmiceDepartments: { type: Array, default: () => [] },
+  osmiceTemplates: { type: Object, default: () => ({}) },
 })
+
+const page = usePage()
+const templateInput = ref(null)
+const selectedOsmiceDepartmentId = ref('')
 
 const selectedMonth = ref(props.month)
 const selectedDepartmentId = ref(props.filters?.department_id || '')
@@ -58,6 +65,64 @@ const onMonthChange = () => {
 
 const onDepartmentChange = () => {
   router.get(route('hr.sihterica'), sihtericaQuery(), { preserveScroll: true, preserveState: true })
+}
+
+const osmiceDepartmentId = computed(() => {
+  if (props.canFilterByDepartment) return selectedDepartmentId.value || ''
+  if (props.osmiceDepartments.length === 1) return String(props.osmiceDepartments[0].id)
+  return selectedOsmiceDepartmentId.value || ''
+})
+
+const osmiceDepartmentName = computed(() => {
+  const id = osmiceDepartmentId.value
+  const fromFilter = (props.departments || []).find((department) => String(department.id) === String(id))
+  if (fromFilter) return fromFilter.name
+  const fromOsmice = (props.osmiceDepartments || []).find((department) => String(department.id) === String(id))
+  return fromOsmice?.name || ''
+})
+
+const hasOsmiceTemplate = computed(() => {
+  const id = osmiceDepartmentId.value
+  if (!id) return false
+  return Boolean(props.osmiceTemplates?.[id] || props.osmiceTemplates?.[String(id)])
+})
+
+const exportOsmice = () => {
+  if (!osmiceDepartmentId.value) {
+    window.alert('Odaberite odjel. Svaki odjel ima svoj template.')
+    return
+  }
+  if (!hasOsmiceTemplate.value) {
+    window.alert(`Nema template-a za odjel ${osmiceDepartmentName.value || ''}.`.trim())
+    return
+  }
+  const params = new URLSearchParams()
+  Object.entries(sihtericaQuery()).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value) !== '') {
+      params.set(key, String(value))
+    }
+  })
+  params.set('department_id', osmiceDepartmentId.value)
+  const term = search.value.trim()
+  if (term) params.set('search', term)
+  window.location.href = `${route('hr.sihterica.export')}?${params.toString()}`
+}
+
+const uploadOsmiceTemplate = (event) => {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  if (!osmiceDepartmentId.value) {
+    window.alert('Odaberite odjel prije uploada template-a.')
+    return
+  }
+  const form = new FormData()
+  form.append('department_id', osmiceDepartmentId.value)
+  form.append('template', file)
+  router.post(route('hr.sihterica.template'), form, {
+    forceFormData: true,
+    preserveScroll: true,
+  })
 }
 
 const cell = (employeeId, dateStr) => {
@@ -186,28 +251,17 @@ const manualForm = useForm({
   exit_time: '',
 })
 
-const maskDate = (raw) => {
-  const digits = String(raw || '').replace(/\D/g, '').slice(0, 8)
-  if (digits.length <= 2) return digits
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
-}
-
-const displayDate = (value) => {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || '').trim())
-  if (!match) return maskDate(value)
-  return `${match[3]}/${match[2]}/${match[1]}`
-}
-
 const toIsoDate = (value) => {
-  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(value || '').trim())
-  if (!match) return ''
-  const day = Number(match[1])
-  const month = Number(match[2])
-  const year = Number(match[3])
+  const raw = String(value || '').trim()
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
+  const slash = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(raw)
+  const year = Number(iso?.[1] ?? slash?.[3])
+  const month = Number(iso?.[2] ?? slash?.[2])
+  const day = Number(iso?.[3] ?? slash?.[1])
+  if (!iso && !slash) return ''
   const parsed = new Date(year, month - 1, day)
   if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) return ''
-  return `${match[3]}-${match[2]}-${match[1]}`
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
 const maskTime = (raw) => {
@@ -248,7 +302,7 @@ const openManualModal = (prefill = {}) => {
   manualForm.clearErrors()
   manualForm.employee_id = prefill.employee_id || ''
   manualForm.shift_id = prefill.shift_id || ''
-  manualForm.date = displayDate(prefill.date || new Date().toISOString().slice(0, 10))
+  manualForm.date = (prefill.date || new Date().toISOString().slice(0, 10)).slice(0, 10)
   manualForm.entry_time = (prefill.entry_time || '').slice(0, 5)
   manualForm.exit_time = (prefill.exit_time || '').slice(0, 5)
   employeeSearch.value = ''
@@ -335,7 +389,7 @@ const closeDayModal = () => {
 const startEdit = (record) => {
   editingId.value = record.record_id
   editForm.clearErrors()
-  editForm.date = displayDate(record.entry_date || dayModal.value.date)
+  editForm.date = String(record.entry_date || dayModal.value.date || '').slice(0, 10)
   editForm.entry_time = (record.entry_time || '').slice(0, 5)
   editForm.exit_time = (record.exit_time || '').slice(0, 5)
   editForm.shift_id = record.shift_id || ''
@@ -445,47 +499,95 @@ const visibleLeaveOverlaps = computed(() => {
           </p>
         </div>
 
-        <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
-          <button
-            v-if="editableEmployees.length"
-            @click="openManualModal()"
-            class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition shadow-sm whitespace-nowrap shrink-0"
-          >
-            <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            Ručni unos
-          </button>
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Mjesec</label>
-            <input
-              v-model="selectedMonth"
-              type="month"
-              class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-              @change="onMonthChange"
-            />
-          </div>
-
-          <div v-if="canFilterByDepartment">
-            <label class="block text-xs font-medium text-gray-600 mb-1">Odjel</label>
-            <select
-              v-model="selectedDepartmentId"
-              class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 min-w-[12rem]"
-              @change="onDepartmentChange"
+        <div class="flex flex-col items-stretch sm:items-end gap-1">
+          <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
+            <div v-if="!canFilterByDepartment && osmiceDepartments.length > 1">
+              <label class="block text-xs font-medium text-gray-600 mb-1">Odjel za Osmice</label>
+              <select
+                v-model="selectedOsmiceDepartmentId"
+                class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 min-w-[12rem]"
+              >
+                <option value="">Odaberite odjel</option>
+                <option v-for="d in osmiceDepartments" :key="d.id" :value="String(d.id)">{{ d.name }}</option>
+              </select>
+            </div>
+            <button
+              v-if="editableEmployees.length"
+              @click="openManualModal()"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition shadow-sm whitespace-nowrap shrink-0"
             >
-              <option value="">Svi odjeli</option>
-              <option v-for="d in departments" :key="d.id" :value="String(d.id)">{{ d.name }}</option>
-            </select>
-          </div>
+              <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Ručni unos
+            </button>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Mjesec</label>
+              <input
+                v-model="selectedMonth"
+                type="month"
+                class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                @change="onMonthChange"
+              />
+            </div>
 
-          <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Pretraga radnika</label>
+            <div v-if="canFilterByDepartment">
+              <label class="block text-xs font-medium text-gray-600 mb-1">Odjel</label>
+              <select
+                v-model="selectedDepartmentId"
+                class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 min-w-[12rem]"
+                @change="onDepartmentChange"
+              >
+                <option value="">Svi odjeli</option>
+                <option v-for="d in departments" :key="d.id" :value="String(d.id)">{{ d.name }}</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Pretraga radnika</label>
+              <input
+                v-model="search"
+                type="text"
+                placeholder="Ime i prezime"
+                class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <button
+              type="button"
+              @click="exportOsmice"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50 transition shadow-sm whitespace-nowrap shrink-0"
+            >
+              <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/></svg>
+              Izvoz Osmice
+            </button>
+            <button
+              type="button"
+              @click="templateInput?.click()"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50 transition shadow-sm whitespace-nowrap shrink-0"
+            >
+              <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"/></svg>
+              Upload template-a
+            </button>
             <input
-              v-model="search"
-              type="text"
-              placeholder="Ime i prezime"
-              class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+              ref="templateInput"
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              class="hidden"
+              @change="uploadOsmiceTemplate"
             />
           </div>
+          <p class="text-xs text-gray-500 sm:text-right">
+            <template v-if="!osmiceDepartmentId">Odaberite odjel. Svaki odjel ima svoj template.</template>
+            <template v-else-if="hasOsmiceTemplate">Template za {{ osmiceDepartmentName }} je uploadovan.</template>
+            <template v-else>Nema template-a za {{ osmiceDepartmentName || 'odabrani odjel' }}.</template>
+          </p>
+          <p v-if="page.props.errors?.template" class="text-xs text-red-600 sm:text-right">{{ page.props.errors.template }}</p>
         </div>
+      </div>
+
+      <div
+        v-if="page.props.flash?.success"
+        class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"
+      >
+        {{ page.props.flash.success }}
       </div>
 
       <div
@@ -695,7 +797,7 @@ const visibleLeaveOverlaps = computed(() => {
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Datum</label>
-                    <input :value="editForm.date" type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/yyyy" autocomplete="off" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" @input="editForm.date = maskDate($event.target.value)" />
+                    <DateInput v-model="editForm.date" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" />
                     <div v-if="editForm.errors.date" class="text-red-600 text-xs mt-1">{{ editForm.errors.date }}</div>
                     <p v-else class="text-[11px] text-gray-400 mt-0.5">dd/mm/yyyy</p>
                   </div>
@@ -823,7 +925,7 @@ const visibleLeaveOverlaps = computed(() => {
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Datum</label>
-              <input :value="manualForm.date" type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/yyyy" autocomplete="off" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" @input="manualForm.date = maskDate($event.target.value)" />
+              <DateInput v-model="manualForm.date" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" />
               <div v-if="manualForm.errors.date" class="text-red-600 text-xs mt-1">{{ manualForm.errors.date }}</div>
               <p v-else class="text-xs text-gray-400 mt-0.5">dd/mm/yyyy</p>
             </div>

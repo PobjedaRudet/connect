@@ -1,5 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
+import DateInput from '@/Components/DateInput.vue'
 import PpzNav from '@/Components/PpzNav.vue'
 import { Link } from '@inertiajs/vue3'
 import { ref, computed } from 'vue'
@@ -377,7 +378,7 @@ async function sacuvajInvalidnost() {
           <div v-if="editPregled">
             <div class="mb-3">
               <label class="block text-gray-700 text-sm font-bold mb-1">Datum</label>
-              <input type="date" v-model="editPregled.datum_pregleda" class="border rounded px-3 py-2 w-full" />
+              <DateInput v-model="editPregled.datum_pregleda" class="border rounded px-3 py-2 w-full" />
             </div>
             <div class="mb-3">
               <label class="block text-gray-700 text-sm font-bold mb-1">Tip</label>
