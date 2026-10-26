@@ -297,11 +297,29 @@ const attendanceReady = (data) => {
   return true
 }
 
+const departmentShiftsFor = (employeeId) => {
+  const employee = (props.employees || []).find((item) => String(item.id) === String(employeeId))
+  const departmentId = employee?.department_id
+  if (departmentId === null || departmentId === undefined || departmentId === '') return []
+  return (props.shifts || []).filter((shift) => String(shift.department_id) === String(departmentId))
+}
+
+const resolveShiftId = (employeeId, currentShiftId = '') => {
+  const options = departmentShiftsFor(employeeId)
+  const current = options.find((shift) => String(shift.id) === String(currentShiftId ?? ''))
+  if (current) return current.id
+  if (options.length === 1) return options[0].id
+  return ''
+}
+
+const shiftReady = (employeeId, shiftId) => departmentShiftsFor(employeeId)
+  .some((shift) => String(shift.id) === String(shiftId ?? ''))
+
 const openManualModal = (prefill = {}) => {
   manualForm.reset()
   manualForm.clearErrors()
   manualForm.employee_id = prefill.employee_id || ''
-  manualForm.shift_id = prefill.shift_id || ''
+  manualForm.shift_id = resolveShiftId(manualForm.employee_id, prefill.shift_id || '')
   manualForm.date = (prefill.date || new Date().toISOString().slice(0, 10)).slice(0, 10)
   manualForm.entry_time = (prefill.entry_time || '').slice(0, 5)
   manualForm.exit_time = (prefill.exit_time || '').slice(0, 5)
@@ -309,8 +327,17 @@ const openManualModal = (prefill = {}) => {
   showManualModal.value = true
 }
 
+const onManualEmployeeChange = () => {
+  manualForm.shift_id = resolveShiftId(manualForm.employee_id, '')
+}
+
+const manualDepartmentShifts = computed(() => departmentShiftsFor(manualForm.employee_id))
+const manualShiftMissing = computed(() => (
+  manualForm.employee_id !== '' && manualForm.employee_id !== null && manualDepartmentShifts.value.length === 0
+))
+
 const submitManual = () => {
-  if (!attendanceReady(manualForm)) return
+  if (!attendanceReady(manualForm) || !shiftReady(manualForm.employee_id, manualForm.shift_id)) return
   manualForm.transform((data) => attendancePayload(data))
   manualForm.post(route('hr.sihterica.manual'), {
     preserveScroll: true,
@@ -392,7 +419,7 @@ const startEdit = (record) => {
   editForm.date = String(record.entry_date || dayModal.value.date || '').slice(0, 10)
   editForm.entry_time = (record.entry_time || '').slice(0, 5)
   editForm.exit_time = (record.exit_time || '').slice(0, 5)
-  editForm.shift_id = record.shift_id || ''
+  editForm.shift_id = resolveShiftId(dayModal.value.employeeId, record.shift_id || '')
 }
 
 const cancelEdit = () => {
@@ -401,8 +428,11 @@ const cancelEdit = () => {
   editForm.clearErrors()
 }
 
+const editDepartmentShifts = computed(() => departmentShiftsFor(dayModal.value.employeeId))
+const editShiftMissing = computed(() => editDepartmentShifts.value.length === 0)
+
 const submitEdit = () => {
-  if (!editingId.value || !attendanceReady(editForm)) return
+  if (!editingId.value || !attendanceReady(editForm) || !shiftReady(dayModal.value.employeeId, editForm.shift_id)) return
 
   editForm.transform((data) => attendancePayload(data))
   editForm.put(route('hr.sihterica.update', editingId.value), {
@@ -817,10 +847,12 @@ const visibleLeaveOverlaps = computed(() => {
 
                 <div>
                   <label class="block text-xs font-medium text-gray-600 mb-1">Smjena</label>
-                  <select v-model="editForm.shift_id" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500">
-                    <option value="">— Bez smjene —</option>
-                    <option v-for="s in shifts" :key="s.id" :value="s.id">{{ s.name }} ({{ s.start_time?.slice(0,5) }} – {{ s.end_time?.slice(0,5) }})</option>
+                  <select v-model="editForm.shift_id" :disabled="editShiftMissing" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100">
+                    <option v-if="editDepartmentShifts.length !== 1" value="" disabled>— Odaberi smjenu —</option>
+                    <option v-for="s in editDepartmentShifts" :key="s.id" :value="s.id">{{ s.name }} ({{ s.start_time?.slice(0,5) }} – {{ s.end_time?.slice(0,5) }})</option>
                   </select>
+                  <div v-if="editForm.errors.shift_id" class="text-red-600 text-xs mt-1">{{ editForm.errors.shift_id }}</div>
+                  <p v-else-if="editShiftMissing" class="text-red-600 text-xs mt-1">Odjel nema dodijeljenu smjenu.</p>
                 </div>
 
                 <div class="flex items-center justify-end gap-2 pt-1">
@@ -828,7 +860,7 @@ const visibleLeaveOverlaps = computed(() => {
                   <button
                     type="button"
                     class="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                    :disabled="editForm.processing || !attendanceReady(editForm)"
+                    :disabled="editForm.processing || !attendanceReady(editForm) || !shiftReady(dayModal.employeeId, editForm.shift_id)"
                     @click="submitEdit"
                   >
                     {{ editForm.processing ? 'Spremam...' : 'Spremi izmjene' }}
@@ -908,7 +940,7 @@ const visibleLeaveOverlaps = computed(() => {
                 placeholder="Pretraži..."
                 class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500 mb-1"
               />
-              <select v-model="manualForm.employee_id" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" required>
+              <select v-model="manualForm.employee_id" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500" required @change="onManualEmployeeChange">
                 <option value="" disabled>— Odaberi uposlenika —</option>
                 <option v-for="e in filteredModalEmployees" :key="e.id" :value="e.id">{{ e.full_name }} (#{{ e.empID }})</option>
               </select>
@@ -917,10 +949,12 @@ const visibleLeaveOverlaps = computed(() => {
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Smjena</label>
-              <select v-model="manualForm.shift_id" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500">
-                <option value="">— Bez smjene —</option>
-                <option v-for="s in shifts" :key="s.id" :value="s.id">{{ s.name }} ({{ s.start_time?.slice(0,5) }} – {{ s.end_time?.slice(0,5) }})</option>
+              <select v-model="manualForm.shift_id" :disabled="manualShiftMissing" class="w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100">
+                <option v-if="manualDepartmentShifts.length !== 1" value="" disabled>— Odaberi smjenu —</option>
+                <option v-for="s in manualDepartmentShifts" :key="s.id" :value="s.id">{{ s.name }} ({{ s.start_time?.slice(0,5) }} – {{ s.end_time?.slice(0,5) }})</option>
               </select>
+              <div v-if="manualForm.errors.shift_id" class="text-red-600 text-xs mt-1">{{ manualForm.errors.shift_id }}</div>
+              <p v-else-if="manualShiftMissing" class="text-red-600 text-xs mt-1">Odjel nema dodijeljenu smjenu.</p>
             </div>
 
             <div>
@@ -949,7 +983,7 @@ const visibleLeaveOverlaps = computed(() => {
               <button type="button" @click="showManualModal = false" class="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition">
                 Otkaži
               </button>
-              <button type="submit" :disabled="manualForm.processing || !attendanceReady(manualForm)" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition disabled:opacity-50">
+              <button type="submit" :disabled="manualForm.processing || !attendanceReady(manualForm) || !shiftReady(manualForm.employee_id, manualForm.shift_id)" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition disabled:opacity-50">
                 {{ manualForm.processing ? 'Spremam...' : 'Spremi' }}
               </button>
             </div>

@@ -8,6 +8,7 @@ use App\Models\AnnualLeaveUsage;
 use App\Models\AttendanceDayStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Department;
+use App\Models\Employee;
 use App\Models\Shift;
 use App\Models\SickLeave;
 use App\Models\TravelOrder;
@@ -545,7 +546,7 @@ class SihtericaController extends Controller
             return strcmp((string) $a['date'], (string) $b['date']);
         });
 
-        $shifts = Shift::orderBy('name')->get(['id', 'name', 'start_time', 'end_time']);
+        $shifts = Shift::orderBy('name')->get(['id', 'name', 'start_time', 'end_time', 'department_id']);
 
         $departments = [];
         if ($canFilterByDepartment) {
@@ -611,11 +612,23 @@ class SihtericaController extends Controller
     {
         $validated = $request->validate([
             'employee_id' => 'required|exists:employees,id',
-            'shift_id'    => 'nullable|exists:shifts,id',
+            'shift_id'    => 'required|integer|exists:shifts,id',
             'date'        => 'required|date',
             'entry_time'  => 'required|date_format:H:i',
             'exit_time'   => 'nullable|date_format:H:i',
+        ], [
+            'shift_id.required' => 'Odaberite smjenu.',
         ]);
+
+        if (!$this->canAccessEmployee($request->user(), (int) $validated['employee_id'])) {
+            return back()->withErrors(['employee_id' => 'Nemate pristup odabranom radniku.']);
+        }
+
+        if (!$this->shiftBelongsToEmployeeDepartment((int) $validated['employee_id'], (int) $validated['shift_id'])) {
+            return back()->withErrors([
+                'shift_id' => 'Odabrana smjena nije dodijeljena odjelu ovog radnika.',
+            ]);
+        }
 
         $tz = config('app.timezone');
         $date = $validated['date'];
@@ -632,13 +645,9 @@ class SihtericaController extends Controller
             $status = 'left';
         }
 
-        if (!$this->canAccessEmployee($request->user(), (int) $validated['employee_id'])) {
-            return back()->withErrors(['employee_id' => 'Nemate pristup odabranom radniku.']);
-        }
-
         $record = AttendanceRecord::create([
             'employee_id' => $validated['employee_id'],
-            'shift_id'    => $validated['shift_id'] ?: null,
+            'shift_id'    => (int) $validated['shift_id'],
             'entry_time'  => $entryTime,
             'effective_start' => $entryTime,
             'exit_time'   => $exitTime,
@@ -665,8 +674,16 @@ class SihtericaController extends Controller
             'date' => 'required|date',
             'entry_time' => 'required|date_format:H:i',
             'exit_time' => 'nullable|date_format:H:i',
-            'shift_id' => 'nullable|exists:shifts,id',
+            'shift_id' => 'required|integer|exists:shifts,id',
+        ], [
+            'shift_id.required' => 'Odaberite smjenu.',
         ]);
+
+        if (!$this->shiftBelongsToEmployeeDepartment((int) $record->employee_id, (int) $validated['shift_id'])) {
+            return back()->withErrors([
+                'shift_id' => 'Odabrana smjena nije dodijeljena odjelu ovog radnika.',
+            ]);
+        }
 
         $tz = config('app.timezone');
         $date = $validated['date'];
@@ -693,9 +710,7 @@ class SihtericaController extends Controller
             'late_flag' => null,
         ];
 
-        if (array_key_exists('shift_id', $validated)) {
-            $payload['shift_id'] = $validated['shift_id'] ?: null;
-        }
+        $payload['shift_id'] = (int) $validated['shift_id'];
 
         // Mark as manually corrected when HR edits punched times.
         $payload['terminal_in'] = $this->markTerminalEdited($record->terminal_in);
@@ -839,6 +854,19 @@ class SihtericaController extends Controller
             'terminal_in' => $record->terminal_in,
             'terminal_out' => $record->terminal_out,
         ];
+    }
+
+    private function shiftBelongsToEmployeeDepartment(int $employeeId, int $shiftId): bool
+    {
+        $departmentId = Employee::query()->whereKey($employeeId)->value('dept');
+        if ($departmentId === null || $departmentId === '') {
+            return false;
+        }
+
+        return Shift::query()
+            ->whereKey($shiftId)
+            ->where('department_id', (int) $departmentId)
+            ->exists();
     }
 
     private function markTerminalEdited(?string $terminal): string
