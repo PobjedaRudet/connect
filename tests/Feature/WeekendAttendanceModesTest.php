@@ -38,6 +38,7 @@ class WeekendAttendanceModesTest extends TestCase
 
         $withinGrace = $this->punch($employee, $shift, '2026-10-24 08:00:00', '2026-10-24 16:20:00');
         $this->assertSame(500, (int) $withinGrace->duration_minutes);
+        $this->assertFalse($withinGrace->isBookedAsWeekendOvertime());
         $this->assertNoOvertimeOrStimulation($withinGrace);
 
         $afterShift = $this->punch($employee, $shift, '2026-10-24 08:00:00', '2026-10-24 17:00:00');
@@ -54,6 +55,7 @@ class WeekendAttendanceModesTest extends TestCase
         $record = $this->punch($employee, $shift, '2026-10-25 08:00:00', '2026-10-25 12:00:00');
 
         $this->assertSame(240, (int) $record->duration_minutes);
+        $this->assertFalse($record->isBookedAsWeekendOvertime());
         $this->assertOnlyStimulation($record, 240, '2026-10-25');
     }
 
@@ -66,7 +68,12 @@ class WeekendAttendanceModesTest extends TestCase
         $record = $this->punch($employee, $shift, '2026-10-24 08:00:00', '2026-10-24 12:00:00');
 
         $this->assertSame(240, (int) $record->duration_minutes);
+        $this->assertTrue($record->isBookedAsWeekendOvertime());
         $this->assertOnlyOvertime($record, 240, '2026-10-24');
+
+        $sunday = $this->punch($employee, $shift, '2026-10-25 08:00:00', '2026-10-25 11:00:00');
+        $this->assertTrue($sunday->isBookedAsWeekendOvertime());
+        $this->assertOnlyOvertime($sunday, 180, '2026-10-25');
 
         $withoutDepartment = $this->employee(null, false);
         $openWeekend = $this->punch($withoutDepartment, $shift, '2026-10-24 09:00:00', '2026-10-24 11:00:00');

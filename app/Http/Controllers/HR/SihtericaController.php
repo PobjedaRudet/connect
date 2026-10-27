@@ -178,6 +178,8 @@ class SihtericaController extends Controller
             'terminal_out',
         ]);
 
+        $this->attachWeekendContext($records);
+
         $attendance = [];
         foreach ($records as $record) {
             if (!$record->entry_time) {
@@ -781,6 +783,50 @@ class SihtericaController extends Controller
         return $dates;
     }
 
+    private function attachWeekendContext($records): void
+    {
+        $employeeIds = $records->pluck('employee_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->filter(fn ($id) => $id > 0)
+            ->values();
+
+        if ($employeeIds->isEmpty()) {
+            return;
+        }
+
+        $contextEmployees = Employee::query()
+            ->whereIn('id', $employeeIds->all())
+            ->get(['id', 'dept', 'stimulacija'])
+            ->keyBy('id');
+
+        $departmentIds = $contextEmployees->pluck('dept')
+            ->filter(fn ($dept) => is_numeric($dept))
+            ->map(fn ($dept) => (int) $dept)
+            ->unique()
+            ->values();
+
+        $columns = ['id'];
+        if (Schema::hasColumn('departments', 'vikend_redovan')) {
+            $columns[] = 'vikend_redovan';
+        }
+
+        $departments = $departmentIds->isEmpty()
+            ? collect()
+            : Department::query()->whereIn('id', $departmentIds->all())->get($columns)->keyBy('id');
+
+        foreach ($records as $record) {
+            $employee = $contextEmployees->get($record->employee_id);
+            if (!$employee) {
+                continue;
+            }
+
+            $departmentId = is_numeric($employee->dept) ? (int) $employee->dept : null;
+            $employee->setRelation('department', $departmentId ? $departments->get($departmentId) : null);
+            $record->setRelation('employee', $employee);
+        }
+    }
+
     private function buildDayCell(
         array $records,
         bool $manualStatus = false,
@@ -795,8 +841,13 @@ class SihtericaController extends Controller
         $totalMinutes = 0;
         $hasMinutes = false;
         $lateFlag = null;
+        $weekendOvertime = false;
 
         foreach ($records as $item) {
+            if (!empty($item['weekend_overtime'])) {
+                $weekendOvertime = true;
+                continue;
+            }
             if ($item['duration_minutes'] !== null) {
                 $totalMinutes += (int) $item['duration_minutes'];
                 $hasMinutes = true;
@@ -813,9 +864,10 @@ class SihtericaController extends Controller
             'entry_time' => $primary['entry_time'] ?? null,
             'exit_time' => $primary['exit_time'] ?? null,
             'duration_minutes' => $hasMinutes ? $totalMinutes : null,
+            'weekend_overtime' => $weekendOvertime,
             'duration_display' => $manualStatus
                 ? $manualCode
-                : (count($records) === 1 ? ($primary['duration_display'] ?? null) : null),
+                : (($weekendOvertime && !$hasMinutes) ? null : (count($records) === 1 ? ($primary['duration_display'] ?? null) : null)),
             'late_flag' => $lateFlag,
             'status' => $primary['status'] ?? null,
             'terminal_in' => $primary['terminal_in'] ?? null,
@@ -848,6 +900,7 @@ class SihtericaController extends Controller
             'exit_time' => $record->exit_time?->timezone($tz)->format('H:i'),
             'entry_date' => $record->entry_time?->timezone($tz)->toDateString(),
             'duration_minutes' => $record->duration_minutes,
+            'weekend_overtime' => $record->isBookedAsWeekendOvertime(),
             'duration_display' => $this->resolveDurationDisplay($record),
             'late_flag' => $record->late_flag,
             'status' => $record->status,

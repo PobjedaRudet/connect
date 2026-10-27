@@ -133,7 +133,12 @@ const cell = (employeeId, dateStr) => {
 const dayCount = (employeeId) => {
   const emp = props.attendance?.[employeeId]
   if (!emp) return 0
-  return Object.keys(emp).length
+  return Object.values(emp).filter((entry) => {
+    if (entry?.weekend_overtime && (entry.duration_minutes === null || entry.duration_minutes === undefined)) {
+      return false
+    }
+    return true
+  }).length
 }
 
 const cellClasses = (dayMeta, entry) => {
@@ -188,6 +193,10 @@ const cellTitle = (entry) => {
   if (!entry) return 'Kliknite za unos / korekciju vremena'
 
   const lines = ['Kliknite za uređivanje']
+
+  if (entry.weekend_overtime) {
+    lines.push('Subota ili nedjelja se vodi kao prekovremeni, ne kao radni dan.')
+  }
 
   if (entry.leave_overlap) {
     lines.push('Upozorenje: preklapaju se dani godišnjeg odmora i bolovanja')
@@ -520,16 +529,15 @@ const visibleLeaveOverlaps = computed(() => {
     <HrNav />
 
     <div class="max-w-[95rem] mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
-        <div>
-          <h1 class="text-2xl font-semibold text-gray-800">Šihterica (dolazak po mjesecu)</h1>
-          <p class="text-sm text-gray-500">
-            Kliknite na ćeliju da korigujete vrijeme prijave/odjave.
-            Ako ima više prijava istog dana, sve su dostupne u uređivanju.
-          </p>
-        </div>
+      <div class="mb-6 text-center">
+        <h1 class="text-2xl font-semibold text-gray-800">Šihterica (dolazak po mjesecu)</h1>
+        <p class="mt-2 text-sm text-gray-500 leading-relaxed max-w-3xl mx-auto">
+          Kliknite na ćeliju da korigujete vrijeme prijave/odjave.
+          Ako ima više prijava istog dana, sve su dostupne u uređivanju.
+        </p>
+      </div>
 
-        <div class="flex flex-col items-stretch sm:items-end gap-1">
+      <div class="flex flex-col items-stretch sm:items-end gap-1 mb-6">
           <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
             <div v-if="!canFilterByDepartment && osmiceDepartments.length > 1">
               <label class="block text-xs font-medium text-gray-600 mb-1">Odjel za Osmice</label>
@@ -610,7 +618,6 @@ const visibleLeaveOverlaps = computed(() => {
             <template v-else>Nema template-a za {{ osmiceDepartmentName || 'odabrani odjel' }}.</template>
           </p>
           <p v-if="page.props.errors?.template" class="text-xs text-red-600 sm:text-right">{{ page.props.errors.template }}</p>
-        </div>
       </div>
 
       <div

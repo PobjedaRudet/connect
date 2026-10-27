@@ -75,6 +75,33 @@ class AttendanceRecord extends Model
         });
     }
 
+    /**
+     * Subota ili nedjelja koja nije redovan rad odjela i radnik nema stimulaciju.
+     * Cijelo trajanje ide u prekovremene, ne u šihtericu kao radni dan.
+     */
+    public function isBookedAsWeekendOvertime(): bool
+    {
+        if ($this->terminal_out === self::AUTO_SHIFT_CLOSE_TERMINAL) {
+            return false;
+        }
+
+        $start = $this->effective_start ?: $this->entry_time;
+        if (!$start || !self::isWeekendStart($start) || self::departmentHasRegularWeekend($this)) {
+            return false;
+        }
+
+        if (self::employeeHasStimulacija($this)) {
+            return false;
+        }
+
+        return (int) $this->duration_minutes > 0;
+    }
+
+    public function refreshOvertimeBooking(): void
+    {
+        self::syncOvertime($this);
+    }
+
     private static function isIShift(self $record): bool
     {
         if (!$record->shift_id) {
