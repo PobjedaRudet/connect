@@ -6,6 +6,7 @@ use App\Models\AttendanceRecord;
 use App\Models\Employee;
 use App\Models\GateLog;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Gradi dnevni izvještaj poređenja: vrijeme ulaska/izlaska zabilježeno na kapiji
@@ -61,25 +62,32 @@ class GateComparisonService
             ];
         }
 
-        $gateLogsQuery = GateLog::whereBetween('scanned_at', [$day, $windowEnd])
-            ->orderBy('scanned_at');
+        // Izlaz poslije ponoći pripada ulasku koji ga je otvorio, ne kalendarskom danu izlaza.
+        // Djelimičan pregled (until prije kraja dana) ne gleda dalje od tog trenutka.
+        $lookAheadEnd = $windowEnd->lt($dayEnd)
+            ? $windowEnd->copy()
+            : $day->copy()->addDay()->endOfDay();
+
+        $gateLogsQuery = GateLog::whereBetween('scanned_at', [$day, $lookAheadEnd])
+            ->orderBy('scanned_at')
+            ->orderBy('id');
         if ($allowedIds !== null) {
             $gateLogsQuery->whereIn('employee_id', $allowedIds->all());
         }
         $gateLogsByEmployee = $gateLogsQuery->get()->groupBy('employee_id');
 
-        $attendanceQuery = AttendanceRecord::where(function ($q) use ($day, $windowEnd) {
-                $q->whereBetween('entry_time', [$day, $windowEnd])
-                    ->orWhereBetween('exit_time', [$day, $windowEnd]);
-            })
-            ->orderBy('entry_time');
+        $attendanceQuery = AttendanceRecord::whereBetween('entry_time', [$day, $windowEnd])
+            ->orderBy('entry_time')
+            ->orderBy('id');
         if ($allowedIds !== null) {
             $attendanceQuery->whereIn('employee_id', $allowedIds->all());
         }
         $attendanceByEmployee = $attendanceQuery->get()->groupBy('employee_id');
 
-        $employeeIds = $gateLogsByEmployee->keys()
-            ->merge($attendanceByEmployee->keys())
+        $employeeIds = $attendanceByEmployee->keys()
+            ->merge($gateLogsByEmployee->filter(function (Collection $logs) use ($day, $windowEnd) {
+                return $logs->contains(fn (GateLog $log) => $this->isOnReportDay($log->scanned_at, $day, $windowEnd) && $log->direction === 'in');
+            })->keys())
             ->unique()
             ->values();
 
@@ -96,16 +104,15 @@ class GateComparisonService
             ->get(['id', 'empID', 'firstName', 'lastName'])
             ->keyBy('id');
 
-        $rows = $employeeIds->map(function ($employeeId) use ($gateLogsByEmployee, $attendanceByEmployee, $employees, $toleranceMinutes) {
+        $rows = $employeeIds->map(function ($employeeId) use ($gateLogsByEmployee, $attendanceByEmployee, $employees, $toleranceMinutes, $day, $windowEnd, $lookAheadEnd) {
             $employee = $employees->get($employeeId);
             $gateLogs = $gateLogsByEmployee->get($employeeId, collect());
             $records = $attendanceByEmployee->get($employeeId, collect());
 
-            $gateIn = $gateLogs->firstWhere('direction', 'in');
-            $gateOut = $gateLogs->where('direction', 'out')->last();
+            [$gateIn, $gateOut] = $this->pairGateSession($gateLogs, $day, $windowEnd, $lookAheadEnd);
 
             $buildingIn = $records->sortBy('entry_time')->first();
-            $buildingOut = $records->filter(fn ($r) => $r->exit_time !== null)->sortByDesc('exit_time')->first();
+            $buildingOut = $this->exitOnSameRecord($buildingIn, $lookAheadEnd);
 
             $entryDiff = ($gateIn && $buildingIn && $buildingIn->entry_time)
                 ? (int) $gateIn->scanned_at->diffInMinutes($buildingIn->entry_time, false)
@@ -138,10 +145,10 @@ class GateComparisonService
                 'employee_id' => (int) $employeeId,
                 'empID' => $employee?->empID,
                 'full_name' => trim((string) ($employee?->firstName ?? '') . ' ' . (string) ($employee?->lastName ?? '')),
-                'gate_in' => $gateIn?->scanned_at?->format('H:i'),
-                'gate_out' => $gateOut?->scanned_at?->format('H:i'),
-                'building_in' => $buildingIn?->entry_time?->format('H:i'),
-                'building_out' => $buildingOut?->exit_time?->format('H:i'),
+                'gate_in' => $this->formatMoment($gateIn?->scanned_at, $day),
+                'gate_out' => $this->formatMoment($gateOut?->scanned_at, $day),
+                'building_in' => $this->formatMoment($buildingIn?->entry_time, $day),
+                'building_out' => $this->formatMoment($buildingOut?->exit_time, $day),
                 'gate_in_at' => $gateIn?->scanned_at?->format('Y-m-d H:i:s'),
                 'gate_out_at' => $gateOut?->scanned_at?->format('Y-m-d H:i:s'),
                 'building_in_at' => $buildingIn?->entry_time?->format('Y-m-d H:i:s'),
@@ -169,5 +176,74 @@ class GateComparisonService
                 'ok' => $rows->where('flagged', false)->count(),
             ],
         ];
+    }
+
+    /**
+     * Ulaz je prvi ulazak izvještajnog dana. Izlaz je prvi izlazak poslije tog ulaska,
+     * a prije sljedećeg ulaska. Izlazak od prethodne smjene, koji samo padne u isti kalendarski dan, se ne uzima.
+     *
+     * @param  Collection<int, GateLog>  $logs
+     * @return array{0: ?GateLog, 1: ?GateLog}
+     */
+    private function pairGateSession(Collection $logs, Carbon $day, Carbon $windowEnd, Carbon $lookAheadEnd): array
+    {
+        $gateIn = $logs->first(function (GateLog $log) use ($day, $windowEnd) {
+            return $log->direction === 'in' && $this->isOnReportDay($log->scanned_at, $day, $windowEnd);
+        });
+
+        if (!$gateIn?->scanned_at) {
+            return [null, null];
+        }
+
+        $nextInAt = $logs->first(function (GateLog $log) use ($gateIn) {
+            return $log->direction === 'in'
+                && $log->scanned_at
+                && $log->scanned_at->gt($gateIn->scanned_at);
+        })?->scanned_at;
+
+        $gateOut = $logs->first(function (GateLog $log) use ($gateIn, $nextInAt, $lookAheadEnd) {
+            if ($log->direction !== 'out' || !$log->scanned_at) {
+                return false;
+            }
+            if ($log->scanned_at->lte($gateIn->scanned_at) || $log->scanned_at->gt($lookAheadEnd)) {
+                return false;
+            }
+
+            return !$nextInAt || $log->scanned_at->lt($nextInAt);
+        });
+
+        return [$gateIn, $gateOut];
+    }
+
+    private function exitOnSameRecord(?AttendanceRecord $record, Carbon $lookAheadEnd): ?AttendanceRecord
+    {
+        if (!$record?->entry_time || !$record->exit_time) {
+            return null;
+        }
+        if ($record->exit_time->lt($record->entry_time) || $record->exit_time->gt($lookAheadEnd)) {
+            return null;
+        }
+
+        return $record;
+    }
+
+    private function isOnReportDay(?Carbon $moment, Carbon $day, Carbon $windowEnd): bool
+    {
+        return $moment !== null && $moment->gte($day) && $moment->lte($windowEnd);
+    }
+
+    private function formatMoment(?Carbon $moment, Carbon $day): ?string
+    {
+        if (!$moment) {
+            return null;
+        }
+
+        $local = $moment->copy()->timezone(config('app.timezone'));
+        $time = $local->format('H:i');
+        if ($local->toDateString() === $day->toDateString()) {
+            return $time;
+        }
+
+        return $time . ' (' . $local->format('d.m.') . ')';
     }
 }
