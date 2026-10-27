@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Mail\AutoShiftCloseMail;
 use App\Models\AttendanceRecord;
+use App\Models\AutoShiftCloseNotification;
 use App\Models\Employee;
 use App\Models\GateLog;
 use App\Models\Pass;
@@ -18,7 +19,7 @@ use InvalidArgumentException;
 class AutoShiftCloseService
 {
     /**
-     * @return array{closed_terminal: int, closed_gate: int, closed_passes: int, mails: int}
+     * @return array{closed_terminal: int, closed_gate: int, closed_passes: int, mails_queued: int}
      */
     public function close(string $shiftCode, ?Carbon $now = null): array
     {
@@ -78,21 +79,21 @@ class AutoShiftCloseService
             $actions[] = $action;
         }
 
-        $mails = $this->dispatchMails($actions, $shiftCode, $cutoff);
+        $queued = $this->queueMails($actions, $shiftCode, $cutoff);
 
         Log::info('app:auto-shift-close finished', [
             'shift' => $shiftCode,
             'closed_terminal' => $closedTerminal,
             'closed_gate' => $closedGate,
             'closed_passes' => $closedPasses,
-            'mails' => $mails,
+            'mails_queued' => $queued,
         ]);
 
         return [
             'closed_terminal' => $closedTerminal,
             'closed_gate' => $closedGate,
             'closed_passes' => $closedPasses,
-            'mails' => $mails,
+            'mails_queued' => $queued,
         ];
     }
 
@@ -218,32 +219,90 @@ class AutoShiftCloseService
     /**
      * @param  list<array{employee: Employee, terminal: int, gate: int, passes: int, missing: string}>  $actions
      */
-    private function dispatchMails(array $actions, string $shiftCode, Carbon $cutoff): int
+    private function queueMails(array $actions, string $shiftCode, Carbon $cutoff): int
     {
+        foreach ($actions as $action) {
+            AutoShiftCloseNotification::query()->create([
+                'employee_id' => $action['employee']->id,
+                'shift_code' => $shiftCode,
+                'cutoff_at' => $cutoff,
+                'missing' => $action['missing'],
+            ]);
+        }
+
+        return count($actions);
+    }
+
+    public function sendPendingMails(): int
+    {
+        $pending = AutoShiftCloseNotification::query()
+            ->with('employee')
+            ->where('mail_sent', false)
+            ->whereNull('mail_skipped_reason')
+            ->orderBy('id')
+            ->get();
+
+        $sent = 0;
+        $groups = $pending->groupBy(function (AutoShiftCloseNotification $notification) {
+            $cutoff = $notification->cutoff_at?->timezone(config('app.timezone'))->format('Y-m-d H:i:s');
+
+            return $notification->shift_code . '|' . $cutoff;
+        });
+
+        foreach ($groups as $group) {
+            $sent += $this->dispatchGroup($group);
+        }
+
+        return $sent;
+    }
+
+    /**
+     * @param  Collection<int, AutoShiftCloseNotification>  $notifications
+     */
+    private function dispatchGroup(Collection $notifications): int
+    {
+        $shiftCode = (string) $notifications->first()->shift_code;
+        $cutoff = $notifications->first()->cutoff_at->copy();
         $byUser = [];
 
-        foreach ($actions as $action) {
-            $employee = $action['employee'];
-            $recipients = $this->recipientsFor($employee);
+        foreach ($notifications as $notification) {
+            $employee = $notification->employee;
+            if (!$employee) {
+                $notification->update(['mail_skipped_reason' => 'Radnik nije pronađen.']);
+                continue;
+            }
 
-            if ($recipients->isEmpty()) {
+            $alreadyNotified = collect($notification->notified_user_ids ?? [])
+                ->map(fn ($id) => (int) $id);
+            $recipients = $this->recipientsFor($employee)
+                ->reject(fn (User $user) => $alreadyNotified->contains($user->id))
+                ->values();
+
+            if ($recipients->isEmpty() && $alreadyNotified->isEmpty()) {
+                $notification->update(['mail_skipped_reason' => $this->skipReason($employee)]);
                 Log::info('Automatska odjava upisana bez maila: nema nadležnog sa email adresom.', [
                     'employee_id' => $employee->id,
                     'shift' => $shiftCode,
-                    'reason' => $this->skipReason($employee),
+                    'reason' => $notification->mail_skipped_reason,
                 ]);
+                continue;
+            }
+
+            if ($recipients->isEmpty()) {
+                $notification->update(['mail_sent' => true]);
                 continue;
             }
 
             $name = trim((string) $employee->firstName . ' ' . (string) $employee->lastName);
             $row = [
                 'name' => $name !== '' ? $name : ('#' . $employee->id),
-                'missing' => $action['missing'],
+                'missing' => $notification->missing,
             ];
 
             foreach ($recipients as $user) {
                 $byUser[$user->id]['user'] = $user;
                 $byUser[$user->id]['rows'][] = $row;
+                $byUser[$user->id]['notification_ids'][] = $notification->id;
             }
         }
 
@@ -258,6 +317,7 @@ class AutoShiftCloseService
                     $bundle['rows'],
                 ));
                 $sent++;
+                $this->markNotified($notifications, $bundle['notification_ids'], (int) $bundle['user']->id);
             } catch (\Throwable $e) {
                 Log::error('Automatska odjava: mail nije poslan.', [
                     'user_id' => $bundle['user']->id,
@@ -267,7 +327,44 @@ class AutoShiftCloseService
             }
         }
 
+        foreach ($notifications as $notification) {
+            $notification->refresh();
+            if ($notification->mail_sent || $notification->mail_skipped_reason || !$notification->employee) {
+                continue;
+            }
+
+            $recipientIds = $this->recipientsFor($notification->employee)->pluck('id')->map(fn ($id) => (int) $id);
+            $notifiedIds = collect($notification->notified_user_ids ?? [])->map(fn ($id) => (int) $id);
+            if ($recipientIds->isNotEmpty() && $recipientIds->diff($notifiedIds)->isEmpty()) {
+                $notification->update(['mail_sent' => true]);
+            }
+        }
+
         return $sent;
+    }
+
+    /**
+     * @param  Collection<int, AutoShiftCloseNotification>  $notifications
+     * @param  list<int>  $notificationIds
+     */
+    private function markNotified(Collection $notifications, array $notificationIds, int $userId): void
+    {
+        foreach ($notificationIds as $id) {
+            $notification = $notifications->firstWhere('id', $id);
+            if (!$notification) {
+                continue;
+            }
+
+            $ids = collect($notification->notified_user_ids ?? [])
+                ->map(fn ($value) => (int) $value)
+                ->push($userId)
+                ->unique()
+                ->values()
+                ->all();
+
+            $notification->notified_user_ids = $ids;
+            $notification->save();
+        }
     }
 
     /**

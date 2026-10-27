@@ -35,6 +35,34 @@ class AttendanceMismatchService
         return $created->values();
     }
 
+    public function sendPendingMails(): int
+    {
+        $pending = AttendanceMismatchNotification::query()
+            ->where('mail_sent', false)
+            ->whereNull('mail_skipped_reason')
+            ->orderBy('work_date')
+            ->orderBy('id')
+            ->get();
+
+        if ($pending->isEmpty()) {
+            return 0;
+        }
+
+        $labels = $pending
+            ->map(fn (AttendanceMismatchNotification $notification) => $notification->work_date?->format('d.m.Y'))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $periodLabel = match ($labels->count()) {
+            0 => Carbon::now(config('app.timezone'))->format('d.m.Y'),
+            1 => (string) $labels->first(),
+            default => $labels->first() . ' – ' . $labels->last(),
+        };
+
+        return $this->dispatchMails($pending, $periodLabel);
+    }
+
     /**
      * @param  Collection<int, AttendanceMismatchNotification>  $notifications
      */

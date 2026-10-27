@@ -10,7 +10,7 @@ class NotifyAttendanceMismatches extends Command
 {
     protected $signature = 'app:notify-attendance-mismatches {--date=}';
 
-    protected $description = 'Evidentira neslaganja dolaska i odlaska i šalje mail nadležnima.';
+    protected $description = 'Evidentira neslaganja dolaska i odlaska. Mail ide u 06:30.';
 
     public function handle(AttendanceMismatchService $service): int
     {
@@ -34,7 +34,6 @@ class NotifyAttendanceMismatches extends Command
                 'until' => $day->copy()->endOfDay(),
                 'flag_missing_exit' => true,
             ]];
-            $periodLabel = $day->format('d.m.Y');
         } else {
             $today = Carbon::now($tz)->startOfDay();
             $untilMorning = $today->copy()->setTime(8, 0);
@@ -51,13 +50,11 @@ class NotifyAttendanceMismatches extends Command
                     'flag_missing_exit' => false,
                 ],
             ];
-            $periodLabel = $yesterday->format('d.m.Y') . ' i ' . $today->format('d.m.Y') . ' do 08:00';
         }
 
         $created = $service->recordWindows($windows);
-        $mails = $service->dispatchMails($created, $periodLabel);
 
-        $this->info('Nova neslaganja: ' . $created->count() . '. Mailova za nadležne: ' . $mails . '.');
+        $this->info('Nova neslaganja: ' . $created->count() . '. Mail ide u 06:30.');
 
         return self::SUCCESS;
     }

@@ -31,7 +31,12 @@ Schedule::command('app:close-stale-passes')
 Schedule::command('app:notify-attendance-mismatches')
     ->dailyAt('08:00')
     ->timezone(config('app.timezone'))
-    ->description('Evidentira neslaganja dolaska i odlaska i šalje mail nadležnima.');
+    ->description('Evidentira neslaganja dolaska i odlaska. Mail ide u 06:30.');
+
+Schedule::command('app:send-pending-attendance-mails')
+    ->dailyAt('06:30')
+    ->timezone(config('app.timezone'))
+    ->description('Šalje odložene mailove automatske odjave i neslaganja dolaska.');
 
 Schedule::command('app:auto-shift-close I')
     ->dailyAt('23:00')

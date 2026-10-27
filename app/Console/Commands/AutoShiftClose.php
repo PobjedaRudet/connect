@@ -32,7 +32,7 @@ class AutoShiftClose extends Command
         $this->info('Zatvoreno prijava na terminalu: ' . $result['closed_terminal']);
         $this->info('Zatvoreno izlazaka na kapiji: ' . $result['closed_gate']);
         $this->info('Zatvoreno izlaznica: ' . $result['closed_passes']);
-        $this->info('Poslano mailova: ' . $result['mails']);
+        $this->info('Mailova spremljeno za 06:30: ' . $result['mails_queued']);
 
         return self::SUCCESS;
     }
