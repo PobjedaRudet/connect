@@ -109,7 +109,13 @@ Route::prefix('v1')->group(function () {
 // Employee attendance API endpoints for terminal (scan in/out)
 Route::middleware('throttle:api')->group(function () {
     Route::post('/scan', [EmployeeAttendanceController::class, 'scan']);
+});
+
+// Sinhronizacija offline zapisa moze poslati vise desetina zahtjeva zaredom
+// sa iste javne IP adrese. Poseban limiter da 429 ne obrise sken.
+Route::middleware('throttle:terminal-sync')->group(function () {
     Route::post('/offline-scan', [EmployeeAttendanceController::class, 'offlineScan']);
+    Route::post('/gate-offline-scan', [GateScanController::class, 'offlineScan']);
 });
 
 // Gate (kapija / okretna vrata) terminal endpoint - odvojeno od terminala kod objekta.

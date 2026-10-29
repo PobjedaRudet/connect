@@ -19,11 +19,13 @@ class GateLog extends Model
         'direction', // in | out
         'scanned_at',
         'terminal_id',
+        'offline',
         'rfid_code',
     ];
 
     protected $casts = [
         'scanned_at' => 'datetime',
+        'offline' => 'boolean',
     ];
 
     public function employee(): BelongsTo

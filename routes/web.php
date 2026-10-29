@@ -479,6 +479,63 @@ Route::get('/ops/kreiraj-attendance-stimulations', function (Request $request) {
         ->header('Content-Type', 'text/plain; charset=UTF-8');
 });
 
+// Jednokratno: kolona gate_logs.offline.
+// Ne briše podatke i ne mijenja ostale kolone.
+Route::get('/ops/dodaj-gate-logs-offline', function (Request $request) {
+    $token = (string) $request->query('token', '');
+    if (! hash_equals('gate-offline-6f2c9a4e8b1d7c3a', $token)) {
+        abort(404);
+    }
+
+    $migration = '2026_10_29_000001_add_offline_to_gate_logs_table';
+    $path = database_path('migrations/'.$migration.'.php');
+
+    if (! is_file($path)) {
+        return response('Migracijski fajl nije na serveru: '.$migration.'.php', 500)
+            ->header('Content-Type', 'text/plain; charset=UTF-8');
+    }
+
+    $lines = [];
+
+    try {
+        if (! Schema::hasColumn('gate_logs', 'offline')) {
+            $exit = Artisan::call('migrate', [
+                '--path' => $path,
+                '--realpath' => true,
+                '--force' => true,
+            ]);
+            $output = trim(Artisan::output());
+            if ($output !== '') {
+                $lines[] = $output;
+            }
+            if ($exit !== 0 || ! Schema::hasColumn('gate_logs', 'offline')) {
+                return response(implode("\n", $lines)."\nKolona gate_logs.offline nije dodana. Ništa drugo nije dirano.", 500)
+                    ->header('Content-Type', 'text/plain; charset=UTF-8');
+            }
+            $lines[] = 'Dodana je kolona gate_logs.offline (podrazumijevano 0). Ostale kolone nisu mijenjane.';
+        } else {
+            $lines[] = 'Kolona gate_logs.offline već postoji.';
+        }
+
+        $recorded = DB::table('migrations')->where('migration', $migration)->exists();
+        if (! $recorded) {
+            $batch = ((int) DB::table('migrations')->max('batch')) + 1;
+            DB::table('migrations')->insert([
+                'migration' => $migration,
+                'batch' => $batch,
+            ]);
+        }
+
+        $lines[] = 'Postojeći podaci nisu brisani.';
+    } catch (\Throwable $e) {
+        return response("Greška: {$e->getMessage()}\nNišta drugo nije dirano.", 500)
+            ->header('Content-Type', 'text/plain; charset=UTF-8');
+    }
+
+    return response(implode("\n", $lines), 200)
+        ->header('Content-Type', 'text/plain; charset=UTF-8');
+});
+
 
 
 

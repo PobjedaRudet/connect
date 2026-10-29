@@ -28,4 +28,24 @@ class GateScanController extends Controller
 
         return response()->json($result, $status);
     }
+
+    public function offlineScan(Request $request, GateService $service)
+    {
+        $data = $request->validate([
+            'rfid_code' => 'required|string',
+            'terminal_id' => 'nullable|string',
+            'timestamp' => 'required|string',
+        ]);
+
+        $result = $service->processOfflineScan(
+            $data['rfid_code'],
+            $data['terminal_id'] ?? null,
+            $data['timestamp'],
+        );
+
+        $status = $result['http_status'] ?? 201;
+        unset($result['http_status']);
+
+        return response()->json($result, $status);
+    }
 }
