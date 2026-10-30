@@ -892,6 +892,7 @@ class SihtericaController extends Controller
     private function serializeRecord(AttendanceRecord $record): array
     {
         $tz = config('app.timezone');
+        $record->applyCalculatedDuration();
 
         return [
             'record_id' => (int) $record->id,

@@ -45,29 +45,7 @@ class AttendanceRecord extends Model
                 return;
             }
 
-            if ($record->terminal_out === self::AUTO_SHIFT_CLOSE_TERMINAL) {
-                self::applyAutoShiftCloseDuration($record);
-                return;
-            }
-
-            $start = $record->effective_start ?: $record->entry_time;
-            $end = $record->exit_time;
-
-            if (!$start || !$end) {
-                $record->duration_minutes = null;
-                return;
-            }
-
-            $minutes = $start->diffInMinutes($end, false);
-
-            $workedMinutes = max($minutes, 0);
-
-            if (self::isIShift($record) && $workedMinutes > self::I_SHIFT_BASE_MINUTES) {
-                $record->duration_minutes = self::I_SHIFT_BASE_MINUTES;
-                return;
-            }
-
-            $record->duration_minutes = $workedMinutes;
+            self::assignDuration($record);
         });
 
         static::saved(function (self $record): void {
@@ -102,6 +80,32 @@ class AttendanceRecord extends Model
         self::syncOvertime($this);
     }
 
+    /**
+     * Uskladi trajanje u memoriji. Ne snima zapis.
+     * Kašnjenje unutar smjene ne smanjuje šihtericu: sati idu od početka smjene.
+     */
+    public function applyCalculatedDuration(): void
+    {
+        self::assignDuration($this);
+    }
+
+    public function recalculateStoredDuration(): void
+    {
+        $before = $this->duration_minutes;
+        self::assignDuration($this);
+        $after = $this->duration_minutes;
+
+        if ($before === null && $after === null) {
+            return;
+        }
+
+        if ($before !== null && $after !== null && (int) $before === (int) $after) {
+            return;
+        }
+
+        $this->save();
+    }
+
     private static function isIShift(self $record): bool
     {
         if (!$record->shift_id) {
@@ -120,6 +124,35 @@ class AttendanceRecord extends Model
         return strtoupper(trim($code)) === 'I';
     }
 
+    private static function assignDuration(self $record): void
+    {
+        if ($record->terminal_out === self::AUTO_SHIFT_CLOSE_TERMINAL) {
+            self::applyAutoShiftCloseDuration($record);
+            return;
+        }
+
+        $start = $record->effective_start ?: $record->entry_time;
+        $end = $record->exit_time;
+
+        if (!$start || !$end) {
+            $record->duration_minutes = null;
+            return;
+        }
+
+        $tz = config('app.timezone');
+        $actual = Carbon::parse($start)->timezone($tz);
+        $exit = Carbon::parse($end)->timezone($tz);
+        $counted = self::countedStart($record, $actual);
+        $workedMinutes = (int) round(max($counted->diffInMinutes($exit, false), 0));
+
+        if (self::isIShift($record) && $workedMinutes > self::I_SHIFT_BASE_MINUTES) {
+            $record->duration_minutes = self::I_SHIFT_BASE_MINUTES;
+            return;
+        }
+
+        $record->duration_minutes = $workedMinutes;
+    }
+
     private static function applyAutoShiftCloseDuration(self $record): void
     {
         $start = $record->effective_start ?: $record->entry_time;
@@ -132,8 +165,10 @@ class AttendanceRecord extends Model
             return;
         }
 
-        $shiftEnd = self::resolveShiftEndMoment($record, Carbon::parse($start));
-        if (!$shiftEnd) {
+        $tz = config('app.timezone');
+        $actual = Carbon::parse($start)->timezone($tz);
+        $bounds = self::scheduledShiftBounds($record, $actual);
+        if (!$bounds) {
             $record->duration_minutes = null;
             Log::warning('Automatska odjava: kraj smjene nije određen, trajanje ostaje prazno.', [
                 'attendance_record_id' => $record->id,
@@ -143,13 +178,87 @@ class AttendanceRecord extends Model
             return;
         }
 
-        $workedMinutes = max($start->diffInMinutes($shiftEnd, false), 0);
+        [$shiftStart, $shiftEnd] = $bounds;
+        $counted = self::countedStartFromBounds($record, $actual, $shiftStart, $shiftEnd);
+        $workedMinutes = (int) round(max($counted->diffInMinutes($shiftEnd, false), 0));
         if (self::isIShift($record) && $workedMinutes > self::I_SHIFT_BASE_MINUTES) {
             $record->duration_minutes = self::I_SHIFT_BASE_MINUTES;
             return;
         }
 
-        $record->duration_minutes = (int) $workedMinutes;
+        $record->duration_minutes = $workedMinutes;
+    }
+
+    /**
+     * Ulaz poslije početka, a prije kraja smjene, računa se kao da je rad počeo na vrijeme.
+     * Vremenski razmak ostaje na automatskoj izlaznici i ne ide u šihtericu.
+     * Vikend koji nije redovan rad odjela ostaje stvarno prisustvo.
+     */
+    private static function countedStart(self $record, Carbon $actual): Carbon
+    {
+        $bounds = self::scheduledShiftBounds($record, $actual);
+        if (!$bounds) {
+            return $actual;
+        }
+
+        return self::countedStartFromBounds($record, $actual, $bounds[0], $bounds[1]);
+    }
+
+    private static function countedStartFromBounds(self $record, Carbon $actual, Carbon $shiftStart, Carbon $shiftEnd): Carbon
+    {
+        if (!$actual->greaterThan($shiftStart) || !$actual->lessThan($shiftEnd)) {
+            return $actual;
+        }
+
+        if (self::isWeekendStart($actual) && !self::departmentHasRegularWeekend($record)) {
+            return $actual;
+        }
+
+        return $shiftStart;
+    }
+
+    /**
+     * @return array{0: Carbon, 1: Carbon}|null
+     */
+    private static function scheduledShiftBounds(self $record, Carbon $actual): ?array
+    {
+        if (!$record->shift_id) {
+            return null;
+        }
+
+        $shift = $record->relationLoaded('shift') ? $record->shift : $record->shift()->first();
+        if (!$shift || !$shift->start_time || !$shift->end_time) {
+            return null;
+        }
+
+        $tz = config('app.timezone');
+        $actual = $actual->copy()->timezone($tz);
+        $workDate = $actual->toDateString();
+
+        $startTimeStr = $shift->start_time instanceof Carbon
+            ? $shift->start_time->format('H:i:s')
+            : (string) $shift->start_time;
+
+        $endTimeStr = $shift->end_time instanceof Carbon
+            ? $shift->end_time->format('H:i:s')
+            : (string) $shift->end_time;
+
+        try {
+            $shiftStart = Carbon::parse($workDate . ' ' . $startTimeStr, $tz);
+            $shiftEnd = Carbon::parse($workDate . ' ' . $endTimeStr, $tz);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if ($shiftEnd->lessThanOrEqualTo($shiftStart)) {
+            if ($actual->lt($shiftEnd)) {
+                $shiftStart->subDay();
+            } else {
+                $shiftEnd->addDay();
+            }
+        }
+
+        return [$shiftStart, $shiftEnd];
     }
 
     private static function syncOvertime(self $record): void

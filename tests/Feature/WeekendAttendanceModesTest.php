@@ -95,6 +95,66 @@ class WeekendAttendanceModesTest extends TestCase
         $this->assertOnlyOvertime($afterShift, 60, '2026-10-26');
     }
 
+    public function test_late_arrival_on_a_workday_counts_from_shift_start(): void
+    {
+        $department = $this->department(false);
+        $employee = $this->employee($department, false);
+        $shift = $this->shift($department, '07:00:00', '15:00:00');
+
+        $late = $this->punch($employee, $shift, '2026-10-26 08:00:00', '2026-10-26 15:00:00');
+
+        $this->assertSame(480, (int) $late->duration_minutes);
+        $this->assertNoOvertimeOrStimulation($late);
+
+        $shift->attendance_credit_code = 'I';
+        $shift->save();
+
+        $capped = $this->punch($employee, $shift, '2026-10-26 08:00:00', '2026-10-26 16:01:00');
+        $this->assertSame(480, (int) $capped->duration_minutes);
+        $this->assertOnlyOvertime($capped, 61, '2026-10-26');
+
+        $afterEnd = $this->punch($employee, $shift, '2026-10-26 16:30:00', '2026-10-26 18:00:00');
+        $this->assertSame(90, (int) $afterEnd->duration_minutes);
+    }
+
+    public function test_late_weekend_that_is_not_regular_work_keeps_actual_presence(): void
+    {
+        $department = $this->department(false);
+        $employee = $this->employee($department, false);
+        $shift = $this->shift($department, '07:00:00', '15:00:00');
+
+        $record = $this->punch($employee, $shift, '2026-10-24 08:00:00', '2026-10-24 15:00:00');
+
+        $this->assertSame(420, (int) $record->duration_minutes);
+        $this->assertOnlyOvertime($record, 420, '2026-10-24');
+    }
+
+    public function test_late_arrival_on_regular_weekend_counts_from_shift_start(): void
+    {
+        $department = $this->department(true);
+        $employee = $this->employee($department, false);
+        $shift = $this->shift($department, '07:00:00', '15:00:00');
+
+        $record = $this->punch($employee, $shift, '2026-10-24 08:00:00', '2026-10-24 15:00:00');
+
+        $this->assertSame(480, (int) $record->duration_minutes);
+        $this->assertNoOvertimeOrStimulation($record);
+    }
+
+    public function test_auto_close_late_arrival_still_credits_the_full_shift(): void
+    {
+        $department = $this->department(false);
+        $employee = $this->employee($department, false);
+        $shift = $this->shift($department, '07:00:00', '15:00:00');
+
+        $record = $this->punch($employee, $shift, '2026-10-26 08:00:00', '2026-10-26 23:00:00', [
+            'terminal_out' => AttendanceRecord::AUTO_SHIFT_CLOSE_TERMINAL,
+        ]);
+
+        $this->assertSame(480, (int) $record->duration_minutes);
+        $this->assertNoOvertimeOrStimulation($record);
+    }
+
     public function test_saturday_night_shift_ending_sunday_is_classified_as_saturday(): void
     {
         $department = $this->department(false);
